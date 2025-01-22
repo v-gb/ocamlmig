@@ -1,0 +1,27 @@
+(version v0.17.0)
+
+(build
+ (run dune build -p %{pkg-self:name} -j %{jobs}))
+
+(depends
+ ocaml
+ core
+ core_kernel
+ expect_test_helpers_core
+ jane-street-headers
+ jst-config
+ ppx_jane
+ ppx_optcomp
+ sexplib
+ timezone
+ uopt
+ base-threads
+ dune
+ spawn)
+
+(source
+ (fetch
+  (url
+   https://github.com/janestreet/core_unix/archive/refs/tags/v0.17.0.tar.gz)
+  (checksum
+   sha256=175025e240ed90647d817b1af5e4174bf146505903ed671e645f8a5d5f497182)))

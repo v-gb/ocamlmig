@@ -1,0 +1,5 @@
+_build
+_opam
+examples/stdlib_to_base_check/stdlib_to_base_check.ml
+examples/base_to_stdlib/base_to_stdlib.ml
+*.html

@@ -1,0 +1,45 @@
+(** The core of ocamlmig: given a .ml, and type/scoping information,
+    apply [@migrate] attributes to the AST, and returns the resulting .ml. *)
+
+open Base
+open Common
+
+type res = { libraries : string list }
+
+val run :
+     artifacts:string * Build.Artifacts.t
+  -> type_index:Build.Type_index.t
+  -> side_migrations_cmts:(Cwdpath.t * Cmt_format.cmt_infos) option
+  -> fmconf:Ocamlformat_lib.Conf_t.t
+  -> source_path:Cwdpath.t
+  -> input_name_matching_compilation_command:string option
+  -> ((string * string) * res) option
+
+(**/**)
+
+module Ast_mapper := Ocamlformat_parser_extended.Ast_mapper
+module P := Fmast.Parsetree
+
+type 'repl gen_migrate_payload =
+  { repl : 'repl
+  ; libraries : string list
+  }
+
+type migrate_payload = P.expression gen_migrate_payload [@@deriving sexp_of]
+
+val find_side_migration_fmast :
+     P.expression
+  -> (P.expression
+     * Fmast.Longident.t Fmast.Location.loc
+     * [ `Id | `Structure ]
+     * migrate_payload)
+     option
+
+val find_attribute_payload_fmast :
+  ?repl:P.expression -> P.attributes -> migrate_payload option
+
+val update_attribute_payload_fmast :
+  P.attributes -> P.expression option gen_migrate_payload -> P.attributes
+
+val remove_attribute_payload_fmast : P.attributes -> P.attributes
+val has_context_match : P.expression -> bool

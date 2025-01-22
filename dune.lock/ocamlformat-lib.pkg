@@ -1,0 +1,31 @@
+(version dev)
+
+(dune)
+
+(depends
+ ocaml
+ base
+ cmdliner
+ dune
+ dune-build-info
+ either
+ fix
+ fpath
+ menhir
+ menhirLib
+ menhirSdk
+ ocaml-version
+ ocp-indent
+ stdio
+ uuseg
+ uutf
+ csexp
+ astring
+ camlp-streams)
+
+(source
+ (fetch
+  (url
+   git+https://github.com/v-gb/ocamlformat#r-49fc0660ec931943a97b13f10ac9eadbe0cd63f3)))
+
+(dev)

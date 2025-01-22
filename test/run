@@ -1,0 +1,26 @@
+#!/bin/bash
+set -e -u -o pipefail
+cd "$(dirname "$0")"
+export OCAMLMIG_TEST=
+function ocamlmig {
+    ../_build/default/bin/main.exe "$@"
+}
+ocamlmig migrate test_migration.ml "$@"
+ocamlmig transform rescope -unqualify Z test_scope.ml "$@"
+ocamlmig transform rescope -unopen Z test_scope.ml "$@"
+ocamlmig transform rescope -open Z test_scope.ml "$@"
+ocamlmig transform migration-inverse test_migration_inverse.ml "$@"
+ocamlmig transform migration-check test_migration_check.ml "$@"
+ocamlmig replace -e "List.map ~f:__f __l /// List.map __l ~f:__f" *.ml "$@"
+
+cp ../examples/stdlib_to_base/stdlib_to_base.ml ../examples/stdlib_to_base_check/stdlib_to_base_check.ml
+sleep 0.1
+ocamlmig transform migration-check ../examples/stdlib_to_base_check/stdlib_to_base_check.ml -w
+
+if false; then
+    unset OCAMLMIG_TEST
+    cp ../examples/stdlib_to_base/stdlib_to_base.ml ../examples/base_to_stdlib/base_to_stdlib.ml
+    for m in $(grep -o 'open .*' ../examples/base_to_stdlib/base_to_stdlib.ml | cut -f 2 -d ' ' | sort -u | grep -v struct); do sleep 0.3; ocamlmig transform rescope -unopen $m ../examples/base_to_stdlib/base_to_stdlib.ml -w; done
+    sleep 0.3
+    ocamlmig transform migration-inverse ../examples/base_to_stdlib/base_to_stdlib.ml -w
+fi

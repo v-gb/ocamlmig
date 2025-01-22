@@ -1,0 +1,21 @@
+(library
+ (name ocamlmig)
+ (flags (:standard -short-paths))
+ (libraries
+   base
+   compiler-libs.common
+   core.command
+   core.filename_base
+   core_unix.command_unix
+   core_unix.filename_unix
+   csexp
+   ocaml-version
+   ocamlformat-lib
+   ocamlformat-lib.format_
+   ocamlformat-lib.parser_extended
+   ocamlformat.bin_conf
+   re
+   sexplib
+   unix
+ )
+ (preprocess (pps ppx_sexp_conv ppx_compare ppx_sexp_value ppx_hash ppx_let ppx_partial ppx_pipebang)))

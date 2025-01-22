@@ -1,0 +1,9 @@
+profile = conventional
+break-separators = before
+dock-collection-brackets = false
+break-infix = fit-or-vertical
+# cases-exp-indent = 2
+if-then-else = keyword-first
+margin = 90
+type-decl = sparse
+# break-colon = before

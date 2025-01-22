@@ -1,0 +1,3 @@
+(library
+ (name base_to_stdlib)
+ (libraries base stdio core.filename_base core_unix.filename_unix core_unix))

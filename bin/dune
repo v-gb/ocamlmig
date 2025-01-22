@@ -1,0 +1,5 @@
+(executable
+ (public_name ocamlmig)
+ (package ocamlmig)
+ (name main)
+ (libraries ocamlmig))

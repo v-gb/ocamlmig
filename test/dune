@@ -1,0 +1,7 @@
+(library
+ (name test_ocamlmig)
+ (libraries base)
+ (preprocess (pps ppx_partial))
+)
+
+;; manually tested by ./run
