@@ -3,20 +3,6 @@
 open! Base
 open! Common
 
-(** A few conversions between ASTs *)
-
-val conv_location : Location.t -> Ocamlformat_ocaml_common.Location.t
-val conv_location' : Ocamlformat_ocaml_common.Location.t -> Location.t
-
-val conv_located :
-  ('a -> 'b) -> 'a Location.loc -> 'b Ocamlformat_ocaml_common.Location.loc
-
-val conv_located' :
-  ('a -> 'b) -> 'a Ocamlformat_ocaml_common.Location.loc -> 'b Location.loc
-
-val conv_longident' : Ocamlformat_ocaml_common.Longident.t -> Longident.t
-val conv_longident : Longident.t -> Ocamlformat_ocaml_common.Longident.t
-
 (** We try to use this filename on every node we insert into the tree, so we
     can distinguish our our nodes. *)
 

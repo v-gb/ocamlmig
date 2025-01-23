@@ -2,12 +2,6 @@ open Base
 open Common
 open Transform_common
 
-let conv_arg_label : Asttypes.arg_label -> Ocamlformat_parser_extended.Asttypes.arg_label
-    = function
-  | Nolabel -> Nolabel
-  | Labelled s -> Labelled { txt = s; loc = Fmast.Location.none }
-  | Optional s -> Optional { txt = s; loc = Fmast.Location.none }
-
 let may_need_type_index pattern =
   let super = Ast_mapper.default_mapper in
   let self =
@@ -61,7 +55,7 @@ let string_from_arg_label : Asttypes.arg_label -> _ = function
   | Labelled s | Optional s -> s.txt
 
 let alabel (arg_label, _) = string_from_arg_label arg_label
-let alabel' (arg_label, _) = string_from_arg_label (conv_arg_label arg_label)
+let alabel' (arg_label, _) = string_from_arg_label (Conv.arg_label arg_label)
 
 let plabel (p : P.expr_function_param) =
   match p.pparam_desc with
@@ -71,7 +65,7 @@ let plabel (p : P.expr_function_param) =
 let plabel' (p : Uast.Parsetree.function_param) =
   match p.pparam_desc with
   | Pparam_newtype _ -> ""
-  | Pparam_val (label, _, _) -> string_from_arg_label (conv_arg_label label)
+  | Pparam_val (label, _, _) -> string_from_arg_label (Conv.arg_label label)
 
 let rec match_args args args_pattern ~env ~ctx =
   let args =
@@ -82,7 +76,7 @@ let rec match_args args args_pattern ~env ~ctx =
         String.compare (alabel' arg1) (alabel' arg2))
   in
   match_list args args_pattern (fun (a_label, a) (p_label, p) ->
-      arg_label_equal a_label (conv_arg_label p_label) && match_ a p ~env ~ctx)
+      arg_label_equal a_label (Conv.arg_label p_label) && match_ a p ~env ~ctx)
 
 and match_params (params : P.expr_function_param list)
     (params_pattern : Uast.Parsetree.function_param list) ~env ~ctx =
@@ -97,7 +91,7 @@ and match_params (params : P.expr_function_param list)
       match (param.pparam_desc, param_pattern.pparam_desc) with
       | Pparam_newtype _, _ | _, Pparam_newtype _ -> false
       | Pparam_val (label, None, pattern), Pparam_val (label', None, pattern_pattern) ->
-          arg_label_equal label (conv_arg_label label')
+          arg_label_equal label (Conv.arg_label label')
           && match_pattern pattern pattern_pattern ~env ~ctx
       | _ -> false)
 
@@ -127,7 +121,7 @@ and match_ (expr : P.expression) (pattern : Uast.Parsetree.expression) ~env ~ctx
           if !log then print_s [%sexp "missing type index"];
           false
       | Some index -> (
-          match Build.Type_index.expr index (conv_location' expr.pexp_loc) with
+          match Build.Type_index.expr index (Conv.location' expr.pexp_loc) with
           | texpr :: _ ->
               (let user_type =
                  Uast.type_type typ (* we should not do this in a loop! *)
@@ -150,7 +144,7 @@ and match_ (expr : P.expression) (pattern : Uast.Parsetree.expression) ~env ~ctx
               if !log then print_s [%sexp "no type"];
               false))
   | Pexp_ident id, Pexp_ident id2 ->
-      Fmast.Longident.compare id.txt (conv_longident id2.txt) = 0
+      Fmast.Longident.compare id.txt (Conv.longident id2.txt) = 0
   | Pexp_tuple es, Pexp_tuple ps -> match_list es ps (match_ ~env ~ctx)
   | ( _
     , Pexp_apply
@@ -169,7 +163,7 @@ and match_ (expr : P.expression) (pattern : Uast.Parsetree.expression) ~env ~ctx
   | Pexp_apply (f, args), Pexp_apply (f_pattern, args_pattern) ->
       match_ f f_pattern ~env ~ctx && match_args args args_pattern ~env ~ctx
   | Pexp_construct (id, eopt), Pexp_construct (id2, popt) ->
-      Fmast.Longident.compare id.txt (conv_longident id2.txt) = 0
+      Fmast.Longident.compare id.txt (Conv.longident id2.txt) = 0
       && match_option eopt popt ~env ~ctx
   | Pexp_function (params, None, Pfunction_body body), Pexp_function (pparams, None, pbody)
     -> (

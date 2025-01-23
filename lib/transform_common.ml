@@ -2,30 +2,6 @@ open! Base
 open! Stdio
 open! Common
 
-let conv_location : Location.t -> Ocamlformat_ocaml_common.Location.t =
- fun loc ->
-  { loc_start = loc.loc_start; loc_end = loc.loc_end; loc_ghost = loc.loc_ghost }
-
-let conv_location' : Ocamlformat_ocaml_common.Location.t -> Location.t =
- fun loc ->
-  { loc_start = loc.loc_start; loc_end = loc.loc_end; loc_ghost = loc.loc_ghost }
-
-let conv_located conv_a : _ Location.loc -> _ Ocamlformat_ocaml_common.Location.loc =
- fun { txt; loc } -> { txt = conv_a txt; loc = conv_location loc }
-
-let conv_located' conv_a : _ Ocamlformat_ocaml_common.Location.loc -> _ Location.loc =
- fun { txt; loc } -> { txt = conv_a txt; loc = conv_location' loc }
-
-let rec conv_longident' : Ocamlformat_ocaml_common.Longident.t -> Longident.t = function
-  | Lident s -> Lident s
-  | Ldot (t, s) -> Ldot (conv_longident' t, s)
-  | Lapply (t1, t2) -> Lapply (conv_longident' t1, conv_longident' t2)
-
-let rec conv_longident : Longident.t -> Ocamlformat_ocaml_common.Longident.t = function
-  | Lident s -> Lident s
-  | Ldot (t, s) -> Ldot (conv_longident t, s)
-  | Lapply (t1, t2) -> Lapply (conv_longident t1, conv_longident t2)
-
 let migrate_filename_import = "_migrate_import"
 let migrate_filename_gen = "_migrate_gen"
 

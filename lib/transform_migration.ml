@@ -1243,7 +1243,7 @@ let execute_context_match ~type_index (cases : P.case list) ~(orig : P.expressio
       match case.pc_lhs with
       | { ppat_desc = Ppat_extension ({ txt = "context"; _ }, PTyp user_typ); _ } -> (
           let ttyp = Uast.type_type (utype_of_fmtype user_typ) in
-          match Build.Type_index.expr type_index (conv_location' orig.pexp_loc) with
+          match Build.Type_index.expr type_index (Conv.location' orig.pexp_loc) with
           | [ texpr ] ->
               (* maybe root env makes more sense *)
               let does_match =
@@ -1365,7 +1365,7 @@ let value_constraint ~ctx ~type_index e : P.value_constraint option =
   if not (might_rely_on_type_based_disambiguation e)
   then None
   else
-    match Build.Type_index.expr type_index (conv_location' e.pexp_loc) with
+    match Build.Type_index.expr type_index (Conv.location' e.pexp_loc) with
     | [ texpr ] ->
         Some
           (Pvc_constraint
@@ -1377,7 +1377,7 @@ let value_constraint ~ctx ~type_index e : P.value_constraint option =
     | [] ->
         let loc = e.pexp_loc in
         Format.printf "@[<2>failed to find@\n%a@]@." Sexplib.Sexp.pp_hum
-          [%sexp (conv_location' loc : Uast.Location.t)];
+          [%sexp (Conv.location' loc : Uast.Location.t)];
         None
 
 let bind__sequentially_if_possible ~ctx ~type_index bindings body =
@@ -1573,13 +1573,13 @@ let find_attribute_payload_uast ~fmconf ?repl (attributes : Typedtree.attributes
         Some
           (attribute_payload
              ?repl:(Option.map repl ~f:Lazy.force)
-             ~loc:(conv_location e.pexp_loc)
+             ~loc:(Conv.location e.pexp_loc)
              (Some (fmexpr_of_uexpr ~fmconf `Import e)))
     | { attr_name = { txt = "migrate"; _ }; attr_payload = PStr []; attr_loc; _ } ->
         Some
           (attribute_payload
              ?repl:(Option.map repl ~f:Lazy.force)
-             ~loc:(conv_location attr_loc) None)
+             ~loc:(Conv.location attr_loc) None)
     | _ -> None)
 
 let find_attribute_payload_fmast ?repl (attributes : P.attributes) =
@@ -1716,7 +1716,7 @@ let decl_from_id_uast ~context ~artifacts
   | Some v -> value_decl_of_item_decl ~context ~id:id.txt v
 
 let decl_from_id_fmast ~context ~artifacts (comp_unit, id) =
-  decl_from_id_uast ~context ~artifacts (comp_unit, conv_located' conv_longident' id)
+  decl_from_id_uast ~context ~artifacts (comp_unit, Conv.located' Conv.longident' id)
 
 module Decl_id = struct
   type shape_uid = Uast.Shape.Uid.t [@@deriving sexp_of]
@@ -1748,7 +1748,7 @@ module Decl_id = struct
 end
 
 let payload_from_val_fmast ~fmconf ~type_index ~artifacts (comp_unit, id, ident_loc) =
-  match Build.Type_index.expr type_index (conv_location' ident_loc) with
+  match Build.Type_index.expr type_index (Conv.location' ident_loc) with
   | { exp_desc = Texp_ident (_, _, vd); _ } :: _ -> (
       let uid = vd.val_uid in
       match Build.comp_unit_of_uid uid with
@@ -1936,7 +1936,7 @@ let inline ~fmconf ~type_index ~side_migrations_cmts ~artifacts:(comp_unit, arti
                       | None -> ()
                       | Some vb ->
                           Hashtbl.set side_migrations
-                            ~key:(Decl_id.create (conv_longident src_id.txt) vb)
+                            ~key:(Decl_id.create (Conv.longident src_id.txt) vb)
                             ~data:repl)
                   | None -> ());
                   super.expr self expr)
