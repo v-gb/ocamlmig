@@ -1,0 +1,3 @@
+(library
+ (name stdlib_to_stdlib)
+ (libraries))
