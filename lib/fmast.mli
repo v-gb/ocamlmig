@@ -141,10 +141,17 @@ val sexp_of_expression : ?raw:bool -> expression -> Sexp.t
 type pattern = Parsetree.pattern [@@deriving sexp_of]
 type structure = Parsetree.structure [@@deriving sexp_of]
 type structure_item = Parsetree.structure_item [@@deriving sexp_of]
-type arg_label = Asttypes.arg_label [@@deriving sexp_of]
 
 val type_constraint_of_value_constraint :
   Parsetree.value_constraint -> Parsetree.type_constraint
 
 val value_constraint_of_type_constraint :
   Parsetree.type_constraint -> Parsetree.value_constraint
+
+type arg_label = Asttypes.arg_label [@@deriving sexp_of]
+
+module Arg_label : sig
+  type t = arg_label [@@deriving equal, sexp_of]
+
+  val to_string : t -> string
+end

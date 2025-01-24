@@ -226,7 +226,6 @@ type expression = Parsetree.expression
 type pattern = Parsetree.pattern
 type structure_item = Parsetree.structure_item
 type structure = Parsetree.structure
-type arg_label = Asttypes.arg_label
 
 let sexp_of_expression ?raw e =
   sexp_of_string
@@ -241,10 +240,27 @@ let sexp_of_structure_item s =
 let sexp_of_structure l =
   sexp_of_string (String.chop_suffix_if_exists (debug_print Structure l) ~suffix:"\n")
 
-let sexp_of_arg_label = function
-  | Asttypes.Nolabel -> [%sexp Nolabel]
-  | Labelled s -> [%sexp Labelled (s.txt : string)]
-  | Optional s -> [%sexp Optional (s.txt : string)]
+type arg_label = Asttypes.arg_label
+
+module Arg_label = struct
+  type t = arg_label
+
+  let sexp_of_t : t -> _ = function
+    | Nolabel -> [%sexp Nolabel]
+    | Labelled s -> [%sexp Labelled (s.txt : string)]
+    | Optional s -> [%sexp Optional (s.txt : string)]
+
+  let equal (t1 : t) (t2 : t) =
+    match (t1, t2) with
+    | Nolabel, Nolabel -> true
+    | Labelled s1, Labelled s2 -> s1.txt =: s2.txt
+    | Optional s1, Optional s2 -> s1.txt =: s2.txt
+    | (Nolabel | Labelled _ | Optional _), _ -> false
+
+  let to_string : t -> _ = function Nolabel -> "" | Labelled s | Optional s -> s.txt
+end
+
+let sexp_of_arg_label = Arg_label.sexp_of_t
 
 module P = Parsetree
 
