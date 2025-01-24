@@ -171,8 +171,8 @@ As shown above, ocamlmig provides a workflow where:
 
 ocamlmig also make it possible to set `@migrate` attribute to an identifier without
 being the author of the corresponding interface.  Thus anyone could provide a migration
-turning, say, `open_in` into `In_channel.open_text` without modifying the standard
-library.
+turning, say, [`open_in` into `In_channel.open_text` without modifying the standard
+library](../examples/stdlib_to_stdlib/stdlib_to_stdlib.ml).
 
 Aside from the migration workflow above, ocamlmig also provide refactor tools that
 benefit from having access to types or syntax trees: removing `open A` and adding `A.`
@@ -201,6 +201,15 @@ number of directions of improvements:
   _)' Floatarray.get` could be useful. Or [this
   example](https://github.com/v-gb/Gillian/commit/e15ac20a5fac0849dae51523d1b73f1612f976e5),
   which is not easily done with sed due to precedence changes.
+
+# What ocamlmig doesn't do
+
+The ocamlmig executable supports specific form of rewrites that are too limiting in
+some cases. One could rewrite code in arbitrary ways by using ocamlmig as a library
+instead. Then, only the limitations of the library itself would potentially be
+limiting: only builds that use dune and ocamlformat are supported (except for very
+simple changes), and of course functionality may not be implemented (like build
+feedback while rewriting files).
 
 # Using ocamlmig
 
