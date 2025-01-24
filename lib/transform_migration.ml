@@ -1393,9 +1393,9 @@ let bind__sequentially_if_possible ~ctx ~type_index bindings body =
   let bind bindings (body : P.expression) =
     Ast_helper.Exp.let'
       (List.map bindings ~f:(fun (p, e) ->
-           Ast_helper.Vb.mk p [] (Pfunction_body e) ~is_pun:false
+           Ast_helper.Vb.mk ~loc:(migrate_loc `Gen) p [] (Pfunction_body e) ~is_pun:false
              ?value_constraint:(value_constraint ~ctx ~type_index e)))
-      body ~loc_in:body.pexp_loc
+      body ~loc_in:body.pexp_loc ~loc:(migrate_loc `Gen)
   in
   while
     match !rev_bindings with

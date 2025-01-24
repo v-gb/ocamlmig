@@ -160,7 +160,7 @@ let () =
       let __ b = f (fun () -> b) (b + 1)
       [@@migrate_test
         let __ b =
-          let g = fun () -> b in
+          let g () = b in
           let b = b + 1 in
           g () + b + b]
 
@@ -171,7 +171,7 @@ let () =
       let __ b b2 = f (fun () -> b) (b + 1) (b2 + 1)
       [@@migrate_test
         let __ b b2 =
-          let g = fun () -> b in
+          let g () = b in
           let b = b + 1 in
           let b2 = b2 + 1 in
           g () + b + b + b2 + b2]
@@ -188,7 +188,7 @@ let () =
       let __ b = f (fun () -> b) (b + 1)
       [@@migrate_test
         let __ b =
-          let g = fun () -> b in
+          let g () = b in
           let b = b + 1 in
           let b2 = () in
           g () + b + b]

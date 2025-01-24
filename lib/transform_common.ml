@@ -328,7 +328,8 @@ let undrop_concrete_syntax_constructs method_ v =
             , None )
             when Sattr.exists Sattr.pun outer_body.pexp_attributes
                  || Sattr.exists Sattr.touched outer_body.pexp_attributes
-                 || is_migrate_filename outer_body.pexp_loc ->
+                 || is_migrate_filename outer_body.pexp_loc
+                 || is_migrate_filename binding.pvb_loc ->
               { binding with
                 pvb_args = params
               ; pvb_constraint =

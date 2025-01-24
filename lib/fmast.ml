@@ -187,11 +187,11 @@ module Ast_helper = struct
 
     let ident' ?loc longident = ident ?loc (located ?loc longident)
 
-    let let' ?(rec_ = false) bindings ~loc_in body =
+    let let' ?loc ?(rec_ = false) bindings ~loc_in body =
       match bindings with
       | [] -> body
       | _ :: _ ->
-          let_ ~loc_in
+          let_ ?loc ~loc_in
             { pvbs_rec = (if rec_ then Recursive else Nonrecursive)
             ; pvbs_bindings = bindings
             }

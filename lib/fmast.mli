@@ -108,7 +108,12 @@ module Ast_helper : sig
     val ident' : ?loc:loc -> Longident.t -> P.expression
 
     val let' :
-      ?rec_:bool -> P.value_binding list -> loc_in:loc -> P.expression -> P.expression
+         ?loc:loc
+      -> ?rec_:bool
+      -> P.value_binding list
+      -> loc_in:loc
+      -> P.expression
+      -> P.expression
 
     val some : ?loc:loc -> P.expression -> P.expression
     val none : ?loc:loc -> unit -> P.expression
