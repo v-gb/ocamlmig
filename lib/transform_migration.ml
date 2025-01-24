@@ -281,10 +281,11 @@ let rec exec_of_expr (expr : P.expression) =
   | Pexp_constant _ -> Const
   | Pexp_let (bindings, body, _) -> Sequence (exec_of_bindings bindings, exec_of_expr body)
   | Pexp_function (params, _, body) ->
-      if List.exists params ~f:(fun param ->
-             match param.pparam_desc with
-             | Pparam_newtype _ -> false
-             | Pparam_val _ -> true)
+      if
+        List.exists params ~f:(fun param ->
+            match param.pparam_desc with
+            | Pparam_newtype _ -> false
+            | Pparam_val _ -> true)
       then Const
       else exec_of_function_body body
   | Pexp_apply (fun_, args) ->
@@ -877,8 +878,9 @@ let loc_if_from_original_file =
     | (_ : P.expression) -> `Migration
 
 let commute_args (args : function_arg list) =
-  if List.length args > 200
-     (* this code is quadratic, so leave pathological cases alone *)
+  if
+    List.length args > 200
+    (* this code is quadratic, so leave pathological cases alone *)
   then args
   else
     let l =
@@ -934,9 +936,10 @@ let push_down_arg_as_much_as_possible var (args : function_arg list) =
 let try_partial_eta_reduce ~ctx (body : P.expression)
     (remaining_param_vars : _ Location.loc list) =
   let fvs = free_vars body in
-  if not
-       (List.for_all remaining_param_vars ~f:(fun var ->
-            match Map.find fvs var.txt with Some Once -> true | _ -> false))
+  if
+    not
+      (List.for_all remaining_param_vars ~f:(fun var ->
+           match Map.find fvs var.txt with Some Once -> true | _ -> false))
   then Error "free_vars"
   else
     match body with
@@ -953,8 +956,9 @@ let try_partial_eta_reduce ~ctx (body : P.expression)
             let leading_args, trailing_args =
               List.split_n args' (List.length args - List.length remaining_param_vars)
             in
-            if List.for_all2_exn trailing_args remaining_param_vars ~f:(fun arg var ->
-                   expr_is_var (snd arg) var.txt)
+            if
+              List.for_all2_exn trailing_args remaining_param_vars ~f:(fun arg var ->
+                  expr_is_var (snd arg) var.txt)
             then Ok { body with pexp_desc = Pexp_apply (fun_, leading_args) }
             else
               match remaining_param_vars with
@@ -1254,10 +1258,10 @@ let execute_context_match ~type_index (cases : P.case list) ~(orig : P.expressio
                 print_s
                   [%sexp
                     "context"
-                    , (Format.asprintf "%a" Printtyp.type_expr texpr.exp_type : string)
-                    , "vs"
-                    , (Format.asprintf "%a" Printtyp.type_expr ttyp : string)
-                    , ~~(does_match : bool)];
+                  , (Format.asprintf "%a" Printtyp.type_expr texpr.exp_type : string)
+                  , "vs"
+                  , (Format.asprintf "%a" Printtyp.type_expr ttyp : string)
+                  , ~~(does_match : bool)];
               if does_match then Some case.pc_rhs else None
           | _ -> None)
       | { ppat_desc = Ppat_any; _ } -> Some case.pc_rhs
@@ -1478,14 +1482,15 @@ let reduce ~ctx ~type_index
       List.map bindings ~f:(fun (p, e) ->
           let e_fvs = free_vars e in
           Int.incr i;
-          if (* If [p, e] is [x, a + 1], then we make sure that all refs to [a] in the
+          if
+            (* If [p, e] is [x, a + 1], then we make sure that all refs to [a] in the
                  expression can be resolved, because when we substitute [x] by [a + 1],
                  if we find a [let a = .. in ..], we'll alpha convert on the fly. But for
                  that alpha-conversion to succeed, we must be able to reliably know what
                  are the references to [a]. *)
-             exists_from_iter (fun yield ->
-                 Map.iter_keys e_fvs ~f:(fun var ->
-                     if Set.mem body_ambiguous_refs var then yield ()))
+            exists_from_iter (fun yield ->
+                Map.iter_keys e_fvs ~f:(fun var ->
+                    if Set.mem body_ambiguous_refs var then yield ()))
           then (`No, (p, e))
           else
             match p.ppat_desc with
@@ -1498,8 +1503,9 @@ let reduce ~ctx ~type_index
                       | Ambig -> `Leave_it
                       | More _ -> if duplicatable e then `Subst else `Leave_it
                       | Once ->
-                          if execution_commutes e
-                             || substitution_would_preserve_execution var.txt body
+                          if
+                            execution_commutes e
+                            || substitution_would_preserve_execution var.txt body
                           then `Subst
                           else `Leave_it
                     with
@@ -1532,8 +1538,9 @@ let reduce ~ctx ~type_index
                 in
                 if exists_capture then binding else (`Yes v, annotate_preferred_name pe))
       in
-      if let is_yes = function `Yes _, _ -> true | (`No | `Maybe _), _ -> false in
-         List.count bindings ~f:is_yes = List.count bindings' ~f:is_yes
+      if
+        let is_yes = function `Yes _, _ -> true | (`No | `Maybe _), _ -> false in
+        List.count bindings ~f:is_yes = List.count bindings' ~f:is_yes
       then
         List.partition_map bindings ~f:(function
           | `Yes v, (_, e) -> First (v, e)
@@ -1668,9 +1675,9 @@ let value_decl_of_item_decl ~context ~id v =
         print_s
           [%sexp
             (id : Uast.Longident.t)
-            , "shape lookup error"
-            , (s : string Lazy.t)
-            , (context : string)];
+          , "shape lookup error"
+          , (s : string Lazy.t)
+          , (context : string)];
       None
   | Ok (uid, None) -> Some (`Nf uid)
   | Ok (_uid, Some (item_declaration : Typedtree.item_declaration)) -> (
@@ -1689,21 +1696,21 @@ let value_decl_of_item_decl ~context ~id v =
             print_s
               [%sexp
                 (id : Uast.Longident.t)
-                , "shape lookup: found unexpected"
-                , (match item_declaration with
-                   | Value _ -> "value"
-                   | Value_binding _ -> "value_binding"
-                   | Type _ -> "type"
-                   | Constructor _ -> "constructor"
-                   | Extension_constructor _ -> "extension_constructor"
-                   | Label _ -> "label"
-                   | Module _ -> "module"
-                   | Module_substitution _ -> "module_substitution"
-                   | Module_binding _ -> "module_binding"
-                   | Module_type _ -> "module_type"
-                   | Class _ -> "class"
-                   | Class_type _ -> "class_type"
-                    : string)];
+              , "shape lookup: found unexpected"
+              , (match item_declaration with
+                 | Value _ -> "value"
+                 | Value_binding _ -> "value_binding"
+                 | Type _ -> "type"
+                 | Constructor _ -> "constructor"
+                 | Extension_constructor _ -> "extension_constructor"
+                 | Label _ -> "label"
+                 | Module _ -> "module"
+                 | Module_substitution _ -> "module_substitution"
+                 | Module_binding _ -> "module_binding"
+                 | Module_type _ -> "module_type"
+                 | Class _ -> "class"
+                 | Class_type _ -> "class_type"
+                  : string)];
           None)
 
 let decl_from_id_uast ~context ~artifacts
@@ -1797,8 +1804,8 @@ let payload_from_occurence_fmast ~fmconf ~context ~artifacts ~side_migrations
             print_s
               [%sexp
                 (id.txt : Longident.t)
-                , "found side migration"
-                , (opt : migrate_payload option)];
+              , "found side migration"
+              , (opt : migrate_payload option)];
           opt
       | None -> (
           match
@@ -1814,8 +1821,8 @@ let payload_from_occurence_fmast ~fmconf ~context ~artifacts ~side_migrations
                 print_s
                   [%sexp
                     (id.txt : Longident.t)
-                    , "no side migration, no attr on def"
-                    , (decl_id : Decl_id.t option)];
+                  , "no side migration, no attr on def"
+                  , (decl_id : Decl_id.t option)];
               None
           | Some _ as opt ->
               if !log || debug.all

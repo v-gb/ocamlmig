@@ -31,8 +31,9 @@ let run ~type_index file_path =
                   (* there can be no type information, in attributes for instance *)
                   ()
               | [ texpr ] ->
-                  if Uast.match_typ ~env:(force Uast.initial_env) texpr.exp_type
-                       ~user_type:unit_type
+                  if
+                    Uast.match_typ ~env:(force Uast.initial_env) texpr.exp_type
+                      ~user_type:unit_type
                   then ()
                   else Queue.enqueue matches e1.pexp_loc)
           | _ -> ());

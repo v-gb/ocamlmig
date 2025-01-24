@@ -72,8 +72,8 @@ let with_process_full argv f =
       raise_s
         [%sexp
           ("process exited with " ^ explain : string)
-          , (argv : string list)
-          , ~~(stderr : string)]
+        , (argv : string list)
+        , ~~(stderr : string)]
 
 let run_process argv =
   with_process_full argv (fun (stdout, stdin) ->
@@ -110,19 +110,19 @@ let with_tmpfile f =
 
 module Cwdpath = struct
   (** A path that can be either absolute or relative, with the assumption that relative
-     paths are meant to be relative to the current cwd (which is assumed to be fixed
-     throughout the process's lifetime).
+      paths are meant to be relative to the current cwd (which is assumed to be fixed
+      throughout the process's lifetime).
 
-     The reason for this to exist, rather than passing a string around, is that we get
-     strings from a number of sources (build artifacts, command output, command line)
-     and give strings to various bits of code (processes, libraries), and it's too easy
-     to pass strings without thinking about what they represent when all paths are
-     stringly-typed, thus resulting in code that doesn't work properly when [not (cwd =
-     dune root = repo root)].
+      The reason for this to exist, rather than passing a string around, is that we get
+      strings from a number of sources (build artifacts, command output, command line) and
+      give strings to various bits of code (processes, libraries), and it's too easy to
+      pass strings without thinking about what they represent when all paths are
+      stringly-typed, thus resulting in code that doesn't work properly when
+      [not (cwd = dune root = repo root)].
 
-     With this type, you have to use Cwdpath.create and Cwdpath.to_string, which is a
-     small hurdle that forces one to consider the question of what the string paths are
-     supposed to be relative to. *)
+      With this type, you have to use Cwdpath.create and Cwdpath.to_string, which is a
+      small hurdle that forces one to consider the question of what the string paths are
+      supposed to be relative to. *)
 
   type t = { p : string } [@@unboxed]
 

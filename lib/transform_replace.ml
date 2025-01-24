@@ -134,10 +134,10 @@ and match_ (expr : P.expression) (pattern : Uast.Parsetree.expression) ~env ~ctx
                  print_s
                    [%sexp
                      "context"
-                     , (Format.asprintf "%a" Printtyp.type_expr texpr.exp_type : string)
-                     , "vs"
-                     , (Format.asprintf "%a" Printtyp.type_expr user_type : string)
-                     , ~~(does_match : bool)];
+                   , (Format.asprintf "%a" Printtyp.type_expr texpr.exp_type : string)
+                   , "vs"
+                   , (Format.asprintf "%a" Printtyp.type_expr user_type : string)
+                   , ~~(does_match : bool)];
                does_match)
               && match_ expr p ~env ~ctx
           | [] ->

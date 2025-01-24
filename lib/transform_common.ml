@@ -23,8 +23,9 @@ let migrate_loc source = Location.in_file (migrate_filename source)
 let with_log f =
   ();
   fun (self : Ast_mapper.mapper) (expr : P.expression) ->
-    if List.exists expr.pexp_attributes ~f:(fun attr ->
-           attr.attr_name.txt =: "migrate.log")
+    if
+      List.exists expr.pexp_attributes ~f:(fun attr ->
+          attr.attr_name.txt =: "migrate.log")
     then Ref.set_temporarily log true ~f:(fun () -> f self expr)
     else f self expr
 

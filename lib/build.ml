@@ -212,36 +212,36 @@ module Listing = struct
           eprint_s
             [%sexp
               "Warning"
-              , ( ("type information for " ^ Cwdpath.to_string source_path ^ " seems stale"
-                    : string)
-                , (if debug.all
-                   then
-                     Some
-                       [ "ctime of "
-                         ^ Cwdpath.to_string cmt_path
-                         ^ " older than mtime of "
-                         ^ Cwdpath.to_string source_path
-                         ^ ")"
-                       ; "while ctime of "
-                         ^ cmx_path
-                         ^ " NOT older than mtime of "
-                         ^ Cwdpath.to_string source_path
-                         ^ ")"
-                       ]
-                   else None
-                    : (string list option[@sexp.option])) )
-              , (how_to_build_cmt () : string)]
+            , ( ("type information for " ^ Cwdpath.to_string source_path ^ " seems stale"
+                  : string)
+              , (if debug.all
+                 then
+                   Some
+                     [ "ctime of "
+                       ^ Cwdpath.to_string cmt_path
+                       ^ " older than mtime of "
+                       ^ Cwdpath.to_string source_path
+                       ^ ")"
+                     ; "while ctime of "
+                       ^ cmx_path
+                       ^ " NOT older than mtime of "
+                       ^ Cwdpath.to_string source_path
+                       ^ ")"
+                     ]
+                 else None
+                  : (string list option[@sexp.option])) )
+            , (how_to_build_cmt () : string)]
 
   let locate_cmt t ~source_path =
     let e () =
       Error
         [%sexp
           "no type information (.cmt) found. Is the repository fully built?"
-          , `looked_in
-              (if debug.all
-               then Option.map (Map.find t.by_source source_path) ~f:(fun a -> a.cmt_dirs)
-               else None
-                : (Cwdpath.t list option[@sexp.option]))]
+        , `looked_in
+            (if debug.all
+             then Option.map (Map.find t.by_source source_path) ~f:(fun a -> a.cmt_dirs)
+             else None
+              : (Cwdpath.t list option[@sexp.option]))]
     in
     match Map.find t.by_source source_path with
     | None -> e ()
@@ -380,8 +380,8 @@ module Artifacts = struct
                    raise_s
                      [%sexp
                        "unexpected approximated shape"
-                       , (shape2 : Uast.Shape.t)
-                       , (shape : Uast.Shape.t)]
+                     , (shape2 : Uast.Shape.t)
+                     , (shape : Uast.Shape.t)]
              else uid)
         ; desc = Leaf
         ; approximated = false
@@ -423,9 +423,9 @@ module Artifacts = struct
       raise_s
         [%sexp
           "invariant failure"
-          , ~~(comp_unit : string)
-          , "<>"
-          , ~~(cmt_infos.cmt_modname : string)];
+        , ~~(comp_unit : string)
+        , "<>"
+        , ~~(cmt_infos.cmt_modname : string)];
     let module M = struct
       include Shape_reduce.Make (struct
         let fuel = 20
@@ -500,9 +500,9 @@ module Artifacts = struct
       raise_s
         [%sexp
           "invariant failure"
-          , ~~(comp_unit : string)
-          , "<>"
-          , ~~(cmi_infos.cmi_name : string)];
+        , ~~(comp_unit : string)
+        , "<>"
+        , ~~(cmi_infos.cmi_name : string)];
     { infos = cmi_infos; defs = lazy (index_declarations cmi_infos.cmi_sign) }
 
   let create_loaded_cmi t ~comp_unit ~(cmi_path : Cwdpath.t) : loaded_cmi =
@@ -542,8 +542,8 @@ module Artifacts = struct
             raise_s
               [%sexp
                 "multiple possible .cmt files for"
-                , ~~(library_name : string)
-                , ~~(cmt_paths : Cwdpath.t list)]
+              , ~~(library_name : string)
+              , ~~(cmt_paths : Cwdpath.t list)]
         | [ cmt_path ] -> Some (cmt_path, create_loaded_cmt t `impl ~comp_unit ~cmt_path)
         | [] ->
             List.find_map t.load_path_dirs ~f:(fun dir ->

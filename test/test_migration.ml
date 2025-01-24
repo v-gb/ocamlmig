@@ -160,7 +160,7 @@ let () =
       let __ b = f (fun () -> b) (b + 1)
       [@@migrate_test
         let __ b =
-          let g () = b in
+          let g = fun () -> b in
           let b = b + 1 in
           g () + b + b]
 
@@ -171,7 +171,7 @@ let () =
       let __ b b2 = f (fun () -> b) (b + 1) (b2 + 1)
       [@@migrate_test
         let __ b b2 =
-          let g () = b in
+          let g = fun () -> b in
           let b = b + 1 in
           let b2 = b2 + 1 in
           g () + b + b + b2 + b2]
@@ -188,7 +188,7 @@ let () =
       let __ b = f (fun () -> b) (b + 1)
       [@@migrate_test
         let __ b =
-          let g () = b in
+          let g = fun () -> b in
           let b = b + 1 in
           let b2 = () in
           g () + b + b]
@@ -779,13 +779,17 @@ let () =
          a better testing story, ocamlformat improves, or we drop ocamlformat. *)
       let _ =
         (* 1 *)
-        let (* 2b *) a (* 2a *) = (* 3b *) 1 (* 3a *) in
+        let (* 2b *) a (* 2a *) =
+          (* 3b *) 1
+          (* 3a *)
+        in
         (* 4 *)
         f (* 5b *) a
           (* 5a *)
           ((* 6b *) a
           (* 6a *)
-          + (* 7b *)
+          +
+          (* 7b *)
           1 (* 7a *))
       (* 8 *)
       (* result: only 5b moves, along with a, so that's reasonable. *)
@@ -796,7 +800,8 @@ let () =
           (* 5a *)
           ((* 6b *) 4
           (* 6a *)
-          + (* 7b *)
+          +
+          (* 7b *)
           1 (* 7a *))
 
       (* 8 *)

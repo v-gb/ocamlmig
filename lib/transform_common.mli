@@ -3,8 +3,8 @@
 open! Base
 open! Common
 
-(** We try to use this filename on every node we insert into the tree, so we
-    can distinguish our our nodes. *)
+(** We try to use this filename on every node we insert into the tree, so we can
+    distinguish our our nodes. *)
 
 val migrate_filename_import : string
 val migrate_filename_gen : string

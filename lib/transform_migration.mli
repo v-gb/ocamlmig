@@ -1,5 +1,5 @@
-(** The core of ocamlmig: given a .ml, and type/scoping information,
-    apply [@migrate] attributes to the AST, and returns the resulting .ml. *)
+(** The core of ocamlmig: given a .ml, and type/scoping information, apply [@migrate]
+    attributes to the AST, and returns the resulting .ml. *)
 
 open Base
 open Common

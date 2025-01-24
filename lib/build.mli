@@ -9,9 +9,8 @@ val comp_unit_of_uid : Shape.Uid.t -> string option
 val input_name_matching_compilation_command : Cmt_format.cmt_infos -> string option
 
 module Listing : sig
-  (** Metadata, usually extracted from dune, about the compilation of ml files: where
-      the artifacts live, what search path is given to the compiler when building
-      them. *)
+  (** Metadata, usually extracted from dune, about the compilation of ml files: where the
+      artifacts live, what search path is given to the compiler when building them. *)
 
   type one =
     { root : Abspath.t
@@ -37,40 +36,36 @@ end
 module Artifacts : sig
   (** The typing interfaces are confusing.
 
-    .cmt files contain:
-    1. typed trees
-    2. an optional mapping from uid to decl
-    3. an optional mapping from lid+loc to shape
-    4. the shape of the implementation
+      .cmt files contain: 1. typed trees 2. an optional mapping from uid to decl 3. an
+      optional mapping from lid+loc to shape 4. the shape of the implementation
 
-    1. The typed trees contain Env.t values, but they can't be used as is. One must call
-   Envaux.env_of_only_summary first, otherwise you're using what is effectively empty
-   environments. The environment contains shape queriable via Env.shape_of_path, but
-   these shapes are not saved in the .cmt, and I think you end up with an approximation
-   when you query it (always returns Leaf, for modules, so approximated leaves for
-   values). The typed tree also contains these Shape.Uid.t on every use of an
-   identifier and definition of a variable, in a matching way. But (surprise!), these
-   identifiers are not globally unique: [Item { comp_unit; id }] might be referring to
-   either the "val" in the .mli, or the "let" in the .ml, presumably depending on whether
-   the .mli exists and depending on if you're referring to the value from the inside of
-   the compilation unit or from the outside. If you have the "val", I am not sure there's
-   any way to link that back to the "let" implementing it.
+      1. The typed trees contain Env.t values, but they can't be used as is. One must call
+      Envaux.env_of_only_summary first, otherwise you're using what is effectively empty
+      environments. The environment contains shape queriable via Env.shape_of_path, but
+      these shapes are not saved in the .cmt, and I think you end up with an approximation
+      when you query it (always returns Leaf, for modules, so approximated leaves for
+      values). The typed tree also contains these Shape.Uid.t on every use of an
+      identifier and definition of a variable, in a matching way. But (surprise!), these
+      identifiers are not globally unique: [Item { comp_unit; id }] might be referring to
+      either the "val" in the .mli, or the "let" in the .ml, presumably depending on
+      whether the .mli exists and depending on if you're referring to the value from the
+      inside of the compilation unit or from the outside. If you have the "val", I am not
+      sure there's any way to link that back to the "let" implementing it.
 
-    2. The mapping from uids of declarations in a cmt to the declaration themselves has
-   several problems:
-   - dune builds it, but the stdlib doesn't, so it's not always present. It seems to be
-   computed by processing of the cmt, in which case it should be buildable on demand
-   when empty.
-   - AFAIU, it doesn't contain the implied bindings created by coercing the .ml to the
-   type of the the .mli.
+      2. The mapping from uids of declarations in a cmt to the declaration themselves has
+      several problems:
+      - dune builds it, but the stdlib doesn't, so it's not always present. It seems to be
+        computed by processing of the cmt, in which case it should be buildable on demand
+        when empty.
+      - AFAIU, it doesn't contain the implied bindings created by coercing the .ml to the
+        type of the the .mli.
 
-    3. 4. these seem fine, except that the shapes can be approximated, which is harmful
-   for us, and there's nothing we can do about it, because the compiler has already
-   lost the information. Separately, Shape_reduce says not to reduce Make functor across
-   compilation units, which we try to do, although it's not clear that this warning
-   makes any senes, considering a single call to reduce will reduce across compilation
-   unit boundaries.
- *)
+      3. 4. these seem fine, except that the shapes can be approximated, which is harmful
+      for us, and there's nothing we can do about it, because the compiler has already
+      lost the information. Separately, Shape_reduce says not to reduce Make functor
+      across compilation units, which we try to do, although it's not clear that this
+      warning makes any senes, considering a single call to reduce will reduce across
+      compilation unit boundaries. *)
 
   type t [@@deriving sexp_of]
   type cache [@@deriving sexp_of]
@@ -101,8 +96,8 @@ end
 
 module Type_index : sig
   (** A typed tree that's been indexed by AST node locations. This is used to compute
-      types while working on the parsetree (in fact, the ocamlformat parsetree
-      usually, not even the compiler one). *)
+      types while working on the parsetree (in fact, the ocamlformat parsetree usually,
+      not even the compiler one). *)
 
   type any_pattern = T : _ Typedtree.general_pattern -> any_pattern
   type t [@@deriving sexp_of]

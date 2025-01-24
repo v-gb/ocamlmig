@@ -33,7 +33,7 @@ let rec normal_form_of_use ~artifacts env
             print_s
               [%sexp
                 "no shape for occurrence"
-                , ((comp_unit, id) : string * Uast.Longident.t Uast.Location.loc)];
+              , ((comp_unit, id) : string * Uast.Longident.t Uast.Location.loc)];
           None
       | Some decl_result -> normal_form_of_decl_result ~artifacts env decl_result)
 
@@ -42,8 +42,8 @@ and normal_form_of_decl_result ~artifacts env decl_result =
     (lazy
       [%sexp
         "normal_form_of_decl_result"
-        , (decl_result : (Uast.Shape.Uid.t * _ option, string Lazy.t) Result.t)
-        , (artifacts : Build.Artifacts.t)])
+      , (decl_result : (Uast.Shape.Uid.t * _ option, string Lazy.t) Result.t)
+      , (artifacts : Build.Artifacts.t)])
     (fun () ->
       match decl_result with
       | Error s ->
@@ -146,9 +146,9 @@ let merely_aliased ~artifacts
      let show path (vd : Types.value_description) nf =
        [%sexp
          (path : Uast.Path.t)
-         , (vd.val_uid : Uast.Shape.Uid.t)
-         , "->"
-         , (nf : [ `Uid of Uast.Shape.Uid.t | `Prim of _ ])]
+       , (vd.val_uid : Uast.Shape.Uid.t)
+       , "->"
+       , (nf : [ `Uid of Uast.Shape.Uid.t | `Prim of _ ])]
      in
      print_s [%sexp (show path vd nf : Sexp.t), "vs", (show path' vd' nf' : Sexp.t)]);
   match (nf, nf') with
@@ -368,8 +368,8 @@ let qualify_for_open ~changed_something ~artifacts ~type_index
                   print_s
                     [%sexp
                       (id.txt : Longident.t)
-                      , "want to rewrite constructor, but unable to figure out path to it"
-                      , ~~(comp_unit : string)];
+                    , "want to rewrite constructor, but unable to figure out path to it"
+                    , ~~(comp_unit : string)];
                 None))
   in
   let should_act_in_test = ref false in
@@ -472,18 +472,19 @@ let qualify_for_open ~changed_something ~artifacts ~type_index
     }
   in
   let structure' = self.structure self structure in
-  if in_test
-     ||
-     (* not strictly necessary, but seems nice to be idempotent *)
-     match structure' with
-     | { pstr_desc =
-           Pstr_open
-             { popen_expr = { pmod_desc = Pmod_ident { txt = Lident mod_; _ }; _ }; _ }
-       ; _
-       }
-       :: _ ->
-         mod_ =: root
-     | _ -> false
+  if
+    in_test
+    ||
+    (* not strictly necessary, but seems nice to be idempotent *)
+    match structure' with
+    | { pstr_desc =
+          Pstr_open
+            { popen_expr = { pmod_desc = Pmod_ident { txt = Lident mod_; _ }; _ }; _ }
+      ; _
+      }
+      :: _ ->
+        mod_ =: root
+    | _ -> false
   then structure'
   else (
     changed_something := true;
@@ -551,9 +552,9 @@ let unqualify ~changed_something structure ~artifacts ~type_index
                                     print_s
                                       [%sexp
                                         "right env?"
-                                        , (new_id : Longident.t)
-                                        , (path' : Uast.Path.t)
-                                        , (vd'.val_uid : Uast.Shape.Uid.t)];
+                                      , (new_id : Longident.t)
+                                      , (path' : Uast.Path.t)
+                                      , (vd'.val_uid : Uast.Shape.Uid.t)];
                                   merely_aliased ~artifacts (path, vd, env)
                                     (path', vd', env)
                             in
@@ -562,8 +563,8 @@ let unqualify ~changed_something structure ~artifacts ~type_index
                               print_s
                                 [%sexp
                                   (id.txt : Longident.t)
-                                  , (new_id : Longident.t)
-                                  , ~~(merely_aliased : bool)];
+                                , (new_id : Longident.t)
+                                , ~~(merely_aliased : bool)];
                             if merely_aliased
                             then (
                               changed_something := true;

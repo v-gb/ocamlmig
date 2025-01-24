@@ -1,8 +1,7 @@
-(** Modify migration attributes by turning let _ = id [@migrate { repl; ... }]
-    into let _ = [ id; repl ] [@migrate { ... }].
+(** Modify migration attributes by turning let _ = id [@migrate { repl; ... }] into let _
+    = [ id; repl ] [@migrate { ... }].
 
-    If transform_replace could express this, maybe this wouldn't need to be
-    builtin. *)
+    If transform_replace could express this, maybe this wouldn't need to be builtin. *)
 
 open! Base
 open! Common

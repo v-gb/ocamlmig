@@ -255,9 +255,9 @@ module Env_summary = struct
         sexps_of_t
           ([%sexp
              `module_
-             , (b : Ident.t)
-             , (c : (Types.module_presence[@sexp.opaque]))
-             , (d : (Types.module_declaration[@sexp.opaque]))]
+           , (b : Ident.t)
+           , (c : (Types.module_presence[@sexp.opaque]))
+           , (d : (Types.module_declaration[@sexp.opaque]))]
           :: acc)
           a
     | Env_modtype (a, b, c) ->
@@ -296,8 +296,8 @@ module Env_summary = struct
         sexps_of_t
           ([%sexp
              `module_unbound
-             , (b : string)
-             , (c : (Env.module_unbound_reason[@sexp.opaque]))]
+           , (b : string)
+           , (c : (Env.module_unbound_reason[@sexp.opaque]))]
           :: acc)
           a
 

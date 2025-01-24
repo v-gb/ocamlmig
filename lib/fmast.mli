@@ -1,17 +1,16 @@
 (** "fmast" stands for "ocamlformat ast", meaning the version of the ocaml AST that
-   ocamlformat parses/print.
+    ocamlformat parses/print.
 
-   The parsing/printing is done with ocamlformat, because we want to express
-   modifications of the source file by modifying the AST, rather than by tweaking bytes
-   in the source code strings. As explained in Dyn_ocamlformat, this module doesn't
-   have to print files in the same exact format used by users, we just want to round
-   trip the code through the AST while avoiding undesirable normalisations of the source
-   code, like dropping comments, turning [let x : foo = y] into [let x = (y : foo)] or
-   vice versa, etc.
+    The parsing/printing is done with ocamlformat, because we want to express
+    modifications of the source file by modifying the AST, rather than by tweaking bytes
+    in the source code strings. As explained in Dyn_ocamlformat, this module doesn't have
+    to print files in the same exact format used by users, we just want to round trip the
+    code through the AST while avoiding undesirable normalisations of the source code,
+    like dropping comments, turning [let x : foo = y] into [let x = (y : foo)] or vice
+    versa, etc.
 
-   Note: ocamlformat makes some assumptions of the form "the AST we print is the
-   AST we parsed", which we break and have to either workaround or patch.
- *)
+    Note: ocamlformat makes some assumptions of the form "the AST we print is the AST we
+    parsed", which we break and have to either workaround or patch. *)
 
 open Base
 module Format := Stdlib.Format

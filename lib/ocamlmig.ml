@@ -303,7 +303,7 @@ let migrate =
                           eprint_s
                             [%sexp
                               ("skipping " ^ Cwdpath.to_string source_path : string)
-                              , (e : Sexp.t)]
+                            , (e : Sexp.t)]
                       | Ok (cmt_path, listing1) ->
                           let type_index = Build.Type_index.create cmt_path listing1 in
                           let cmt_infos = Build.read_cmt cmt_path in
@@ -322,7 +322,7 @@ let migrate =
                                     raise_s
                                       [%sexp
                                         "unable to find cmt for"
-                                        , ~~(library_name : string)])
+                                      , ~~(library_name : string)])
                           in
                           with_reported_ocaml_exn report_exn None (fun () ->
                               Transform_migration.run ~fmconf ~artifacts ~source_path
@@ -593,8 +593,8 @@ let replace =
                         raise_s
                           [%sexp
                             "unexpected exactly one \"///\" in argument"
-                            , (str : string)
-                            , "to separate PATTERN and REPL"])))
+                          , (str : string)
+                          , "to separate PATTERN and REPL"])))
         and source = source_param
         and write = write_param
         and get_ocamlformat_conf = ocamlformat_conf_param in
@@ -624,7 +624,7 @@ let replace =
                           eprint_s
                             [%sexp
                               ("skipping over " ^ Cwdpath.to_string source_path : string)
-                              , (e : Sexp.t)];
+                            , (e : Sexp.t)];
                           None
                       | Error _, Some _ | Ok _, None -> assert false
                       | Ok (_cmt_path, dirs), Some cmt_infos ->
@@ -718,10 +718,10 @@ let internal_cmt =
               print_s
                 [%sexp
                   `impl (cmt_infos.cmt_impl_shape : Uast.Shape.t option)
-                  , `occurrences
-                      (cmt_infos.cmt_ident_occurrences
-                        : (Uast.Longident.t Uast.Location.loc * Uast.Shape_reduce.result)
-                          list)];
+                , `occurrences
+                    (cmt_infos.cmt_ident_occurrences
+                      : (Uast.Longident.t Uast.Location.loc * Uast.Shape_reduce.result)
+                        list)];
               Format.printf "%a@."
                 (fun ppf tbl ->
                   Uast.Shape.Uid.Tbl.iter

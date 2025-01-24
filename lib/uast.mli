@@ -1,18 +1,17 @@
-(** "uast" stands for "upstream ast", meaning the ast of the ocaml compiler,
-    as opposed to the ocamlformat ast.
+(** "uast" stands for "upstream ast", meaning the ast of the ocaml compiler, as opposed to
+    the ocamlformat ast.
 
     This module does two things:
-    - hold a few functionality related to the upstream AST, notably the ability
-    to just debug print things
-    - make it possible to refer to the upstream AST modules when they got
-    shadowed by an open Ocamlformat*
+    - hold a few functionality related to the upstream AST, notably the ability to just
+      debug print things
+    - make it possible to refer to the upstream AST modules when they got shadowed by an
+      open Ocamlformat*
 
-    We need to interact with the upstream AST mainly (only?) for the type information
-    and scoping information in .cmt files. We do not use the upstream parse/print,
-    and instead use the ocamlformat ones, since the parse/AST/print pipeline drops
-    information that's useful to print modified source files, and we generally want to
-    print back an AST, rather than merely tweaking the string of the source files.
- *)
+    We need to interact with the upstream AST mainly (only?) for the type information and
+    scoping information in .cmt files. We do not use the upstream parse/print, and instead
+    use the ocamlformat ones, since the parse/AST/print pipeline drops information that's
+    useful to print modified source files, and we generally want to print back an AST,
+    rather than merely tweaking the string of the source files. *)
 
 open Base
 module Format = Stdlib.Format
