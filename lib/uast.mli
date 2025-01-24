@@ -15,6 +15,7 @@
 
 open Base
 module Format = Stdlib.Format
+module Asttypes = Asttypes
 module Parsetree = Parsetree
 module Parser = Parser
 module Parse = Parse

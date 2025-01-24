@@ -4,6 +4,7 @@ module Sys = Stdlib.Sys
 module Printf = Stdlib.Printf
 module Format = Stdlib.Format
 open Common
+module Asttypes = Asttypes
 module Parsetree = Parsetree
 module Parser = Parser
 module Parse = Parse

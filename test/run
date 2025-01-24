@@ -11,7 +11,11 @@ ocamlmig transform rescope -unopen Z test_scope.ml "$@"
 ocamlmig transform rescope -open Z test_scope.ml "$@"
 ocamlmig transform migration-inverse test_migration_inverse.ml "$@"
 ocamlmig transform migration-check test_migration_check.ml "$@"
-ocamlmig replace -e "List.map ~f:__f __l /// List.map __l ~f:__f" *.ml "$@"
+ocamlmig replace \
+         -e "List.map ~f:__f __l /// List.map' __l ~f:__f" \
+         -e "List.filter_map ~f:__f __l /// List.filter_map' __l ~f:__f [@reorder]" \
+         -e 'List.memq __etc /// List.mem ~eq:Stdlib.(==) __etc' \
+         *.ml "$@"
 
 cp ../examples/stdlib_to_base/stdlib_to_base.ml ../examples/stdlib_to_base_check/stdlib_to_base_check.ml
 sleep 0.1
