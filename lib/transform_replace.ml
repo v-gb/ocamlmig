@@ -26,11 +26,10 @@ open! Fmast
 
 (* Possible design:
    - __etc to match any number of tuple elements/list elements
-   - it may be better for pexp_ident to match the value rather than the syntactically,
+   - it may be better for pexp_ident to match the value rather than syntactically,
      and have some mechanism for a syntactic match. Maybe [%exact foo]?
    - might be useful to have ways of stating some properties of the code like
-     "cannot raise" or "duplicatable". Perhaps we could support general conjunction
-     and disjunction with (e1 & e2) and (e1 or e2), such that you can say things like
+     "cannot raise" or "duplicatable", such that you can say things like
      (try Some (Sys.getenv (__var & [%noraise])) with Not_found -> None) /// Sys.getenv_opt __var
 *)
 
