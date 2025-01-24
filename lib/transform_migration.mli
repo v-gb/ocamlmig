@@ -44,4 +44,8 @@ val update_attribute_payload_fmast :
 val remove_attribute_payload_fmast : P.attributes -> P.attributes
 val has_context_match : P.expression -> bool
 val commute_args : Fmast.function_arg list -> Fmast.function_arg list
+
+val commute_list :
+  ('a -> 'a -> bool) -> ('a * P.expression) list -> ('a * P.expression) list
+
 val internalize_reorder_attribute : P.expression -> P.expression

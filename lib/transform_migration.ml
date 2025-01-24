@@ -877,7 +877,7 @@ let loc_if_from_original_file =
     | exception E pos -> `Source pos.pos_cnum
     | (_ : P.expression) -> `Migration
 
-let commute_args (args : function_arg list) =
+let commute_list commute args =
   if
     List.length args > 200
     (* this code is quadratic, so leave pathological cases alone *)
@@ -910,6 +910,8 @@ let commute_args (args : function_arg list) =
       | [] -> []
     in
     push_down l |> List.map ~f:snd
+
+let commute_args (args : function_arg list) = commute_list commute args
 
 let expr_is_var (e : P.expression) var =
   match e with

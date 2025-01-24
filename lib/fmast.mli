@@ -78,6 +78,8 @@ module Longident : sig
       type nonrec t [@@deriving compare, sexp_of]
     end
     with type t := t
+
+  include Comparator.S with type t := t
 end
 
 module Ast_helper : sig

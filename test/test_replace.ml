@@ -16,6 +16,19 @@ let _ =
     let open Stdlib in
     List.mem ~eq:Stdlib.( == ) (ref 3) [ ref 1; ref 2 ]]
 
+type record =
+  { field1 : int
+  ; field2 : string
+  }
+
+let _ =
+  let field1 = 1 in
+  ignore { field1; field2 = "a" }
+[@@migrate_test.replace
+  let _ =
+    let field1 = 1 in
+    ignore { field3 = field1; field2 = "a" }]
+
 (* Replace List.mapi by List.map to observe that the comment is moved. I suspect the
    problem is that as we replace List.map ~f:__f __l by List.map __l ~f:__f, the position
    for the function application is not transferred to the new function application. *)

@@ -26,7 +26,6 @@ open! Fmast
 
 (* Possible design:
    - __etc to match any number of tuple elements/list elements
-     Or maybe it could be __foo*, with a simple rewriting of such tokens.
    - it may be better for pexp_ident to match the value rather than the syntactically,
      and have some mechanism for a syntactic match. Maybe [%exact foo]?
    - might be useful to have ways of stating some properties of the code like
@@ -35,9 +34,18 @@ open! Fmast
      (try Some (Sys.getenv (__var & [%noraise])) with Not_found -> None) /// Sys.getenv_opt __var
 *)
 
+let map_ref_find_and_remove map key =
+  match Map.find !map key with
+  | None -> None
+  | Some _ as opt ->
+      map := Map.remove !map key;
+      opt
+
 type value =
   | Expr of P.expression
   | Args of function_arg list
+  | Fields of
+      (Longident.t Location.loc * P.type_constraint option * expression option) list
 
 type stage2 =
      Parsetree.expression
@@ -73,7 +81,14 @@ let match_var v_motif make_data =
           true
       | `Duplicate -> false
 
-let etc_var : function_arg -> _ = function
+let etc_field : Longident.t Location.loc * _ option * expression option -> _ = function
+  | { txt = Lident v; _ }, None, Some { pexp_desc = Pexp_ident { txt = Lident v'; _ }; _ }
+    when v =: v' && String.is_prefix v ~prefix:"__etc" ->
+      Some v
+  | { txt = Lident v; _ }, None, None when String.is_prefix v ~prefix:"__etc" -> Some v
+  | _ -> None
+
+let etc_arg : function_arg -> _ = function
   | Nolabel, { pexp_desc = Pexp_ident { txt = Lident v; _ }; _ } ->
       if String.is_prefix v ~prefix:"__etc" then Some v else None
   | _ -> None
@@ -154,6 +169,24 @@ let rec match_ (motif : Uast.Parsetree.expression) : stage2 =
             Fmast.Longident.compare id.txt (Conv.longident id_motif.txt) = 0
             && sopt eopt ~env ~ctx
         | _ -> false)
+  | Pexp_variant (label_motif, motif_opt) -> (
+      let sopt = match_option match_ motif_opt in
+      fun expr ~env ~ctx ->
+        match expr.pexp_desc with
+        | Pexp_variant (label, eopt) ->
+            label.txt.txt =: label_motif && sopt eopt ~env ~ctx
+        | _ -> false)
+  | Pexp_record (fields_motif, init_motif) -> (
+      let s_init = match_option match_ init_motif in
+      let s_fields = match_fields fields_motif in
+      fun expr ~env ~ctx ->
+        match expr.pexp_desc with
+        | Pexp_record (fields, init) -> s_init init ~env ~ctx && s_fields fields ~env ~ctx
+        | _ -> false)
+  | Pexp_lazy m1 -> (
+      let s1 = match_ m1 in
+      fun expr ~env ~ctx ->
+        match expr.pexp_desc with Pexp_lazy e1 -> s1 e1 ~env ~ctx | _ -> false)
   | Pexp_extension (motif_name, motif_payload) -> (
       let s_payload = match_payload ~loc:motif.pexp_loc motif_payload in
       fun expr ~env ~ctx ->
@@ -162,6 +195,54 @@ let rec match_ (motif : Uast.Parsetree.expression) : stage2 =
             name.txt =: motif_name.txt && s_payload payload ~env ~ctx
         | _ -> false)
   | _ -> unsupported_motif motif.pexp_loc
+
+and match_fields
+    (mfields : (Uast.Longident.t Uast.Location.loc * Uast.Parsetree.expression) list) =
+  let var_other = ref None in
+  let s_named = ref (Map.empty (module Longident)) in
+  List.iter mfields ~f:(fun (id, m) ->
+      match id.txt with
+      | Lident id'
+        when (match m.pexp_desc with
+             | Pexp_ident { txt = Lident id''; _ } when id'' =: id' -> true
+             | _ -> false)
+             && String.is_prefix id' ~prefix:"__etc" ->
+          var_other := Some id'
+      | _ ->
+          s_named :=
+            Map.add_exn !s_named ~key:(Conv.longident id.txt)
+              ~data:(Conv.longident id.txt, match_ m));
+  let var_other = !var_other in
+  let s_named = !s_named in
+  fun fields ~env ~ctx ->
+    let s_named = ref s_named in
+    let others = ref [] in
+    List.for_all fields ~f:(fun (id, tyopt, value) ->
+        match tyopt with
+        | Some _ -> false
+        | None -> (
+            match map_ref_find_and_remove s_named id.txt with
+            | Some (motif_id, stage2) ->
+                Longident.compare motif_id id.txt = 0
+                && stage2
+                     (Option.value_exn value ~message:"should be normalized away")
+                     ~env ~ctx
+            | None ->
+                if Option.is_some var_other
+                then (
+                  others := (id, tyopt, value) :: !others;
+                  true)
+                else false))
+    && Map.is_empty !s_named
+    &&
+    match var_other with
+    | None -> true
+    | Some var_other -> (
+        match Map.add !env ~key:var_other ~data:(Fields (List.rev !others)) with
+        | `Ok map ->
+            env := map;
+            true
+        | `Duplicate -> false)
 
 and match_args (margs : (Uast.Asttypes.arg_label * Uast.Parsetree.expression) list) =
   let var_other = ref None in
@@ -184,6 +265,7 @@ and match_args (margs : (Uast.Asttypes.arg_label * Uast.Parsetree.expression) li
   let s_anon = Queue.to_list s_anon in
   fun args ~env ~ctx ->
     let s_anon = ref s_anon in
+    let s_named = ref s_named in
     let others = ref [] in
     let match_others arg_label arg =
       if Option.is_some var_other
@@ -192,23 +274,23 @@ and match_args (margs : (Uast.Asttypes.arg_label * Uast.Parsetree.expression) li
         true)
       else false
     in
-    let matched =
-      List.for_all args ~f:(fun (arg_label, arg) ->
-          match arg_label with
-          | Nolabel -> (
-              match !s_anon with
-              | stage2 :: rest ->
-                  s_anon := rest;
-                  stage2 arg ~env ~ctx
-              | [] -> match_others arg_label arg)
-          | _ -> (
-              match Map.find s_named (Fmast.Arg_label.to_string arg_label) with
-              | Some (motif_arg_label, stage2) ->
-                  (* label comparison probably not ideal, for optional arguments? *)
-                  Arg_label.equal motif_arg_label arg_label && stage2 arg ~env ~ctx
-              | None -> match_others arg_label arg))
-    in
-    matched
+    List.for_all args ~f:(fun (arg_label, arg) ->
+        match arg_label with
+        | Nolabel -> (
+            match !s_anon with
+            | stage2 :: rest ->
+                s_anon := rest;
+                stage2 arg ~env ~ctx
+            | [] -> match_others arg_label arg)
+        | _ -> (
+            match
+              map_ref_find_and_remove s_named (Fmast.Arg_label.to_string arg_label)
+            with
+            | Some (motif_arg_label, stage2) ->
+                (* label comparison probably not ideal, for optional arguments? *)
+                Arg_label.equal motif_arg_label arg_label && stage2 arg ~env ~ctx
+            | None -> match_others arg_label arg))
+    && Map.is_empty !s_named
     &&
     match var_other with
     | None -> true
@@ -245,15 +327,35 @@ let subst expr ~env =
         with_log (fun self expr ->
             let expr =
               match expr.pexp_desc with
-              | Pexp_apply (f, args) when Option.is_some (List.find_map args ~f:etc_var)
+              | Pexp_record (fields, init) ->
+                  let fields' =
+                    List.concat_map fields ~f:(fun ((id, typopt, value) as field) ->
+                        match etc_field field with
+                        | Some v -> (
+                            match Map.find_exn env v with
+                            | Expr _ | Args _ ->
+                                Location.raise_errorf ~loc:id.loc "hm, what"
+                            | Fields fs -> fs)
+                        | None ->
+                            [ ( id
+                              , typopt
+                                (* should map over the type constraint here, or perhaps
+                                 normalize this construction away *)
+                              , Option.map ~f:(self.expr self) value )
+                            ])
+                  in
+                  let init' = Option.map ~f:(self.expr self) init in
+                  { expr with pexp_desc = Pexp_record (fields', init') }
+              | Pexp_apply (f, args) when Option.is_some (List.find_map args ~f:etc_arg)
                 ->
                   let f' = self.expr self f in
                   let args' =
                     List.concat_map args ~f:(fun (arg_label, arg) ->
-                        match etc_var (arg_label, arg) with
+                        match etc_arg (arg_label, arg) with
                         | Some v -> (
                             match Map.find_exn env v with
-                            | Expr _ -> Location.raise_errorf ~loc:arg.pexp_loc "hm, what"
+                            | Expr _ | Fields _ ->
+                                Location.raise_errorf ~loc:arg.pexp_loc "hm, what"
                             | Args args -> args)
                         | None -> [ (arg_label, self.expr self arg) ])
                   in
@@ -262,6 +364,16 @@ let subst expr ~env =
             in
             let expr = super.expr self expr in
             match expr.pexp_desc with
+            | Pexp_record (fields, init)
+              when not (Attr.exists expr.pexp_attributes (Attr.reorder `Internal)) ->
+                let fields' =
+                  fields
+                  |> List.map ~f:(fun (id, typopt, eopt) ->
+                         ((id, typopt), Option.value_exn eopt))
+                  |> Transform_migration.commute_list (fun _ _ -> true)
+                  |> List.map ~f:(fun ((id, typopt), e) -> (id, typopt, Some e))
+                in
+                { expr with pexp_desc = Pexp_record (fields', init) }
             | Pexp_apply (f, args)
               when not (Attr.exists expr.pexp_attributes (Attr.reorder `Internal)) ->
                 let args' = Transform_migration.commute_args args in
@@ -269,6 +381,9 @@ let subst expr ~env =
             | Pexp_ident { txt = Lident var; _ } when Map.mem env var -> (
                 match Map.find_exn env var with
                 | Expr e -> e
+                | Fields _ ->
+                    Location.raise_errorf ~loc:expr.pexp_loc
+                      "pattern %s can only be inserted into a record literal" var
                 | Args _ ->
                     Location.raise_errorf ~loc:expr.pexp_loc
                       "pattern %s can only be inserted into a function call" var)
