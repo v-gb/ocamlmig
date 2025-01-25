@@ -154,6 +154,12 @@ let create ?(x = 0) () = create_explicit x
 *)
 ```
 
+As you may have noticed, the `repl` expression and the definition of `create` are
+almost identical. This is no coincidence: when evolving an interface, it is common for
+an old value to be a shim calling newer values, as done above.  Inlining that shim into
+a caller migrates uses of the old interface into uses of the new interface,
+i.e. exactly what we're trying to do.
+
 Now, not every interface change can be handled mechanically, and not every mechanical
 upgrade can be expressed with ocamlmig, but the hope is that "replacing value
 identifier by expression" is a useful tool nonetheless.
@@ -181,7 +187,10 @@ potentially qualifying any module identifier that would otherwise get shadowed.
 
 # Status
 
-ocamlmig should be useful as is, but with presumably a fair amount of rough edges.
+ocamlmig should be useful as is, but with presumably a fair amount of rough edges. Here are examples of what has been done with it:
+
+- [Renaming operators](https://github.com/v-gb/Gillian/commit/e15ac20a5fac0849dae51523d1b73f1612f976e5) (not trivial because the operators change precedence)
+- [Switching code using both Stdlib and Core to mostly Core](https://github.com/v-gb/ortografe/commit/b0b6a0c323edb67c03ae938d122e73b4f6a8affc), using [these attributes](../examples/stdlib_to_base/stdlib_to_base.ml).
 
 Aside from making what exists work better (nicer resulting code, more correct code in
 corner cases, better performance, etc), we could imagine improving ocamlmig along a

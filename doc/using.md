@@ -140,6 +140,7 @@ Here, we will assume you have read through the [high level picture](./what.md) f
 For library authors, here is how to describe a migration:
 
 ```ocaml
+(* This is library Foo *)
 val starts_with2 : string -> prefix:string -> bool
 
 val starts_with : string -> string -> bool
@@ -166,6 +167,52 @@ let _ = Foo.starts_with2 "a" ~prefix:b"
 As you may have noticed, the `repl` field contains an expression that, aside from the
 use of `Rel`, is probably exactly how `starts_with` is implemented in the library.
 
+### Attribute placement
+
+In general, the `migrate` attribute is supported:
+
+- on `val` signature items, `val x : unit -> unit [@@migrate ...]`
+- on let bindings defining a single variable, `let x () = () [@@migrate ...]`
+- on an arbitrary identifier, to define a migration without modifying the definition
+  of the identifier:
+
+    ```ocaml
+    let _ = List.map [@migrate { repl = fun f l -> ListLabels.map ~f l }]`
+    ```
+
+    Note the single `@` sign.
+    
+    Such attributes differ from inline ones in a couple of ways:
+
+    - They must be defined in a single-module library. Let's say the library is called
+      `use_labels`, then the code above would live in `use_labels.ml`.
+    - `ocamlmig migrate` will not apply such transform automatically, this must be
+      requested explicitly with a `-side-migration use_labels` flag.
+
+    Currently, the following syntax is also supported:
+    
+    ```ocaml
+    let _ = [ List.map; (fun f l -> ListLabels.map ~f l) ] [@migrate]`
+    ```
+
+    The advantage of this version is that the replacement expression is typechecked,
+    and is checked to have a type that's unifiable with the original expression.  The
+    main disadvantage is that any desugaring in the compiler will affect the
+    replacement expression. This syntax may be removed if this drawback can't be fixed.
+
+### Attribute syntax
+
+The general form of the `migrate` attribute is:
+
+```ocaml
+[@@migrate
+  { repl (* a required expression, e.g. *) = (fun f l -> ListLabels.map l ~f)
+  ; libraries (* an optional list of libraries names, e.g. *) = [ "core.unix" ]
+  }]
+```
+
+### `repl` field
+
 There are a few things to know about the `repl` expression:
 
 - Since the expression is specified in an attribute, it will be parsed but not
@@ -180,37 +227,36 @@ There are a few things to know about the `repl` expression:
       intention is that replacement expression should assume that Stdlib is in scope
       and use fully qualified paths (or `Rel`) to refer to other names.
     - Extension nodes (say `[%compare: int]`) should be avoided. If the replacement code
-      contains an extension node, then the caller would either get the macro-expansion,
-      or the extension node depending on how the ppx works, and neither is ideal.
+      contains an extension node, then the caller would either get the macro-expansion
+      or the extension node (depending on how the ppx works), and neither is ideal.
     - Type variables `(... : 'a list)` should be avoided, because they can collide
       with type variables of the same name in the caller, and cause typing errors even if
       they are fresh.
 
-In general, the `migrate` attribute is supported:
-
-- on `val` signature items, `val x : ... [@@migrate ...]`
-- on let bindings, `let x = ... [@@migrate ...]`
-- on an arbitrary identifier, to define a migration without modifying the code itself:
-
-    ```ocaml
-    let _ = List.map [@migrate { repl = fun f l -> ListLabels.map ~f l }]`
-    ```
-
-    Such attributes differ from an inline ones in a couple of ways:
-
-    - They must be defined in a single-module library. Let's say the library is called
-      `use_labels`, then the code above would live in `use_labels.ml`.
-    - `ocamlmig migrate` will not apply such transform automatically, this must be
-      requested explicitly with the `-side-migration use_labels` flag.
-
-The general form of the `migrate` attribute is:
+Finally, the code supports applying slightly different rewrites depending on the
+context of the original identifier. Concretely, it looks like this:
 
 ```ocaml
-[@@migrate
-  { repl (* a required expression, e.g. *) = (fun f l -> ListLabels.map l ~f)
-  ; libraries (* an optional list of libraries names, e.g. *) = [ "core.unix" ]
-  }]
+let _ = compare
+  [@migrate { repl = function [%context: int -> _] -> Int.compare
+                             | [%context: string -> _] -> String.compare }
+                             | _ -> Compare.Poly.compare
+  ]
+
+let z1 x = compare x 1 (* compare would be replaced by Int.compare *)
+let z2 (x : string) y = compare x y (* compare would be replaced by String.compare *)
+let z3 x y = compare x y (* compare would be replaced by Compare.Poly.compare *)
 ```
 
-The `libraries` contains a list of libraries names as specified in dune files. This should be is used when the replacement expression refers to libraries that the caller code may not have access to. Whenever that migrate attribute is used, ocamlmig will add the dependency to the relevant dune files.
+The `function` syntax maps conditions about the context to a replacement expression in
+that context. `[%context: type]` accepts only call sites compatible with the specified
+type, while `_` accepts all call sites. A final `_` is not required: if no contexts
+match, a call site won't be rewritten.
+
+### `libraries` field
+
+The `libraries` contains a list of libraries names as specified in dune files. This
+should be used when the replacement expression refers to libraries that the caller code
+may not have in scope. Whenever that migrate attribute is used, ocamlmig will add the
+dependency to the relevant dune files.
 
