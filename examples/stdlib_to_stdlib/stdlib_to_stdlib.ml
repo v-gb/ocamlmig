@@ -1,6 +1,11 @@
 (** Migration attributes to move from Stdlib names to other preferred Stdlib names, like
     using [Float.acos] instead of [acos]. *)
 
+(*
+let _ = [ ( == ); phys_equal ] [@@migrate]
+let _ = [ ( != ); (fun a b -> not (phys_equal a b)) ] [@@migrate]
+ *)
+
 let _ = [ succ; Int.succ ] [@migrate]
 let _ = [ pred; Int.pred ] [@migrate]
 let _ = [ abs; Int.abs ] [@migrate]
@@ -50,12 +55,46 @@ let _ = [ char_of_int; Char.chr ] [@migrate]
 let _ = [ string_of_float; Float.to_string ] [@migrate]
 let _ = [ float_of_string; Float.of_string ] [@migrate]
 let _ = [ float_of_string_opt; Float.of_string_opt ] [@migrate]
+
+(* We could migrate the following values, but this is not clearly better.
+
 let _ = [ stdin; In_channel.stdin ] [@migrate]
 let _ = [ stdout; Out_channel.stdout ] [@migrate]
 let _ = [ stderr; Out_channel.stderr ] [@migrate]
+ *)
 
-(* We could add the long list of `print_char` -> `output_char stdout` migrations as
-   well *)
+let _ = [ print_char; (fun c -> Out_channel.output_char stdout c) ] [@migrate]
+
+(* let _ = [ print_string; (fun c -> Out_channel.output_string stdout c) ] [@migrate] *)
+
+let _ = [ print_bytes; (fun c -> Out_channel.output_bytes stdout c) ] [@migrate]
+
+let _ =
+  [ print_int; (fun n -> Out_channel.output_string stdout (Int.to_string n)) ] [@migrate]
+
+let _ =
+  [ print_float; (fun f -> Out_channel.output_string stdout (Float.to_string f)) ]
+  [@migrate]
+
+(* no equivalent of print_endline/print_newline in Out_channel, weirdly *)
+
+let _ = [ prerr_char; (fun c -> Out_channel.output_char stderr c) ] [@migrate]
+
+(* let _ = [ prerr_string; (fun c -> Out_channel.output_string stderr c) ] [@migrate] *)
+
+let _ = [ prerr_bytes; (fun c -> Out_channel.output_bytes stderr c) ] [@migrate]
+
+let _ =
+  [ prerr_int; (fun n -> Out_channel.output_string stderr (Int.to_string n)) ] [@migrate]
+
+let _ =
+  [ prerr_float; (fun f -> Out_channel.output_string stderr (Float.to_string f)) ]
+  [@migrate]
+
+(* no equivalent of prerr_endline/prerr_newline in Out_channel *)
+
+(* read_{line,int,int_opt,float,float_opt} seems very specific functions. Not sure
+   if it is of any help of migrate read_float to Float.of_string (read_line ()) *)
 
 let _ = [ open_out; Out_channel.open_text ] [@migrate]
 let _ = [ open_out_bin; Out_channel.open_bin ] [@migrate]
@@ -68,6 +107,17 @@ let _ = [ output_bytes; Out_channel.output_bytes ] [@migrate]
 let _ = [ output; Out_channel.output ] [@migrate]
 let _ = [ output_substring; Out_channel.output_substring ] [@migrate]
 let _ = [ output_value; (fun ch a -> Marshal.to_channel ch a []) ] [@migrate]
+
+(* We could map seek_out to (fun ch n -> Out_channel.seek ch (Int64.of_int n)), and
+   similarly for the other functions manipulating file offsets, but:
+
+   - seek_out works perfectly fine on 4+GB files on 64bit
+   - 64bit are required in native code with ocaml 5
+   - using Int64 makes code heavier and slower
+
+   So we'd be making code less nice purely so bytecode can work. Meh. It won't matter
+   in browsers either. It might matter if you had wasm outside of the browser. *)
+
 let _ = [ LargeFile.seek_out; Out_channel.seek ] [@migrate]
 let _ = [ LargeFile.pos_out; Out_channel.pos ] [@migrate]
 let _ = [ LargeFile.out_channel_length; Out_channel.length ] [@migrate]
