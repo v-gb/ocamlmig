@@ -175,12 +175,12 @@ As shown above, ocamlmig provides a workflow where:
   knowledge to relearn every time the need arises.
 - library users can apply such migrations
 
-ocamlmig also make it possible to set `@migrate` attribute to an identifier without
+ocamlmig also makes it possible to set `@migrate` attribute to an identifier without
 being the author of the corresponding interface.  Thus anyone could provide a migration
 turning, say, [`open_in` into `In_channel.open_text` without modifying the standard
 library](../examples/stdlib_to_stdlib/stdlib_to_stdlib.ml).
 
-Aside from the migration workflow above, ocamlmig also provide refactor tools that
+Aside from the migration workflow above, ocamlmig also provides refactor tools that
 benefit from having access to types or syntax trees: removing `open A` and adding `A.`
 where appropriate in the remainder of the code, or inversely adding `open A` and
 potentially qualifying any module identifier that would otherwise get shadowed.
@@ -194,12 +194,12 @@ ocamlmig should be useful as is, but with presumably a fair amount of rough edge
 
 Aside from making what exists work better (nicer resulting code, more correct code in
 corner cases, better performance, etc), we could imagine improving ocamlmig along a
-number of directions of improvements:
+number of axes:
 
 - it may be possible to handle migrations for "in-place" changes, meaning cases like
   `let f x = ...`  in version 1 of the library becoming `let f ~x = ...` in version 2.
 - in addition to updating expression, it may be possible to manage a form of update
-  types and modules
+  types and modules, say turning `type t = A | B` into `type t`.
 - we could take `@version` tags in documentation into account to either adjust the
   version bounds of dependencies automatically, or to refrain from applying migrations
   that would cause such updates
@@ -207,18 +207,20 @@ number of directions of improvements:
   necessary to more precisely control the changes. This could be better supported.
 - we could provide a command for sed-like transformation, but working on syntax trees
   with access to types. Rewrites like `ocamlmig replace '(Array.get : float array ->
-  _)' Floatarray.get` could be useful. Or [this
+  _)' Float.Array.get` could be useful. Or [this
   example](https://github.com/v-gb/Gillian/commit/e15ac20a5fac0849dae51523d1b73f1612f976e5),
   which is not easily done with sed due to precedence changes.
 
 # What ocamlmig doesn't do
 
-The ocamlmig executable supports specific form of rewrites that are too limiting in
-some cases. One could rewrite code in arbitrary ways by using ocamlmig as a library
+The ocamlmig executable supports a specific form of rewrites that can't possibly cover
+everything possible.
+
+But one could rewrite code in arbitrary ways by using ocamlmig as a library
 instead. Then, only the limitations of the library itself would potentially be
 limiting: only builds that use dune and ocamlformat are supported (except for very
-simple changes), and of course functionality may not be implemented (like build
-feedback while rewriting files).
+simple changes), and of course the library may be missing functionality (like getting
+build feedback while rewriting files).
 
 # Using ocamlmig
 

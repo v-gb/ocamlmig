@@ -8,7 +8,7 @@ To rewrite your code with ocamlmig, you need to:
 - build the ocamlmig command line executable
 - use dune to build your own code
 - use ocamlformat. You can try things out without ocamlformat, but all code will be
-  printed back ocamlformatted. ocamlmig need not be linked with the exact
+  printed back ocamlformatted. ocamlmig needs not be linked with the exact
   ocamlformat version you use.
 
 You can set up a test repository this way:
@@ -141,6 +141,7 @@ For library authors, here is how to describe a migration:
 
 ```ocaml
 (* This is library Foo *)
+
 val starts_with2 : string -> prefix:string -> bool
 
 val starts_with : string -> string -> bool
@@ -151,7 +152,7 @@ What this means is: during `ocamlmig migrate`, any reference `Foo.starts_with` t
 value above will be replaced by `(fun str prefix -> Foo.starts_with2 str ~prefix)`.
 `Rel` is special syntax to refer to the module path to the old value (mostly meant so
 that if the module of the value has been aliased in the calling code, the updated code
-keeps using the alias).  `ocamlmig` then cleans up the code if possible:
+keeps using the alias).  ocamlmig then cleans up the code if possible:
 
 ```ocaml
 (* original code *)
@@ -196,7 +197,7 @@ In general, the `migrate` attribute is supported:
     ```
 
     The advantage of this version is that the replacement expression is typechecked,
-    and is checked to have a type that's unifiable with the original expression.  The
+    and is checked to have a type that's unifiable with the original identifier.  The
     main disadvantage is that any desugaring in the compiler will affect the
     replacement expression. This syntax may be removed if this drawback can't be fixed.
 
@@ -226,12 +227,12 @@ There are a few things to know about the `repl` expression:
       particular sum type constructors and record fields may need to be qualified. The
       intention is that replacement expression should assume that Stdlib is in scope
       and use fully qualified paths (or `Rel`) to refer to other names.
-    - Extension nodes (say `[%compare: int]`) should be avoided. If the replacement code
-      contains an extension node, then the caller would either get the macro-expansion
-      or the extension node (depending on how the ppx works), and neither is ideal.
     - Type variables `(... : 'a list)` should be avoided, because they can collide
       with type variables of the same name in the caller, and cause typing errors even if
       they are fresh.
+    - Extension nodes (say `[%compare: int]`) should be avoided. If the replacement code
+      contains an extension node, then the caller would either get the macro-expansion
+      or the extension node (depending on how the ppx works), and neither is ideal.
 
 Finally, the code supports applying slightly different rewrites depending on the
 context of the original identifier. Concretely, it looks like this:
@@ -239,8 +240,8 @@ context of the original identifier. Concretely, it looks like this:
 ```ocaml
 let _ = compare
   [@migrate { repl = function [%context: int -> _] -> Int.compare
-                             | [%context: string -> _] -> String.compare }
-                             | _ -> Compare.Poly.compare
+                            | [%context: string -> _] -> String.compare }
+                            | _ -> Compare.Poly.compare
   ]
 
 let z1 x = compare x 1 (* compare would be replaced by Int.compare *)
