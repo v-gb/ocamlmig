@@ -1,0 +1,4 @@
+pin-depends: [
+  ["ocamlformat.dev" "git+https://github.com/v-gb/ocamlformat#r-49fc0660ec931943a97b13f10ac9eadbe0cd63f3"]
+  ["ocamlformat-lib.dev" "git+https://github.com/v-gb/ocamlformat#r-49fc0660ec931943a97b13f10ac9eadbe0cd63f3"]
+]

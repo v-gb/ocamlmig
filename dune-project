@@ -11,6 +11,8 @@
 (license "LGPL-2.1-only WITH OCaml-LGPL-linking-exception")
 (documentation https://github.com/v-gb/ocamlmig/tree/main/doc)
 
+;; manually duplicated in ocamlmig.opam.template, because for some reason
+;; dune doesn't propagate it there
 (pin
  (url "git+https://github.com/v-gb/ocamlformat#r-49fc0660ec931943a97b13f10ac9eadbe0cd63f3")
  (package (name ocamlformat)))
@@ -23,7 +25,7 @@
  (synopsis "Ocaml source code rewriting tool")
  (description "Ocamlmig is a command line tool to rewrite ocaml source code, especially to make updating to newer interfaces easier")
  (depends
-   (ocaml (< 5.3)) ;; broken with dune package management
+   (ocaml (< 5.3)) ;; 5.3 can't be installed with dune pkg lock currently
    dune
    ;;
    base

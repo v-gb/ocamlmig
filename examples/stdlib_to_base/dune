@@ -1,3 +1,4 @@
 (library
  (name stdlib_to_base)
+ (public_name ocamlmig.stdlib_to_base)
  (libraries))
