@@ -314,11 +314,12 @@ open struct
   (* Ignoring read_int_opt read_int read_float_opt read_float, which seem like
      exceedingly rare functions *)
 
-  let _ = open_out [@migrate { repl = Stdio.Out_channel.create; libraries = [ "stdio" ] }]
+  let _ =
+    open_out
+    [@migrate { repl = Stdio.Out_channel.create ~binary:false; libraries = [ "stdio" ] }]
 
   let _ =
-    open_out_bin
-    [@migrate { repl = Stdio.Out_channel.create ~binary:false; libraries = [ "stdio" ] }]
+    open_out_bin [@migrate { repl = Stdio.Out_channel.create; libraries = [ "stdio" ] }]
 
   (* no equivalent of open_out_gen *)
 
@@ -396,11 +397,12 @@ open struct
     set_binary_mode_out
     [@migrate { repl = Stdio.Out_channel.set_binary_mode; libraries = [ "stdio" ] }]
 
-  let _ = open_in [@migrate { repl = Stdio.In_channel.create; libraries = [ "stdio" ] }]
+  let _ =
+    open_in
+    [@migrate { repl = Stdio.In_channel.create ~binary:false; libraries = [ "stdio" ] }]
 
   let _ =
-    open_in_bin
-    [@migrate { repl = Stdio.In_channel.create ~binary:false; libraries = [ "stdio" ] }]
+    open_in_bin [@migrate { repl = Stdio.In_channel.create; libraries = [ "stdio" ] }]
 
   (* no equivalent of open_in_gen *)
 
