@@ -19,7 +19,6 @@ depends: [
   "ocamlformat"
   "ocamlformat-lib"
   "ppx_partial"
-  "re"
   "odoc" {with-doc}
 ]
 build: [
