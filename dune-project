@@ -25,7 +25,7 @@
  (synopsis "Ocaml source code rewriting tool")
  (description "Ocamlmig is a command line tool to rewrite ocaml source code, especially to make updating to newer interfaces easier")
  (depends
-   (ocaml (< 5.3)) ;; 5.3 can't be installed with dune pkg lock currently
+  (ocaml (and (>= 5.2) (< 5.3))) ;; no Shape_reduce in 5.1, incompatible changes in 5.3
    dune
    ;;
    base
