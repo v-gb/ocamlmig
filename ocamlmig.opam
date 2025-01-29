@@ -7,7 +7,6 @@ maintainer: ["Valentin Gatien-Baron <valentin.gatienbaron@gmail.com>"]
 authors: ["Valentin Gatien-Baron <valentin.gatienbaron@gmail.com>"]
 license: "LGPL-2.1-only WITH OCaml-LGPL-linking-exception"
 homepage: "https://github.com/v-gb/ocamlmig"
-doc: "https://github.com/v-gb/ocamlmig/tree/main/doc"
 bug-reports: "https://github.com/v-gb/ocamlmig/issues"
 depends: [
   "ocaml" {>= "5.2" & < "5.3"}
