@@ -2,3 +2,7 @@ pin-depends: [
   ["ocamlformat.dev" "git+https://github.com/v-gb/ocamlformat#r-49fc0660ec931943a97b13f10ac9eadbe0cd63f3"]
   ["ocamlformat-lib.dev" "git+https://github.com/v-gb/ocamlformat#r-49fc0660ec931943a97b13f10ac9eadbe0cd63f3"]
 ]
+
+# due to core_unix, but why do we need to restate it? Maybe they added windows to
+# the opam CI without ensuring that existing packages work on it.
+available: os != "win32"
