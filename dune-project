@@ -3,6 +3,8 @@
 (formatting
  (enabled_for ocaml))
 
+(using menhir 2.1)
+
 (name ocamlmig)
 (generate_opam_files true)
 (source (github v-gb/ocamlmig))
@@ -11,14 +13,12 @@
 (license "LGPL-2.1-only WITH OCaml-LGPL-linking-exception")
 ;; (documentation https://github.com/v-gb/ocamlmig/tree/main/doc)
 
-;; manually duplicated in ocamlmig.opam.template, because for some reason
-;; dune doesn't propagate it there
-(pin
- (url "git+https://github.com/v-gb/ocamlformat#r-49fc0660ec931943a97b13f10ac9eadbe0cd63f3")
- (package (name ocamlformat)))
-(pin
- (url "git+https://github.com/v-gb/ocamlformat#r-49fc0660ec931943a97b13f10ac9eadbe0cd63f3")
- (package (name ocamlformat-lib)))
+; (pin
+;  (url "git+https://github.com/v-gb/ocamlformat#r-49fc0660ec931943a97b13f10ac9eadbe0cd63f3")
+;  (package (name ocamlformat)))
+; (pin
+;  (url "git+https://github.com/v-gb/ocamlformat#r-49fc0660ec931943a97b13f10ac9eadbe0cd63f3")
+;  (package (name ocamlformat-lib)))
 
 (package
  (name ocamlmig)
@@ -32,9 +32,56 @@
    core
    core_unix
    csexp
-   ocamlformat
-   ocamlformat-lib
    ppx_partial
+   ;; MARKER ocamlformat
+   (ocaml
+    (>= 4.08))
+   (alcotest
+    (and
+     (= 1 0)
+     (>= 1.3.0)))
+   (base
+    (>= v0.12.0))
+   (cmdliner
+    (>= 1.1.0))
+   dune
+   dune-build-info
+   either
+   fix
+   (fpath
+    (>= 0.7.3))
+   (menhir
+    (>= 20201216))
+   (menhirLib
+    (>= 20201216))
+   (menhirSdk
+    (>= 20201216))
+   (ocaml-version
+    (>= 3.5.0))
+   (ocamlformat-rpc-lib
+    (and
+     (= 1 0)
+     (= :version)))
+   (ocp-indent
+    (or
+     (and
+      (= false false)
+      (>= 1.8.0))
+     (and
+      (= 1 0)
+      (>= 1.8.1))))
+   stdio
+   (uuseg
+    (>= 10.0.0))
+   (uutf
+    (>= 1.0.1))
+   (csexp
+    (>= 1.4.0))
+   ; for vendored odoc-parser
+   astring
+   camlp-streams
+   (re (>= 1.10.3))
+   ;; ENDMARKER ocamlformat
  ))
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project

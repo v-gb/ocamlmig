@@ -10,11 +10,12 @@
    core_unix.filename_unix
    csexp
    ocaml-version
-   ocamlformat-lib
-   ocamlformat-lib.format_
-   ocamlformat-lib.parser_extended
-   ocamlformat.bin_conf
    sexplib
    unix
+   ;; ocamlformat libs
+   ocamlformat_lib
+   ocamlformat_format
+   ocamlformat_parser_extended
+   bin_conf
  )
  (preprocess (pps ppx_sexp_conv ppx_compare ppx_sexp_value ppx_hash ppx_let ppx_partial ppx_pipebang)))

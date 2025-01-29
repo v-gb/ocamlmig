@@ -1,0 +1,45 @@
+#!/bin/bash
+set -e -u -o pipefail
+cd "$(dirname "$0")"
+REV=49fc0660ec931943a97b13f10ac9eadbe0cd63f3
+TMP=/tmp/ocamlformat-$REV
+if ! [ -d "$TMP" ]; then
+    git clone https://github.com/v-gb/ocamlformat --no-checkout "$TMP"
+    (cd "$TMP"; git checkout -q $REV)
+fi
+rsync -m -r --delete --delete-excluded "$TMP"/ ocamlformat/ --include '*/' \
+      --include '/lib/**' \
+      --include '/vendor/**' \
+      --include '/LICENSE' \
+      --exclude '*'
+find ocamlformat/ -name dune \
+    | xargs -r sed -E -i \
+            -e 's/[(](public_name|package)[^)]*[)]//' \
+            -e 's/ ocamlformat-lib/ ocamlformat_lib/'
+depends="$(
+cat "$TMP"/dune-project \
+    | grep -E -A 1000 'name +ocamlformat-lib' \
+    | grep -E -A 1000 '[(]depends' \
+    | tail -n +2 \
+    | grep -E -B 1000 '^[^ ]' -m 1 \
+    | head -n -1 \
+    | grep -vx '' \
+    | sed 's/= :with-test/= false/' \
+    | sed 's/:with-test/(= 1 0)/' \
+    | tac \
+    | sed -E -e '0,/[)]/ s/[)]//g' \
+    | tac
+)"
+new_dune_project="$(
+    grep -B 1000 '; MARKER' ../dune-project;
+    echo "$depends" | sed 's/./ \0/'
+    echo "   (re (>= 1.10.3))" # from ocamlformat package, rather than ocamlformat-lib,
+                               # and used by lib/bin_conf/dune
+    grep -A 1000 '; ENDMARKER' ../dune-project;
+)"
+echo "$new_dune_project" > ../dune-project
+cat >> ocamlformat/lib/dune <<EOF
+(env
+  (dev
+    (flags (:standard -w -69))))
+EOF
