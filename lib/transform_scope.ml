@@ -530,7 +530,9 @@ let unqualify ~changed_something structure ~artifacts ~type_index
             match expr.pexp_desc with
             | Pexp_ident id -> (
                 match Build.Type_index.expr type_index (Conv.location' expr.pexp_loc) with
-                | [] -> expr
+                | [] ->
+                    if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
+                    expr
                 | texpr :: _ -> (
                     let env = Envaux.env_of_only_summary texpr.exp_env in
                     match Env.find_value_by_name (Conv.longident' id.txt) env with

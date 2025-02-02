@@ -435,61 +435,63 @@ let transform =
                  implemented, and most others (identifiers of types, modules, module \
                  types, constructors, exception constructors) are not.\n")
             (make_transform
-               [%map_open.Command
-                 let transform =
-                   let root_and_conservative str =
-                     match String.split str ~on:' ' with
-                     | [ str ] -> (str, false)
-                     | [ str; "conservative" ] -> (str, true)
-                     | _ ->
-                         failwith
-                           (Printf.sprintf "don't understand command line argument %s" str)
-                   in
-                   choose_one_non_optional ~if_nothing_chosen:Raise
-                     [ flag "-unopen" (required string)
-                         ~doc:
-                           "Mod remove [open Mod] from the code, turning x into Mod.x \
-                            where necessary to preserve behavior. Currently [Mod] must \
-                            be a root module (i.e. a compilation unit)."
-                       |> map ~f:(fun v ->
-                              let name, conservative = root_and_conservative v in
-                              Transform_scope.Unopen { name; conservative })
-                     ; flag "-open" (required string)
-                         ~doc:
-                           "Mod|Mod! add either [open Mod] or [open! Mod] as the first \
-                            line of the file, then modify the rest of the program to \
-                            preserve behavior."
-                       |> map ~f:(fun s ->
-                              let s, conservative = root_and_conservative s in
-                              let s, bang =
-                                match String.chop_suffix s ~suffix:"!" with
-                                | None -> (s, false)
-                                | Some rest -> (rest, true)
-                              in
-
-                              Transform_scope.Open { name = s; bang; conservative })
-                     ; flag "-unqualify"
-                         (required (Arg_type.comma_separated string))
-                         ~doc:
-                           "Mod,... turn any Mod.x identifier in the source into x, so \
-                            long as behavior is preserved."
-                       |> map ~f:(fun v -> Transform_scope.Unqualify v)
-                     ]
-                 in
-                 fun ctx ->
-                   match force ctx.ocamlformat_conf with
-                   | None -> ()
-                   | Some (fmconf, fm_orig) ->
-                       let artifacts =
-                         Build.Artifacts.create ~cache:ctx.artifacts_cache ctx.listing
-                       in
-                       Transform_scope.run transform ~fmconf ~artifacts
-                         ~type_index:(force ctx.type_index) ~source_path:ctx.source_path
-                         ~input_name_matching_compilation_command:
-                           (Build.input_name_matching_compilation_command
-                              (force ctx.cmt_infos))
-                         ~cmt_infos:(Build.read_cmt ctx.cmt_path)
-                       |> ctx.diff_or_write ~fmt_ocaml:(Some fm_orig)]) )
+               (let module_name = Command.Arg_type.create Unit_info.modulize in
+                [%map_open.Command
+                  let transform =
+                    let root_and_conservative str =
+                      match String.split str ~on:' ' with
+                      | [ str ] -> (str, false)
+                      | [ str; "conservative" ] -> (str, true)
+                      | _ ->
+                          failwith
+                            (Printf.sprintf "don't understand command line argument %s"
+                               str)
+                    in
+                    choose_one_non_optional ~if_nothing_chosen:Raise
+                      [ flag "-unopen" (required module_name)
+                          ~doc:
+                            "Mod remove [open Mod] from the code, turning x into Mod.x \
+                             where necessary to preserve behavior. Currently [Mod] must \
+                             be a root module (i.e. a compilation unit)."
+                        |> map ~f:(fun v ->
+                               let name, conservative = root_and_conservative v in
+                               Transform_scope.Unopen { name; conservative })
+                      ; flag "-open" (required module_name)
+                          ~doc:
+                            "Mod|Mod! add either [open Mod] or [open! Mod] as the first \
+                             line of the file, then modify the rest of the program to \
+                             preserve behavior."
+                        |> map ~f:(fun s ->
+                               let s, conservative = root_and_conservative s in
+                               let s, bang =
+                                 match String.chop_suffix s ~suffix:"!" with
+                                 | None -> (s, false)
+                                 | Some rest -> (rest, true)
+                               in
+                               Transform_scope.Open
+                                 { name = Unit_info.modulize s; bang; conservative })
+                      ; flag "-unqualify"
+                          (required (Arg_type.comma_separated module_name))
+                          ~doc:
+                            "Mod,... turn any Mod.x identifier in the source into x, so \
+                             long as behavior is preserved."
+                        |> map ~f:(fun v -> Transform_scope.Unqualify v)
+                      ]
+                  in
+                  fun ctx ->
+                    match force ctx.ocamlformat_conf with
+                    | None -> ()
+                    | Some (fmconf, fm_orig) ->
+                        let artifacts =
+                          Build.Artifacts.create ~cache:ctx.artifacts_cache ctx.listing
+                        in
+                        Transform_scope.run transform ~fmconf ~artifacts
+                          ~type_index:(force ctx.type_index) ~source_path:ctx.source_path
+                          ~input_name_matching_compilation_command:
+                            (Build.input_name_matching_compilation_command
+                               (force ctx.cmt_infos))
+                          ~cmt_infos:(Build.read_cmt ctx.cmt_path)
+                        |> ctx.diff_or_write ~fmt_ocaml:(Some fm_orig)])) )
       ; ( "migration-inverse"
         , Command.basic
             ~summary:
