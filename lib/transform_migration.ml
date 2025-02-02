@@ -1745,7 +1745,7 @@ module Decl_id = struct
     | _ -> assert false
 
   type t =
-    | Vb of Uast.Location.t * string
+    | Vb of Uast.Location.Including_filename.t * string
     | Nf of shape_uid
   [@@deriving compare, hash, sexp_of]
 

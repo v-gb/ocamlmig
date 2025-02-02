@@ -85,7 +85,7 @@ module Artifacts : sig
   val decl_from_following_shape : t -> string * Shape.t -> find_decl_result
 
   val shape_from_occurrence :
-    t -> string * Uast.Longident_loc.t -> find_decl_result option
+    t -> string * Uast.Longident_loc_ignoring_filename.t -> find_decl_result option
 
   val locate_cmt_from_library_name :
        t

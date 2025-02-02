@@ -177,17 +177,56 @@ module Location = struct
     ; loc_end : position
     ; loc_ghost : bool
     }
-  [@@deriving compare, hash, sexp_of]
+  [@@deriving sexp_of]
 
   type 'a loc = 'a Location.loc =
     { txt : 'a
     ; loc : t
     }
-  [@@deriving sexp_of, compare]
+  [@@deriving sexp_of]
+
+  module Including_filename = struct
+    type nonrec position = position [@@deriving sexp_of, compare, hash]
+
+    type t = Location.t =
+      { loc_start : position
+      ; loc_end : position
+      ; loc_ghost : bool
+      }
+    [@@deriving compare, hash, sexp_of]
+
+    type 'a loc = 'a Location.loc =
+      { txt : 'a
+      ; loc : t
+      }
+    [@@deriving compare, sexp_of]
+  end
+
+  module Ignoring_filename = struct
+    type nonrec position = position
+
+    let sexp_of_position = sexp_of_position
+    let compare_position p1 p2 = compare_position p1 { p2 with pos_fname = p1.pos_fname }
+    let hash_fold_position acc p = hash_fold_position acc { p with pos_fname = "" }
+    let hash_position p = hash_position { p with pos_fname = "" }
+
+    type t = Location.t =
+      { loc_start : position
+      ; loc_end : position
+      ; loc_ghost : bool
+      }
+    [@@deriving compare, hash, sexp_of]
+
+    type 'a loc = 'a Location.loc =
+      { txt : 'a
+      ; loc : t
+      }
+    [@@deriving compare, sexp_of]
+  end
 end
 
-module Longident_loc = struct
-  type t = Longident.t Location.loc [@@deriving compare, sexp_of]
+module Longident_loc_ignoring_filename = struct
+  type t = Longident.t Location.Ignoring_filename.loc [@@deriving compare, sexp_of]
 
   include (val Comparator.make ~compare ~sexp_of_t)
 end

@@ -282,7 +282,8 @@ module Artifacts = struct
     { path : Cwdpath.t
     ; noapprox_impl : Shape.t option Lazy.t
     ; infos : Cmt_format.cmt_infos
-    ; ident_occurrences : Uast.Shape_reduce.result Map.M(Uast.Longident_loc).t Lazy.t
+    ; ident_occurrences :
+        Uast.Shape_reduce.result Map.M(Uast.Longident_loc_ignoring_filename).t Lazy.t
     ; m : (module Shape_reduce)
     }
 
@@ -445,7 +446,7 @@ module Artifacts = struct
     ; ident_occurrences =
         lazy
           (cmt_infos.cmt_ident_occurrences
-          |> Map.of_alist_multi (module Uast.Longident_loc)
+          |> Map.of_alist_multi (module Uast.Longident_loc_ignoring_filename)
           |> Map.map ~f:List.hd_exn)
     ; m = (module M)
     }
@@ -666,9 +667,9 @@ module Type_index = struct
     List.iter listing1.cmt_load_paths ~f:(fun (lazy dir) -> Load_path.append_dir dir);
     match cmt_infos.cmt_annots with
     | Implementation structure ->
-        let h_expr = Hashtbl.create (module Uast.Location) in
-        let h_pat = Hashtbl.create (module Uast.Location) in
-        let h_constr = Hashtbl.create (module Uast.Location) in
+        let h_expr = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+        let h_pat = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+        let h_constr = Hashtbl.create (module Uast.Location.Ignoring_filename) in
         let super = Tast_iterator.default_iterator in
         let self =
           { super with

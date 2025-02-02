@@ -128,22 +128,42 @@ module Location : sig
     include Location
   end
 
-  include sig
-    type position = Lexing.position [@@deriving compare, hash, sexp_of]
-  end
+  type position = Lexing.position [@@deriving sexp_of]
 
   include sig
-      type nonrec t [@@deriving compare, hash, sexp_of]
+      type nonrec t [@@deriving sexp_of]
     end
     with type t := t
 
   include sig
-      type 'a loc [@@deriving compare, sexp_of]
+      type 'a loc [@@deriving sexp_of]
     end
     with type 'a loc := 'a loc
+
+  module Including_filename : sig
+    (** Compare and hash, including the filename. This can be lead to problems, because
+        the .cmt contains locations created in the context of source repositories (say
+        examples/stdlib_to_stdlib/stdlib_to_stdlib.ml), whereas if we read a source file
+        like we do for side migrations, then the filename of the locations in that
+        parsetree may be "_opam/lib/stdlib_to_stdlib/stdlib_to_stdlib.ml", thus leading to
+        lookups in the cmt all failing.
+
+        On the other hand, ignoring the filename may lead to spuriously successful
+        lookups. So this only makes sense for maps that are limited to a single file. *)
+
+    type position = Lexing.position [@@deriving compare, hash, sexp_of]
+    type nonrec t = t [@@deriving compare, hash, sexp_of]
+    type nonrec 'a loc = 'a loc [@@deriving compare, sexp_of]
+  end
+
+  module Ignoring_filename : sig
+    type position = Lexing.position [@@deriving compare, hash, sexp_of]
+    type nonrec t = t [@@deriving compare, hash, sexp_of]
+    type nonrec 'a loc = 'a loc [@@deriving compare, sexp_of]
+  end
 end
 
-module Longident_loc : sig
+module Longident_loc_ignoring_filename : sig
   type t = Longident.t Location.loc [@@deriving compare, sexp_of]
 
   include Comparator.S with type t := t
