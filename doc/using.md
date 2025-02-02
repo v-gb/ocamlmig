@@ -21,12 +21,26 @@ cd trymig &&
 opam switch create . --packages ocaml.5.2.1,dune,ocamlformat,ocamlmig &&
 eval "$(opam env)" &&
 dune init project trymig . &&
+{ cat > bin/main.ml <<'EOF'
+let () = Printf.printf "should be 1: %f\n" ((cos 0.3)**2. +. (sin 0.3)**2.)
+
+let f1 x = x + 1 [@@migrate { repl = fun x -> Rel.f2 ~x }]
+let f2 ~x = x + 1
+let _ = f1 1
+let _ = f2
+EOF
+} &&
 touch .ocamlformat &&
-dune fmt &&
+{ dune fmt 2> /dev/null || true; } &&
 dune build @check &&
 git add . &&
 git commit -m init &&
-echo all good
+cat <<EOF
+*** All good! ***
+Now look at bin/main.ml, and try these:
+$ ocamlmig mig
+$ ocamlmig mig -side-migration ocamlmig.stdlib_to_stdlib
+EOF
 ```
 
 In an existing project, you can either `opam install ocamlmig` in that project's
