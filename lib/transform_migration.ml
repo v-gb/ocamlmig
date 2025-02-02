@@ -1720,7 +1720,10 @@ let decl_from_id_uast ~context ~artifacts
   match Build.Artifacts.shape_from_occurrence artifacts (comp_unit, id) with
   | None ->
       if !log || debug.all
-      then print_s [%sexp (id.txt : Uast.Longident.t), "shape lookup: None"];
+      then
+        print_s
+          [%sexp
+            (id.txt : Uast.Longident.t), "shape lookup: None", (id.loc : Uast.Location.t)];
       None
   | Some v -> value_decl_of_item_decl ~context ~id:id.txt v
 
@@ -1887,7 +1890,7 @@ let relativize path e =
 let inline ~fmconf ~type_index ~side_migrations_cmts ~artifacts:(comp_unit, artifacts)
     ~changed_something ~add_depends =
   let side_migrations = Hashtbl.create (module Decl_id) in
-  let add_side_migration_fmast (expr : P.expression) =
+  let add_side_migration_fmast ~comp_unit (expr : P.expression) =
     match find_side_migration_fmast expr with
     | Some (_src, src_id, _, payload) -> (
         match
@@ -1915,6 +1918,9 @@ let inline ~fmconf ~type_index ~side_migrations_cmts ~artifacts:(comp_unit, arti
                 if Sys.file_exists f then Some f else None))
       with
       | Some source_path ->
+          (* This branch is to handle expressions like let _ = [ id; repl ] [@@migrate],
+            so we have the parsetree of repl, instead of the typedtree, which can be
+            different from the syntax (optional arguments filled in for instance). *)
           let source_contents = In_channel.read_all source_path in
           let structure =
             Fmast.parse_with_ocamlformat ~conf:fmconf ~input_name:source_path Structure
@@ -1925,7 +1931,7 @@ let inline ~fmconf ~type_index ~side_migrations_cmts ~artifacts:(comp_unit, arti
             { super with
               expr =
                 (fun self expr ->
-                  add_side_migration_fmast expr;
+                  add_side_migration_fmast ~comp_unit:cmt_infos.cmt_modname expr;
                   super.expr self expr)
             }
           in
@@ -2023,7 +2029,7 @@ let inline ~fmconf ~type_index ~side_migrations_cmts ~artifacts:(comp_unit, arti
             | _ -> super.expr self expr
           in
           (* After the lookup, so we don't replace the definition itself. *)
-          add_side_migration_fmast expr;
+          add_side_migration_fmast ~comp_unit expr;
           expr')
   ; structure_item =
       record_if_ocamlformat_disabled

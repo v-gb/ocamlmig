@@ -197,9 +197,8 @@ In general, the `migrate` attribute is supported:
     ```
 
     The advantage of this version is that the replacement expression is typechecked,
-    and is checked to have a type that's unifiable with the original identifier.  The
-    main disadvantage is that any desugaring in the compiler will affect the
-    replacement expression. This syntax may be removed if this drawback can't be fixed.
+    and is checked to have a type that's unifiable with the original identifier. The
+    downside is that the annotated code maybe need more dependencies to compile.
 
 ### Attribute syntax
 
