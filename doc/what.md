@@ -175,6 +175,8 @@ As shown above, ocamlmig provides a workflow where:
   knowledge to relearn every time the need arises.
 - library users can apply such migrations
 
+A migration doesn't have to be bundled with a deprecation warning as above.
+
 ocamlmig also makes it possible to set `@migrate` attribute to an identifier without
 being the author of the corresponding interface.  Thus anyone could provide a migration
 turning, say, [`open_in` into `In_channel.open_text` without modifying the standard
