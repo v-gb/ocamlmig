@@ -33,7 +33,7 @@ Examples of real rewrites:
 - [Switching code using both Stdlib and Core to mostly Core](https://github.com/v-gb/ortografe/commit/b0b6a0c323edb67c03ae938d122e73b4f6a8affc)
 
 If that piqued your interest, you can find more information about [what ocamlmig
-does](doc/what.md), and [using it](doc/installation.md).
+does](doc/what.md), and [using it](doc/using.md).
 
 This is work in progress, so many things are only partially implemented, but the
 existing functionality as is should still be interesting.
