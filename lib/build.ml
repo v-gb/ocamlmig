@@ -526,41 +526,57 @@ module Artifacts = struct
             in
             Some (cmi_path, create_loaded_cmi t ~comp_unit ~cmi_path))
 
+  let parse_library_name library_name =
+    let library_dir = String.tr library_name ~target:'.' ~replacement:'/' in
+    let base_library_name =
+      Unit_info.normalize (List.last_exn (String.split library_name ~on:'.'))
+    in
+    let comp_unit = Unit_info.modulize base_library_name in
+    (`library_dir library_dir, `base_library_name base_library_name, `comp_unit comp_unit)
+
+  let locate_cmt_from_library_name_in_opam t
+      ( `library_dir library_dir
+      , `base_library_name base_library_name
+      , `comp_unit comp_unit ) =
+    List.find_map t.load_path_dirs ~f:(fun dir ->
+        Load_path.Dir.find_normalized dir "stdlib.cmi")
+    |> Option.bind ~f:(fun stdlib_cmi ->
+           let libdir = Filename.dirname (Filename.dirname stdlib_cmi) in
+           Load_path.Dir.find_normalized
+             (Load_path.Dir.create (Filename.concat libdir library_dir) ~hidden:false)
+             (base_library_name ^ ".cmt")
+           |> Option.map ~f:(fun cmt_path ->
+                  let cmt_path =
+                    (* This is a path relative to cmt_dirs, which is a cwdpath *)
+                    Cwdpath.create cmt_path
+                  in
+                  (cmt_path, create_loaded_cmt t `impl ~comp_unit ~cmt_path)))
+
   let locate_cmt_from_library_name t ~dune_root ~library_name =
     (* The side migration code will look for an entry in this cache. Maybe we should
        entangle this. *)
-    let library_name = Unit_info.normalize library_name in
-    let comp_unit = Unit_info.modulize library_name in
+    let ((`library_dir _, `base_library_name base_library_name, `comp_unit comp_unit) as
+         parsed_library_name) =
+      parse_library_name library_name
+    in
     Hashtbl.find_or_add t.impls comp_unit ~default:(fun () ->
-        let start_dir = Abspath.concat (Abspath.concat dune_root "_build") "default" in
-        match
-          Listing.find_ignore_vcs
-            (Abspath.to_cwdpath start_dir)
-            [ "-name"; library_name ^ ".cmt" ]
-        with
-        | _ :: _ :: _ as cmt_paths ->
-            raise_s
-              [%sexp
-                "multiple possible .cmt files for"
-              , ~~(library_name : string)
-              , ~~(cmt_paths : Cwdpath.t list)]
-        | [ cmt_path ] -> Some (cmt_path, create_loaded_cmt t `impl ~comp_unit ~cmt_path)
-        | [] ->
-            List.find_map t.load_path_dirs ~f:(fun dir ->
-                Load_path.Dir.find_normalized dir "stdlib.cmi")
-            |> Option.bind ~f:(fun stdlib_cmi ->
-                   let libdir = Filename.dirname (Filename.dirname stdlib_cmi) in
-                   Load_path.Dir.find_normalized
-                     (Load_path.Dir.create
-                        (Filename.concat libdir library_name)
-                        ~hidden:false)
-                     (library_name ^ ".cmt")
-                   |> Option.map ~f:(fun cmt_path ->
-                          let cmt_path =
-                            (* This is a path relative to cmt_dirs, which is a cwdpath *)
-                            Cwdpath.create cmt_path
-                          in
-                          (cmt_path, create_loaded_cmt t `impl ~comp_unit ~cmt_path))))
+        if library_name <>: base_library_name
+        then locate_cmt_from_library_name_in_opam t parsed_library_name
+        else
+          let start_dir = Abspath.concat (Abspath.concat dune_root "_build") "default" in
+          match
+            Listing.find_ignore_vcs
+              (Abspath.to_cwdpath start_dir)
+              [ "-name"; library_name ^ ".cmt" ]
+          with
+          | _ :: _ :: _ as cmt_paths ->
+              raise_s
+                [%sexp
+                  "multiple possible .cmt files for"
+                , ~~(library_name : string)
+                , ~~(cmt_paths : Cwdpath.t list)]
+          | [ cmt_path ] -> Some (cmt_path, create_loaded_cmt t `impl ~comp_unit ~cmt_path)
+          | [] -> locate_cmt_from_library_name_in_opam t parsed_library_name)
     |> Option.map ~f:(fun (cmt_path, loaded_cmt) -> (cmt_path, loaded_cmt.infos))
 
   let decl_from_def_uid t (uid, impl_or_intf) =

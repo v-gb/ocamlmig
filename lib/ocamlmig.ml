@@ -281,7 +281,8 @@ let migrate =
           flag "-side-migrations"
             ~doc:
               "library_name The name of a library in which ocamlmig will look for \
-               attributes [let _ = source_function [@migrate ...]]."
+               attributes [let _ = source_function [@migrate ...]], e.g. \
+               ocamlmig.stdlib_to_stdlib."
             (optional string)
         in
         fun () ->
