@@ -1,8 +1,10 @@
-(* A set of annotations to convert Stdlib code to Base, to be used with ocamlmig run
-   -side-migrations Stdlib_to_base. This should have decent coverage, but note that it
-   only works for functions operating on the same datatypes in both libs. So for
-   instance, String functions can be converted, but Queue functions cannot, because the
-   queue types are not identical. *)
+(** A set of migration annotations to convert code using the Stdlib to Base, intended to
+    be used this way:
+    {v ocamlmig run -side-migrations ocamlmig.stdlib_to_base v}
+
+    This should have decent coverage, but note that it only works for functions operating
+    on the same datatypes in both libs. So for instance, [String] functions can be
+    converted, but [Queue] functions cannot, because the queue types are not identical. *)
 
 open struct
   (* toplevel of Stdlib should be fully converted *)
