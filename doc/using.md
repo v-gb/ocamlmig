@@ -15,12 +15,12 @@ You can set up a test repository this way:
 
 ```shell
 cd /tmp &&
-dune init project trymig &&
 git init trymig &&
 cd trymig &&
 (echo _build; echo _opam) > .gitignore &&
 opam switch create . --packages ocaml.5.2.1,dune,ocamlformat,ocamlmig &&
 eval "$(opam env)" &&
+dune init project trymig . &&
 touch .ocamlformat &&
 dune fmt &&
 dune build @check &&
