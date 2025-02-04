@@ -1,24 +1,6 @@
 open Base
 open Common
 open Transform_common
-
-let may_need_type_index pattern =
-  let super = Ast_mapper.default_mapper in
-  let self =
-    { super with
-      expr =
-        (fun self expr ->
-          (match expr.pexp_desc with
-          | Pexp_constraint _ -> Exn.raise_without_backtrace Stdlib.Exit
-          | _ -> ());
-          super.expr self expr)
-    }
-  in
-  try
-    ignore (self.expr self pattern);
-    false
-  with Stdlib.Exit -> true
-
 open! Ocamlformat_ocaml_common
 open Ocamlformat_parser_extended
 module P = Parsetree
@@ -95,13 +77,13 @@ let etc_arg : function_arg -> _ = function
 let unsupported_motif loc =
   Location.raise_errorf ~loc:(Conv.location loc) "unsupported motif syntax"
 
-let rec match_ (motif : Uast.Parsetree.expression) : stage2 =
+let rec match_ ~need_type_index (motif : Uast.Parsetree.expression) : stage2 =
   match motif.pexp_desc with
   | Pexp_ident { txt = Lident v; _ } when String.is_prefix v ~prefix:"__" ->
       match_var v (fun e -> Expr e)
   | Pexp_constraint (m1, typ) -> (
       let user_type = Uast.type_type typ in
-      let stage1 = match_ m1 in
+      let stage1 = match_ ~need_type_index m1 in
       fun expr ~env ~ctx ->
         match Lazy.force ctx with
         | None ->
@@ -134,14 +116,14 @@ let rec match_ (motif : Uast.Parsetree.expression) : stage2 =
             Fmast.Longident.compare id.txt (Conv.longident id_motif.txt) = 0
         | _ -> false)
   | Pexp_tuple motifs ->
-      match_list match_ motifs (function
+      match_list (match_ ~need_type_index) motifs (function
         | ({ pexp_desc = Pexp_tuple es; _ } : P.expression) -> Some es
         | _ -> None)
   | Pexp_apply
       ( { pexp_desc = Pexp_ident { txt = Lident (("&" | "or") as op); _ }; _ }
       , [ (Nolabel, m1); (Nolabel, m2) ] ) -> (
-      let s1 = match_ m1 in
-      let s2 = match_ m2 in
+      let s1 = match_ ~need_type_index m1 in
+      let s2 = match_ ~need_type_index m2 in
       match op with
       | "&" -> fun expr ~env ~ctx -> s1 expr ~env ~ctx && s2 expr ~env ~ctx
       | "or" ->
@@ -154,14 +136,14 @@ let rec match_ (motif : Uast.Parsetree.expression) : stage2 =
              s2 expr ~env ~ctx)
       | _ -> assert false)
   | Pexp_apply (mf, margs) -> (
-      let sf = match_ mf in
-      let sargs = match_args margs in
+      let sf = match_ ~need_type_index mf in
+      let sargs = match_args ~need_type_index margs in
       fun expr ~env ~ctx ->
         match expr.pexp_desc with
         | Pexp_apply (f, args) -> sf f ~env ~ctx && sargs args ~env ~ctx
         | _ -> false)
   | Pexp_construct (id_motif, motif_opt) -> (
-      let sopt = match_option match_ motif_opt in
+      let sopt = match_option (match_ ~need_type_index) motif_opt in
       fun expr ~env ~ctx ->
         match expr.pexp_desc with
         | Pexp_construct (id, eopt) ->
@@ -169,25 +151,25 @@ let rec match_ (motif : Uast.Parsetree.expression) : stage2 =
             && sopt eopt ~env ~ctx
         | _ -> false)
   | Pexp_variant (label_motif, motif_opt) -> (
-      let sopt = match_option match_ motif_opt in
+      let sopt = match_option (match_ ~need_type_index) motif_opt in
       fun expr ~env ~ctx ->
         match expr.pexp_desc with
         | Pexp_variant (label, eopt) ->
             label.txt.txt =: label_motif && sopt eopt ~env ~ctx
         | _ -> false)
   | Pexp_record (fields_motif, init_motif) -> (
-      let s_init = match_option match_ init_motif in
-      let s_fields = match_fields fields_motif in
+      let s_init = match_option (match_ ~need_type_index) init_motif in
+      let s_fields = match_fields ~need_type_index fields_motif in
       fun expr ~env ~ctx ->
         match expr.pexp_desc with
         | Pexp_record (fields, init) -> s_init init ~env ~ctx && s_fields fields ~env ~ctx
         | _ -> false)
   | Pexp_lazy m1 -> (
-      let s1 = match_ m1 in
+      let s1 = match_ ~need_type_index m1 in
       fun expr ~env ~ctx ->
         match expr.pexp_desc with Pexp_lazy e1 -> s1 e1 ~env ~ctx | _ -> false)
   | Pexp_extension (motif_name, motif_payload) -> (
-      let s_payload = match_payload ~loc:motif.pexp_loc motif_payload in
+      let s_payload = match_payload ~loc:motif.pexp_loc ~need_type_index motif_payload in
       fun expr ~env ~ctx ->
         match expr.pexp_desc with
         | Pexp_extension (name, payload) ->
@@ -195,7 +177,7 @@ let rec match_ (motif : Uast.Parsetree.expression) : stage2 =
         | _ -> false)
   | _ -> unsupported_motif motif.pexp_loc
 
-and match_fields
+and match_fields ~need_type_index
     (mfields : (Uast.Longident.t Uast.Location.loc * Uast.Parsetree.expression) list) =
   let var_other = ref None in
   let s_named = ref (Map.empty (module Longident)) in
@@ -210,7 +192,7 @@ and match_fields
       | _ ->
           s_named :=
             Map.add_exn !s_named ~key:(Conv.longident id.txt)
-              ~data:(Conv.longident id.txt, match_ m));
+              ~data:(Conv.longident id.txt, match_ ~need_type_index m));
   let var_other = !var_other in
   let s_named = !s_named in
   fun fields ~env ~ctx ->
@@ -243,7 +225,8 @@ and match_fields
             true
         | `Duplicate -> false)
 
-and match_args (margs : (Uast.Asttypes.arg_label * Uast.Parsetree.expression) list) =
+and match_args ~need_type_index
+    (margs : (Uast.Asttypes.arg_label * Uast.Parsetree.expression) list) =
   let var_other = ref None in
   let s_named = ref (Map.empty (module String)) in
   let s_anon = Queue.create () in
@@ -253,12 +236,12 @@ and match_args (margs : (Uast.Asttypes.arg_label * Uast.Parsetree.expression) li
           match motif.pexp_desc with
           | Pexp_ident { txt = Lident v; _ } when String.is_prefix v ~prefix:"__etc" ->
               var_other := Some v
-          | _ -> Queue.enqueue s_anon (match_ motif))
+          | _ -> Queue.enqueue s_anon (match_ ~need_type_index motif))
       | _ ->
           s_named :=
             Map.add_exn !s_named
               ~key:(Arg_label.to_string (Conv.arg_label arg_label))
-              ~data:(Conv.arg_label arg_label, match_ motif));
+              ~data:(Conv.arg_label arg_label, match_ ~need_type_index motif));
   let var_other = !var_other in
   let s_named = !s_named in
   let s_anon = Queue.to_list s_anon in
@@ -300,20 +283,21 @@ and match_args (margs : (Uast.Asttypes.arg_label * Uast.Parsetree.expression) li
             true
         | `Duplicate -> false)
 
-and match_payload ~loc (motif : Uast.Parsetree.payload) =
+and match_payload ~need_type_index ~loc (motif : Uast.Parsetree.payload) =
   match motif with
   | PStr m -> (
-      let sm = match_structure ~loc m in
+      let sm = match_structure ~need_type_index ~loc m in
       fun s ~env ~ctx -> match s with PStr si -> sm si ~env ~ctx | _ -> false)
   | _ -> unsupported_motif loc
 
-and match_structure ~loc (stritems : Uast.Parsetree.structure_item list) =
-  match_list (match_structure_item ~loc) stritems Option.some
+and match_structure ~loc ~need_type_index (stritems : Uast.Parsetree.structure_item list)
+    =
+  match_list (match_structure_item ~loc ~need_type_index) stritems Option.some
 
-and match_structure_item ~loc (motif : Uast.Parsetree.structure_item) =
+and match_structure_item ~loc ~need_type_index (motif : Uast.Parsetree.structure_item) =
   match motif.pstr_desc with
   | Pstr_eval (motif1, _) -> (
-      let s1 = match_ motif1 in
+      let s1 = match_ ~need_type_index motif1 in
       fun (s : P.structure_item) ~env ~ctx ->
         match s.pstr_desc with Pstr_eval (e, _) -> s1 e ~env ~ctx | _ -> false)
   | _ -> unsupported_motif loc
@@ -406,9 +390,8 @@ let run motif_and_repls () =
         let motif =
           Uast.Parse.expression (lexing_from_string motif ~file_path:"command line param")
         in
-        if may_need_type_index motif then may_need_type_index_ref := true;
         let repl = ref (`Unforced repl) in
-        (match_ motif, repl))
+        (match_ ~need_type_index:may_need_type_index_ref motif, repl))
   in
   fun ~fmconf ~type_index ~source_path ~input_name_matching_compilation_command ->
     let stage2_and_repls =
