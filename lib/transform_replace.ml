@@ -22,17 +22,76 @@ let map_ref_find_and_remove map key =
       map := Map.remove !map key;
       opt
 
+let uid_of_var_binding ~index (binding : P.value_binding) =
+  match binding.pvb_pat.ppat_desc with
+  | Ppat_var _ -> (
+      match Build.Type_index.pat index (Conv.location' binding.pvb_pat.ppat_loc) with
+      | [] ->
+          if !log then print_s [%sexp "no type"];
+          None
+      | T tpat :: _ -> (
+          match tpat.pat_desc with Tpat_var (_, _, uid) -> Some uid | _ -> None))
+  | _ -> None
+
+let locate_def ~index structure uid =
+  With_return.with_return (fun r ->
+      let super = Ast_mapper.default_mapper in
+      let self =
+        { super with
+          value_binding =
+            (fun self binding ->
+              match uid_of_var_binding ~index binding with
+              | Some uid' when Shape.Uid.equal uid uid' -> (
+                  match binding.pvb_body with
+                  | Pfunction_body body -> r.return (Some body)
+                  | Pfunction_cases _ -> assert false)
+              | _ -> super.value_binding self binding)
+        }
+      in
+      ignore (self.structure self structure);
+      None)
+
+let drop_defs ~type_index structure uids =
+  let uids = Shape.Uid.Set.of_seq (Stdlib.List.to_seq uids) in
+  if Shape.Uid.Set.is_empty uids
+  then structure
+  else
+    let index = Option.value_exn (Lazy.force type_index) in
+    let super = Ast_mapper.default_mapper in
+    let self =
+      { super with
+        value_bindings =
+          (fun self vbs ->
+            let vbs = super.value_bindings self vbs in
+            { vbs with
+              pvbs_bindings =
+                List.filter vbs.pvbs_bindings ~f:(fun binding ->
+                    match uid_of_var_binding ~index binding with
+                    | Some uid when Shape.Uid.Set.mem uid uids -> false
+                    | _ -> true)
+            })
+      }
+    in
+    self.structure self structure
+
 type value =
   | Expr of P.expression
+  | Pat of P.pattern
   | Args of function_arg list
   | Fields of
       (Longident.t Location.loc * P.type_constraint option * expression option) list
 
-type stage2 =
-     Parsetree.expression
-  -> env:value Map.M(String).t ref
-  -> ctx:Build.Type_index.t option Lazy.t
-  -> bool
+type ctx =
+  { type_index : Build.Type_index.t option Lazy.t
+  ; whole_ast : Parsetree.structure
+  }
+
+type env =
+  { bindings : value Map.M(String).t
+  ; nodes_to_remove : Shape.Uid.t list
+  }
+
+type stage2 = Parsetree.expression -> env:env ref -> ctx:ctx -> bool
 
 let match_option match_x x_opt =
   match x_opt with
@@ -56,9 +115,9 @@ let match_var v_motif make_data =
   then fun _ ~env:_ ~ctx:_ -> true
   else
     fun data ~env ~ctx:_ ->
-      match Map.add !env ~key:v_motif ~data:(make_data data) with
+      match Map.add !env.bindings ~key:v_motif ~data:(make_data data) with
       | `Ok map ->
-          env := map;
+          env := { !env with bindings = map };
           true
       | `Duplicate -> false
 
@@ -81,16 +140,32 @@ let rec match_ ~need_type_index (motif : Uast.Parsetree.expression) : stage2 =
   match motif.pexp_desc with
   | Pexp_ident { txt = Lident v; _ } when String.is_prefix v ~prefix:"__" ->
       match_var v (fun e -> Expr e)
+  | Pexp_constant c_m -> (
+      fun expr ~env:_ ~ctx:_ ->
+        match expr.pexp_desc with
+        | Pexp_constant c -> (
+            match (c_m, c.pconst_desc) with
+            | Pconst_integer (s, c_opt), Pconst_integer (s2, c_opt2) ->
+                [%equal: string * char option] (s, c_opt) (s2, c_opt2)
+            | Pconst_char c, Pconst_char (c2, _) -> [%equal: char] c c2
+            | Pconst_string (s, _, _), Pconst_string (s2, _, _) -> s =: s2
+            | Pconst_float (s, _), Pconst_float (s2, _) -> s =: s2
+            | _ -> false)
+        | _ -> false)
   | Pexp_constraint (m1, typ) -> (
+      need_type_index := true;
       let user_type = Uast.type_type typ in
       let stage1 = match_ ~need_type_index m1 in
       fun expr ~env ~ctx ->
-        match Lazy.force ctx with
+        match Lazy.force ctx.type_index with
         | None ->
             if !log then print_s [%sexp "missing type index"];
             false
         | Some index -> (
             match Build.Type_index.expr index (Conv.location' expr.pexp_loc) with
+            | [] ->
+                if !log then print_s [%sexp "no type"];
+                false
             | texpr :: _ ->
                 (let does_match =
                    Uast.match_typ ~env:texpr.exp_env texpr.exp_type ~user_type
@@ -105,10 +180,7 @@ let rec match_ ~need_type_index (motif : Uast.Parsetree.expression) : stage2 =
                      , (Format.asprintf "%a" Printtyp.type_expr user_type : string)
                      , ~~(does_match : bool)];
                  does_match)
-                && stage1 expr ~env ~ctx
-            | [] ->
-                if !log then print_s [%sexp "no type"];
-                false))
+                && stage1 expr ~env ~ctx))
   | Pexp_ident id_motif -> (
       fun expr ~env:_ ~ctx:_ ->
         match expr.pexp_desc with
@@ -168,13 +240,60 @@ let rec match_ ~need_type_index (motif : Uast.Parsetree.expression) : stage2 =
       let s1 = match_ ~need_type_index m1 in
       fun expr ~env ~ctx ->
         match expr.pexp_desc with Pexp_lazy e1 -> s1 e1 ~env ~ctx | _ -> false)
-  | Pexp_extension (motif_name, motif_payload) -> (
-      let s_payload = match_payload ~loc:motif.pexp_loc ~need_type_index motif_payload in
+  | Pexp_sequence (m1, m2) -> (
+      let s1 = match_ ~need_type_index m1 in
+      let s2 = match_ ~need_type_index m2 in
       fun expr ~env ~ctx ->
         match expr.pexp_desc with
-        | Pexp_extension (name, payload) ->
-            name.txt =: motif_name.txt && s_payload payload ~env ~ctx
+        | Pexp_sequence (e1, e2) -> s1 e1 ~env ~ctx && s2 e2 ~env ~ctx
         | _ -> false)
+  | Pexp_function (params_motif, None, Pfunction_body body_motif) -> (
+      let match_params =
+        match_list (match_param ~need_type_index) params_motif (Some __)
+      in
+      let match_body = match_ ~need_type_index body_motif in
+      fun expr ~env ~ctx ->
+        match expr.pexp_desc with
+        | Pexp_function (params, None, Pfunction_body body) ->
+            match_params params ~env ~ctx && match_body body ~env ~ctx
+        | _ -> false)
+  | Pexp_extension (motif_name, motif_payload) -> (
+      need_type_index := true;
+      let s_payload = match_payload ~loc:motif.pexp_loc ~need_type_index motif_payload in
+      match motif_name.txt with
+      | "move_def" -> (
+          fun expr ~env ~ctx ->
+            match expr.pexp_desc with
+            | Pexp_ident { txt = Lident _; _ } -> (
+                match Lazy.force ctx.type_index with
+                | None ->
+                    if !log then print_s [%sexp "missing type index"];
+                    false
+                | Some index -> (
+                    match Build.Type_index.expr index (Conv.location' expr.pexp_loc) with
+                    | [] ->
+                        if !log then print_s [%sexp "no type"];
+                        false
+                    | texpr :: _ -> (
+                        match texpr.exp_desc with
+                        | Texp_ident (_, _, vd) -> (
+                            let uid = vd.val_uid in
+                            match locate_def ~index ctx.whole_ast uid with
+                            | None -> false
+                            | Some def ->
+                                env :=
+                                  { !env with
+                                    nodes_to_remove = uid :: !env.nodes_to_remove
+                                  };
+                                s_payload (P.PStr [ Ast_helper.Str.eval def ]) ~env ~ctx)
+                        | _ -> assert false)))
+            | _ -> false)
+      | _ -> (
+          fun expr ~env ~ctx ->
+            match expr.pexp_desc with
+            | Pexp_extension (name, payload) ->
+                name.txt =: motif_name.txt && s_payload payload ~env ~ctx
+            | _ -> false))
   | _ -> unsupported_motif motif.pexp_loc
 
 and match_fields ~need_type_index
@@ -219,11 +338,30 @@ and match_fields ~need_type_index
     match var_other with
     | None -> true
     | Some var_other -> (
-        match Map.add !env ~key:var_other ~data:(Fields (List.rev !others)) with
+        match Map.add !env.bindings ~key:var_other ~data:(Fields (List.rev !others)) with
         | `Ok map ->
-            env := map;
+            env := { !env with bindings = map };
             true
         | `Duplicate -> false)
+
+and match_param ~need_type_index (p : Uast.Parsetree.function_param) =
+  match p.pparam_desc with
+  | Pparam_newtype name -> unsupported_motif name.loc
+  | Pparam_val (_, Some e, _) -> unsupported_motif e.pexp_loc
+  | Pparam_val (arg_label_m, None, pat_m) -> (
+      let match_p = match_pat ~need_type_index pat_m in
+      fun (p : P.expr_function_param) ~env ~ctx ->
+        match p.pparam_desc with
+        | Pparam_newtype _ -> false
+        | Pparam_val (_, Some _, _) -> false
+        | Pparam_val (arg_label, None, pat) ->
+            Arg_label.equal (Conv.arg_label arg_label_m) arg_label
+            && match_p pat ~env ~ctx)
+
+and match_pat ~need_type_index:_ (p : Uast.Parsetree.pattern) =
+  match p.ppat_desc with
+  | Ppat_var v_motif -> match_var v_motif.txt (fun p -> Pat p)
+  | _ -> unsupported_motif p.ppat_loc
 
 and match_args ~need_type_index
     (margs : (Uast.Asttypes.arg_label * Uast.Parsetree.expression) list) =
@@ -277,9 +415,9 @@ and match_args ~need_type_index
     match var_other with
     | None -> true
     | Some var_other -> (
-        match Map.add !env ~key:var_other ~data:(Args (List.rev !others)) with
+        match Map.add !env.bindings ~key:var_other ~data:(Args (List.rev !others)) with
         | `Ok map ->
-            env := map;
+            env := { !env with bindings = map };
             true
         | `Duplicate -> false)
 
@@ -306,7 +444,21 @@ let subst expr ~env =
   let super = Ast_mapper.default_mapper in
   let self =
     { super with
-      expr =
+      pat =
+        (fun self pat ->
+          let pat = super.pat self pat in
+          match pat.ppat_desc with
+          | Ppat_var { txt = var; _ } when Map.mem env var -> (
+              match Map.find_exn env var with
+              | Pat p -> p
+              | Fields _ | Expr _ ->
+                  Location.raise_errorf ~loc:pat.ppat_loc
+                    "pattern %s can only be inserted into a record literal" var
+              | Args _ ->
+                  Location.raise_errorf ~loc:pat.ppat_loc
+                    "pattern %s can only be inserted into a function call" var)
+          | _ -> pat)
+    ; expr =
         with_log (fun self expr ->
             let expr =
               match expr.pexp_desc with
@@ -316,7 +468,7 @@ let subst expr ~env =
                         match etc_field field with
                         | Some v -> (
                             match Map.find_exn env v with
-                            | Expr _ | Args _ ->
+                            | Expr _ | Args _ | Pat _ ->
                                 Location.raise_errorf ~loc:id.loc "hm, what"
                             | Fields fs -> fs)
                         | None ->
@@ -337,7 +489,7 @@ let subst expr ~env =
                         match etc_arg (arg_label, arg) with
                         | Some v -> (
                             match Map.find_exn env v with
-                            | Expr _ | Fields _ ->
+                            | Expr _ | Fields _ | Pat _ ->
                                 Location.raise_errorf ~loc:arg.pexp_loc "hm, what"
                             | Args args -> args)
                         | None -> [ (arg_label, self.expr self arg) ])
@@ -364,7 +516,7 @@ let subst expr ~env =
             | Pexp_ident { txt = Lident var; _ } when Map.mem env var -> (
                 match Map.find_exn env var with
                 | Expr e -> e
-                | Fields _ ->
+                | Fields _ | Pat _ ->
                     Location.raise_errorf ~loc:expr.pexp_loc
                       "pattern %s can only be inserted into a record literal" var
                 | Args _ ->
@@ -375,12 +527,12 @@ let subst expr ~env =
   in
   self.expr self expr
 
-let replace expr ~type_index ~stage2 ~repl =
-  let env = ref (Map.empty (module String)) in
-  if stage2 expr ~env ~ctx:type_index
+let replace expr ~whole_ast ~type_index ~stage2 ~repl =
+  let env = ref { bindings = Map.empty (module String); nodes_to_remove = [] } in
+  if stage2 expr ~env ~ctx:{ type_index; whole_ast }
   then
     let repl = preserve_loc_to_preserve_comment_pos ~from:expr repl in
-    Some (subst repl ~env:!env)
+    Some (subst repl ~env:!env.bindings, !env.nodes_to_remove)
   else None
 
 let run motif_and_repls () =
@@ -419,6 +571,7 @@ let run motif_and_repls () =
       then force input_name_matching_compilation_command
       else None
     in
+    let all_nodes_to_remove = Queue.create () in
     process_file ~fmconf ~source_path ~input_name_matching_compilation_command
       (fun changed_something structure ->
         let super = Ast_mapper.default_mapper in
@@ -429,10 +582,11 @@ let run motif_and_repls () =
                 let expr = super.expr self expr in
                 match
                   List.find_map stage2_and_repls ~f:(fun (stage2, repl) ->
-                      replace expr ~type_index ~stage2 ~repl)
+                      replace expr ~whole_ast:structure ~type_index ~stage2 ~repl)
                 with
                 | None -> expr
-                | Some expr ->
+                | Some (expr, nodes_to_remove) ->
+                    Queue.enqueue_all all_nodes_to_remove nodes_to_remove;
                     changed_something := true;
                     expr)
           ; structure_item =
@@ -441,4 +595,5 @@ let run motif_and_repls () =
                 super ~changed_something
           }
         in
-        self.structure self structure)
+        let structure = self.structure self structure in
+        drop_defs ~type_index structure (Queue.to_list all_nodes_to_remove))
