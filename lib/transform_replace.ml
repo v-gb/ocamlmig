@@ -76,6 +76,8 @@ let drop_defs ~type_index structure uids =
 
 type value =
   | Expr of P.expression
+  | Variant of string
+  | Typ of P.core_type
   | Pat of P.pattern
   | Args of function_arg list
   | Fields of
@@ -360,7 +362,8 @@ and match_param ~need_type_index (p : Uast.Parsetree.function_param) =
 
 and match_pat ~need_type_index:_ (p : Uast.Parsetree.pattern) =
   match p.ppat_desc with
-  | Ppat_var v_motif -> match_var v_motif.txt (fun p -> Pat p)
+  | Ppat_var v_motif when String.is_prefix v_motif.txt ~prefix:"__" ->
+      match_var v_motif.txt (fun p -> Pat p)
   | _ -> unsupported_motif p.ppat_loc
 
 and match_args ~need_type_index
@@ -444,19 +447,27 @@ let subst meth v ~env =
   let super = Ast_mapper.default_mapper in
   let self =
     { super with
-      pat =
+      typ =
+        (fun self ty ->
+          let ty = super.typ self ty in
+          match ty.ptyp_desc with
+          | Ptyp_constr ({ txt = Lident v; _ }, []) when Map.mem env v -> (
+              match Map.find_exn env v with
+              | Typ ty -> ty
+              | Fields _ | Expr _ | Variant _ | Args _ | Pat _ ->
+                  Location.raise_errorf ~loc:ty.ptyp_loc
+                    "motif %s can't be inserted in a type" v)
+          | _ -> ty)
+    ; pat =
         (fun self pat ->
           let pat = super.pat self pat in
           match pat.ppat_desc with
           | Ppat_var { txt = var; _ } when Map.mem env var -> (
               match Map.find_exn env var with
               | Pat p -> p
-              | Fields _ | Expr _ ->
+              | Fields _ | Expr _ | Variant _ | Args _ | Typ _ ->
                   Location.raise_errorf ~loc:pat.ppat_loc
-                    "pattern %s can only be inserted into a record literal" var
-              | Args _ ->
-                  Location.raise_errorf ~loc:pat.ppat_loc
-                    "pattern %s can only be inserted into a function call" var)
+                    "motif %s can't be inserted in a pattern" var)
           | _ -> pat)
     ; expr =
         with_log (fun self expr ->
@@ -468,7 +479,7 @@ let subst meth v ~env =
                         match etc_field field with
                         | Some v -> (
                             match Map.find_exn env v with
-                            | Expr _ | Args _ | Pat _ ->
+                            | Expr _ | Args _ | Pat _ | Typ _ | Variant _ ->
                                 Location.raise_errorf ~loc:id.loc "hm, what"
                             | Fields fs -> fs)
                         | None ->
@@ -489,7 +500,7 @@ let subst meth v ~env =
                         match etc_arg (arg_label, arg) with
                         | Some v -> (
                             match Map.find_exn env v with
-                            | Expr _ | Fields _ | Pat _ ->
+                            | Expr _ | Fields _ | Pat _ | Typ _ | Variant _ ->
                                 Location.raise_errorf ~loc:arg.pexp_loc "hm, what"
                             | Args args -> args)
                         | None -> [ (arg_label, self.expr self arg) ])
@@ -516,12 +527,9 @@ let subst meth v ~env =
             | Pexp_ident { txt = Lident var; _ } when Map.mem env var -> (
                 match Map.find_exn env var with
                 | Expr e -> e
-                | Fields _ | Pat _ ->
+                | Fields _ | Pat _ | Typ _ | Args _ | Variant _ ->
                     Location.raise_errorf ~loc:expr.pexp_loc
-                      "pattern %s can only be inserted into a record literal" var
-                | Args _ ->
-                    Location.raise_errorf ~loc:expr.pexp_loc
-                      "pattern %s can only be inserted into a function call" var)
+                      "motif %s cannot be inserted into an expression" var)
             | _ -> expr)
     }
   in
@@ -534,6 +542,46 @@ let replace (meth, preserve_loc) expr ~whole_ast ~type_index ~stage2 ~repl =
     let repl = preserve_loc repl in
     Some (subst meth repl ~env:!env.bindings, !env.nodes_to_remove)
   else None
+
+let rec match_type ~need_type_index (t : Uast.Parsetree.core_type) =
+  match t.ptyp_desc with
+  | Ptyp_constr ({ txt = Lident v; _ }, []) when String.is_prefix v ~prefix:"__" ->
+      match_var v (fun t -> Typ t)
+  | Ptyp_variant
+      ([ { prf_desc = Rtag (label, has_no_payload, types); _ } ], closed_flag, None)
+    when Bool.( = ) has_no_payload (List.is_empty types) -> (
+      let s_label =
+        if String.is_suffix label.txt ~suffix:"__"
+        then match_var label.txt (fun t -> Variant t)
+        else fun label' ~env:_ ~ctx:_ -> label.txt =: label'
+      in
+      let s_typ =
+        match types with
+        | [] ->
+            fun (has_no_payload, types) ~ctx:_ ~env:_ ->
+              has_no_payload && List.is_empty types
+        | m_typ :: _ -> (
+            let s_typ = match_type ~need_type_index m_typ in
+            fun (has_no_payload, types) ~ctx ~env ->
+              (not has_no_payload)
+              && match types with [ typ ] -> s_typ typ ~ctx ~env | _ -> false)
+      in
+      fun typ ~env ~ctx ->
+        match typ with
+        | { ptyp_desc =
+              Ptyp_variant
+                ( [ { prf_desc = Rtag (label, has_no_payload, types); _ } ]
+                , closed_flag'
+                , None )
+          ; _
+          } ->
+            s_label label.txt.txt ~env ~ctx
+            && (match (closed_flag, closed_flag') with
+               | Open, Open | Closed, Closed -> true
+               | _ -> false)
+            && s_typ (has_no_payload, types) ~env ~ctx
+        | _ -> false)
+  | _ -> unsupported_motif t.ptyp_loc
 
 let match_value_binding ~need_type_index
     ({ pvb_pat; pvb_expr; pvb_constraint; pvb_attributes = _; pvb_loc } :
@@ -587,6 +635,10 @@ let compile_motif ~need_type_index (motif : Uast.Parsetree.expression) =
           ] ->
           `Binding_op (match_binding_op ~need_type_index binding_op)
       | _ -> unsupported_motif motif.pexp_loc)
+  | Pexp_extension ({ txt = "type"; _ }, payload) -> (
+      match payload with
+      | PTyp typ -> `Type (match_type ~need_type_index typ)
+      | _ -> unsupported_motif motif.pexp_loc)
   | _ -> `Expr (match_ ~need_type_index motif)
 
 let parse_template ~fmconf stage2 repl =
@@ -608,6 +660,10 @@ let parse_template ~fmconf stage2 repl =
   in
   match stage2 with
   | `Expr stage2 -> `Expr (stage2, repl)
+  | `Type stage2 -> (
+      match repl.pexp_desc with
+      | Pexp_extension ({ txt = "type"; _ }, PTyp typ) -> `Type (stage2, typ)
+      | _ -> unsupported_motif (Conv.location' repl.pexp_loc))
   | (`Binding _ | `Binding_op _) as stage2 -> (
       match (stage2, repl.pexp_desc) with
       | `Binding stage2, Pexp_extension ({ txt = "binding"; _ }, payload) -> (
@@ -666,12 +722,30 @@ let run motif_and_repls () =
         let super = Ast_mapper.default_mapper in
         let self =
           { super with
-            value_binding =
+            typ =
+              (fun self ty ->
+                let ty = super.typ self ty in
+                match
+                  List.find_map stage2_and_repls ~f:(function
+                    | `Expr _ | `Binding_op _ | `Binding _ -> None
+                    | `Type (stage2, repl) ->
+                        replace
+                          ( __.typ
+                          , preserve_loc_to_preserve_comment_pos __.typ ~from:ty.ptyp_loc
+                          )
+                          ty ~whole_ast:structure ~type_index ~stage2 ~repl)
+                with
+                | None -> ty
+                | Some (ty, nodes_to_remove) ->
+                    Queue.enqueue_all all_nodes_to_remove nodes_to_remove;
+                    changed_something := true;
+                    ty)
+          ; value_binding =
               (fun self vb ->
                 let vb = super.value_binding self vb in
                 match
                   List.find_map stage2_and_repls ~f:(function
-                    | `Expr _ | `Binding_op _ -> None
+                    | `Expr _ | `Binding_op _ | `Type _ -> None
                     | `Binding (stage2, repl) ->
                         replace
                           ( __.value_binding
@@ -689,7 +763,7 @@ let run motif_and_repls () =
                 let bop = super.binding_op self bop in
                 match
                   List.find_map stage2_and_repls ~f:(function
-                    | `Expr _ | `Binding _ -> None
+                    | `Expr _ | `Binding _ | `Type _ -> None
                     | `Binding_op (stage2, repl) ->
                         let repl =
                           { repl with
@@ -717,7 +791,7 @@ let run motif_and_repls () =
                 let expr = super.expr self expr in
                 match
                   List.find_map stage2_and_repls ~f:(function
-                    | `Binding _ | `Binding_op _ -> None
+                    | `Binding _ | `Binding_op _ | `Type _ -> None
                     | `Expr (stage2, repl) ->
                         replace
                           (__.expr, preserve_loc_to_preserve_comment_pos_expr ~from:expr)
