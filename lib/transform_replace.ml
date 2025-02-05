@@ -360,10 +360,21 @@ and match_param ~need_type_index (p : Uast.Parsetree.function_param) =
             Arg_label.equal (Conv.arg_label arg_label_m) arg_label
             && match_p pat ~env ~ctx)
 
-and match_pat ~need_type_index:_ (p : Uast.Parsetree.pattern) =
+and match_pat ~need_type_index (p : Uast.Parsetree.pattern) =
   match p.ppat_desc with
   | Ppat_var v_motif when String.is_prefix v_motif.txt ~prefix:"__" ->
       match_var v_motif.txt (fun p -> Pat p)
+  | Ppat_variant (v, p2) -> (
+      let s_label =
+        if String.is_suffix v ~suffix:"__"
+        then match_var v (fun t -> Variant t)
+        else fun v' ~env:_ ~ctx:_ -> v =: v'
+      in
+      let s_payload = match_option (match_pat ~need_type_index) p2 in
+      fun p ~env ~ctx ->
+        match p.ppat_desc with
+        | Ppat_variant (v, p2) -> s_label v.txt.txt ~env ~ctx && s_payload p2 ~env ~ctx
+        | _ -> false)
   | _ -> unsupported_motif p.ppat_loc
 
 and match_args ~need_type_index
@@ -468,6 +479,16 @@ let subst meth v ~env =
               | Fields _ | Expr _ | Variant _ | Args _ | Typ _ ->
                   Location.raise_errorf ~loc:pat.ppat_loc
                     "motif %s can't be inserted in a pattern" var)
+          | Ppat_variant (var, p2) when Map.mem env var.txt.txt -> (
+              match Map.find_exn env var.txt.txt with
+              | Variant var' ->
+                  { pat with
+                    ppat_desc =
+                      Ppat_variant ({ var with txt = { var.txt with txt = var' } }, p2)
+                  }
+              | Fields _ | Expr _ | Pat _ | Args _ | Typ _ ->
+                  Location.raise_errorf ~loc:pat.ppat_loc
+                    "motif %s can't be inserted in a pattern" var.txt.txt)
           | _ -> pat)
     ; expr =
         with_log (fun self expr ->
