@@ -69,6 +69,12 @@ val update_loc :
   Fmast.Location.t -> (Lexing.position -> Lexing.position) -> Fmast.Location.t
 
 val preserve_loc_to_preserve_comment_pos :
+     (Ast_mapper.mapper -> Ast_mapper.mapper -> 'ast -> 'ast)
+  -> from:Fmast.Location.t
+  -> 'ast
+  -> 'ast
+
+val preserve_loc_to_preserve_comment_pos_expr :
   from:P.expression -> P.expression -> P.expression
 
 val call : Ast_mapper.mapper -> P.structure -> P.structure

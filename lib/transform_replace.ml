@@ -440,7 +440,7 @@ and match_structure_item ~loc ~need_type_index (motif : Uast.Parsetree.structure
         match s.pstr_desc with Pstr_eval (e, _) -> s1 e ~env ~ctx | _ -> false)
   | _ -> unsupported_motif loc
 
-let subst expr ~env =
+let subst meth v ~env =
   let super = Ast_mapper.default_mapper in
   let self =
     { super with
@@ -525,15 +525,120 @@ let subst expr ~env =
             | _ -> expr)
     }
   in
-  self.expr self expr
+  (meth self) self v
 
-let replace expr ~whole_ast ~type_index ~stage2 ~repl =
+let replace (meth, preserve_loc) expr ~whole_ast ~type_index ~stage2 ~repl =
   let env = ref { bindings = Map.empty (module String); nodes_to_remove = [] } in
   if stage2 expr ~env ~ctx:{ type_index; whole_ast }
   then
-    let repl = preserve_loc_to_preserve_comment_pos ~from:expr repl in
-    Some (subst repl ~env:!env.bindings, !env.nodes_to_remove)
+    let repl = preserve_loc repl in
+    Some (subst meth repl ~env:!env.bindings, !env.nodes_to_remove)
   else None
+
+let match_value_binding ~need_type_index
+    ({ pvb_pat; pvb_expr; pvb_constraint; pvb_attributes = _; pvb_loc } :
+      Uast.Parsetree.value_binding) =
+  match pvb_constraint with
+  | Some _ -> unsupported_motif pvb_loc
+  | None -> (
+      let s_pat = match_pat ~need_type_index pvb_pat in
+      let s_expr = match_ ~need_type_index pvb_expr in
+      fun (vb : P.value_binding) ~env ~ctx ->
+        Option.is_none vb.pvb_constraint
+        && s_pat vb.pvb_pat ~env ~ctx
+        &&
+        match vb.pvb_body with
+        | Pfunction_cases _ -> assert false
+        | Pfunction_body body -> s_expr body ~env ~ctx)
+
+let split_bop str = (String.prefix str 3, String.drop_prefix str 3)
+
+let match_binding_op ~need_type_index
+    ({ pbop_op; pbop_pat; pbop_exp; pbop_loc = _ } : Uast.Parsetree.binding_op) =
+  (* turn let+/and+ into + *)
+  let m_op = split_bop pbop_op.txt in
+  let s_pat = match_pat ~need_type_index pbop_pat in
+  let s_expr = match_ ~need_type_index pbop_exp in
+  fun (op : P.binding_op) ~env ~ctx ->
+    snd m_op =: snd (split_bop op.pbop_op.txt)
+    && s_pat op.pbop_pat ~env ~ctx
+    && s_expr op.pbop_exp ~env ~ctx
+
+let compile_motif ~need_type_index (motif : Uast.Parsetree.expression) =
+  match motif.pexp_desc with
+  | Pexp_extension ({ txt = "binding"; _ }, payload) -> (
+      match payload with
+      | PStr
+          [ { pstr_desc =
+                Pstr_eval ({ pexp_desc = Pexp_let (Nonrecursive, [ vb ], _); _ }, _)
+            ; _
+            }
+          ] ->
+          `Binding (match_value_binding ~need_type_index vb)
+      | PStr
+          [ { pstr_desc =
+                Pstr_eval
+                  ( { pexp_desc = Pexp_letop { let_ = binding_op; ands = []; body = _ }
+                    ; _
+                    }
+                  , _ )
+            ; _
+            }
+          ] ->
+          `Binding_op (match_binding_op ~need_type_index binding_op)
+      | _ -> unsupported_motif motif.pexp_loc)
+  | _ -> `Expr (match_ ~need_type_index motif)
+
+let parse_template ~fmconf stage2 repl =
+  let repl =
+    match !repl with
+    | `Forced v -> v
+    | `Unforced repl_str ->
+        let v =
+          (Fmast.parse_with_ocamlformat Expression ~conf:fmconf
+             ~input_name:migrate_filename_gen
+             (* important for comment placement, among which
+                        preserve_loc_to_preserve_comment_pos to work *)
+             repl_str)
+            .ast
+          |> Transform_migration.internalize_reorder_attribute
+        in
+        repl := `Forced v;
+        v
+  in
+  match stage2 with
+  | `Expr stage2 -> `Expr (stage2, repl)
+  | (`Binding _ | `Binding_op _) as stage2 -> (
+      match (stage2, repl.pexp_desc) with
+      | `Binding stage2, Pexp_extension ({ txt = "binding"; _ }, payload) -> (
+          match payload with
+          | PStr
+              [ { pstr_desc =
+                    Pstr_eval
+                      ( { pexp_desc =
+                            Pexp_let
+                              ({ pvbs_rec = Nonrecursive; pvbs_bindings = [ vb ] }, _, _)
+                        ; _
+                        }
+                      , _ )
+                ; _
+                }
+              ] ->
+              `Binding (stage2, vb)
+          | _ -> unsupported_motif (Conv.location' repl.pexp_loc))
+      | `Binding_op stage2, Pexp_extension ({ txt = "binding"; _ }, payload) -> (
+          match payload with
+          | PStr
+              [ { pstr_desc =
+                    Pstr_eval
+                      ( { pexp_desc = Pexp_letop { let_ = binding_op; ands = []; _ }; _ }
+                      , _ )
+                ; _
+                }
+              ] ->
+              `Binding_op (stage2, binding_op)
+          | _ -> unsupported_motif (Conv.location' repl.pexp_loc))
+      | _ -> unsupported_motif (Conv.location' repl.pexp_loc))
 
 let run motif_and_repls () =
   let may_need_type_index_ref = ref false in
@@ -543,28 +648,12 @@ let run motif_and_repls () =
           Uast.Parse.expression (lexing_from_string motif ~file_path:"command line param")
         in
         let repl = ref (`Unforced repl) in
-        (match_ ~need_type_index:may_need_type_index_ref motif, repl))
+        (compile_motif ~need_type_index:may_need_type_index_ref motif, repl))
   in
   fun ~fmconf ~type_index ~source_path ~input_name_matching_compilation_command ->
     let stage2_and_repls =
       List.map stage2_and_repls ~f:(fun (stage2, repl) ->
-          let repl =
-            match !repl with
-            | `Forced v -> v
-            | `Unforced repl_str ->
-                let v =
-                  (Fmast.parse_with_ocamlformat Expression ~conf:fmconf
-                     ~input_name:migrate_filename_gen
-                     (* important for comment placement, among which
-                        preserve_loc_to_preserve_comment_pos to work *)
-                     repl_str)
-                    .ast
-                  |> Transform_migration.internalize_reorder_attribute
-                in
-                repl := `Forced v;
-                v
-          in
-          (stage2, repl))
+          parse_template ~fmconf stage2 repl)
     in
     let input_name_matching_compilation_command =
       if !may_need_type_index_ref
@@ -577,12 +666,62 @@ let run motif_and_repls () =
         let super = Ast_mapper.default_mapper in
         let self =
           { super with
-            expr =
+            value_binding =
+              (fun self vb ->
+                let vb = super.value_binding self vb in
+                match
+                  List.find_map stage2_and_repls ~f:(function
+                    | `Expr _ | `Binding_op _ -> None
+                    | `Binding (stage2, repl) ->
+                        replace
+                          ( __.value_binding
+                          , preserve_loc_to_preserve_comment_pos __.value_binding
+                              ~from:vb.pvb_loc )
+                          vb ~whole_ast:structure ~type_index ~stage2 ~repl)
+                with
+                | None -> vb
+                | Some (vb, nodes_to_remove) ->
+                    Queue.enqueue_all all_nodes_to_remove nodes_to_remove;
+                    changed_something := true;
+                    vb)
+          ; binding_op =
+              (fun self bop ->
+                let bop = super.binding_op self bop in
+                match
+                  List.find_map stage2_and_repls ~f:(function
+                    | `Expr _ | `Binding _ -> None
+                    | `Binding_op (stage2, repl) ->
+                        let repl =
+                          { repl with
+                            pbop_op =
+                              { txt =
+                                  fst (split_bop bop.pbop_op.txt)
+                                  ^ snd (split_bop repl.pbop_op.txt)
+                              ; loc = repl.pbop_op.loc
+                              }
+                          }
+                        in
+                        replace
+                          ( __.binding_op
+                          , preserve_loc_to_preserve_comment_pos __.binding_op
+                              ~from:bop.pbop_loc )
+                          bop ~whole_ast:structure ~type_index ~stage2 ~repl)
+                with
+                | None -> bop
+                | Some (bop, nodes_to_remove) ->
+                    Queue.enqueue_all all_nodes_to_remove nodes_to_remove;
+                    changed_something := true;
+                    bop)
+          ; expr =
               (fun self expr ->
                 let expr = super.expr self expr in
                 match
-                  List.find_map stage2_and_repls ~f:(fun (stage2, repl) ->
-                      replace expr ~whole_ast:structure ~type_index ~stage2 ~repl)
+                  List.find_map stage2_and_repls ~f:(function
+                    | `Binding _ | `Binding_op _ -> None
+                    | `Expr (stage2, repl) ->
+                        replace
+                          (__.expr, preserve_loc_to_preserve_comment_pos_expr ~from:expr)
+                          expr ~whole_ast:structure ~type_index ~stage2 ~repl)
                 with
                 | None -> expr
                 | Some (expr, nodes_to_remove) ->

@@ -2015,7 +2015,7 @@ let inline ~fmconf ~type_index ~side_migrations_cmts ~artifacts:(comp_unit, arti
                     add_depends libraries;
                     let to_expr = relativize id.txt to_expr in
                     let to_expr =
-                      preserve_loc_to_preserve_comment_pos ~from:expr to_expr
+                      preserve_loc_to_preserve_comment_pos_expr ~from:expr to_expr
                     in
                     changed_something := true;
                     if has_context_match to_expr

@@ -394,7 +394,22 @@ let rec map_tail (e : P.expression) f =
   | { pexp_desc = Pexp_parens e; _ } -> { e with pexp_desc = Pexp_parens (map_tail e f) }
   | _ -> f e
 
-let preserve_loc_to_preserve_comment_pos ~(from : P.expression) to_ =
+let preserve_loc_to_preserve_comment_pos meth ~from to_ =
+  let super = Ast_mapper.default_mapper in
+  let self =
+    { super with
+      location =
+        (fun _self loc ->
+          if not (is_migrate_filename loc)
+          then loc
+          else
+            let pos_fname = loc.loc_start.pos_fname in
+            update_loc from (fun pos -> { pos with pos_fname }))
+    }
+  in
+  (meth self) self to_
+
+let preserve_loc_to_preserve_comment_pos_expr ~(from : P.expression) to_ =
   let rec loop (e : P.expression) ~saw_funs =
     map_tail e (fun e ->
         match e with
@@ -427,20 +442,8 @@ let preserve_loc_to_preserve_comment_pos ~(from : P.expression) to_ =
      It seems that the first loop above should be unnecessary given this one, but
      while it only changes the filename of one node, that makes a difference to
      comment placement for some reason.
-  *)
-  let super = Ast_mapper.default_mapper in
-  let self =
-    { super with
-      location =
-        (fun _self loc ->
-          if not (is_migrate_filename loc)
-          then loc
-          else
-            let pos_fname = loc.loc_start.pos_fname in
-            update_loc from.pexp_loc (fun pos -> { pos with pos_fname }))
-    }
-  in
-  self.expr self to_
+   *)
+  preserve_loc_to_preserve_comment_pos __.expr ~from:from.pexp_loc to_
 
 let call (class_ : Ast_mapper.mapper) v = class_.structure class_ v
 
