@@ -38,7 +38,7 @@
     (>= 4.08))
    (alcotest
     (and
-     (= 1 0)
+     :false
      (>= 1.3.0)))
    (base
     (>= v0.12.0))
@@ -60,15 +60,15 @@
     (>= 3.5.0))
    (ocamlformat-rpc-lib
     (and
-     (= 1 0)
+     :false
      (= :version)))
    (ocp-indent
     (or
      (and
-      (= false false)
+      
       (>= 1.8.0))
      (and
-      (= 1 0)
+      :false
       (>= 1.8.1))))
    stdio
    (uuseg

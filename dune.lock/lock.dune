@@ -1,6 +1,6 @@
 (lang package 0.1)
 
-(dependency_hash 2b0ecf7abd2178a6e21cb491bf5884fe)
+(dependency_hash a11c5083e4ff87920521f700740bc94b)
 
 (ocaml ocaml-base-compiler)
 
@@ -28,6 +28,7 @@
   sys-ocaml-libc
   sys-ocaml-cc
   sys-ocaml-arch
+  false
   enable-ocaml-beta-repository
   dev
   build))
