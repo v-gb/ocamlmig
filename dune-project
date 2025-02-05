@@ -65,7 +65,7 @@
    (ocp-indent
     (or
      (and
-      (= false false)
+      
       (>= 1.8.0))
      (and
       (= 1 0)

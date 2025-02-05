@@ -24,7 +24,7 @@ cat "$TMP"/dune-project \
     | grep -E -B 1000 '^[^ ]' -m 1 \
     | head -n -1 \
     | grep -vx '' \
-    | sed 's/= :with-test/= false/' \
+    | sed 's/(= :with-test false)//' \
     | sed 's/:with-test/(= 1 0)/' \
     | tac \
     | sed -E -e '0,/[)]/ s/[)]//g' \
