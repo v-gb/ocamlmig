@@ -103,6 +103,7 @@ let _ = debug_print_pattern
 
 let parse_with_ocamlformat kind ~conf ~input_name str =
   Ocamlformat_lib.Parse_with_comments.parse
+    ~disable_w50:true (* avoid exception being thrown *)
     (Ocamlformat_lib.Parse_with_comments.parse_ast conf)
     kind conf ~input_name ~source:str
 
