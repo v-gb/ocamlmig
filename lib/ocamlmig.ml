@@ -89,18 +89,22 @@ let diff ?label1 ?label2 src1 src2 =
           in
           if code <> 0 && code <> 1 then failwith "diffing failed"))
 
-let diff_or_write ~fmt_ocaml file_path ~write (file_contents, file_contents') =
+let diff_or_write ~original_formatting file_path ~write (file_contents, file_contents') =
   let file_contents =
     lazy
-      (match fmt_ocaml with
-      | Some (`Even_orig true) ->
-          Dyn_ocamlformat.format ~path:file_path ~contents:file_contents
-      | None | Some (`Even_orig false) -> file_contents)
+      (match original_formatting with
+      | Some `Disabled -> Dyn_ocamlformat.format ~path:file_path ~contents:file_contents
+      | Some (`Not_configured conf) ->
+          Fmast.parse_with_ocamlformat ~conf ~input_name:"wontmatter" Structure
+            file_contents
+          |> Fmast.ocamlformat_print Structure ~conf __
+      | None | Some `Enabled -> file_contents)
   in
   let file_contents' =
-    if Option.is_some fmt_ocaml
-    then Dyn_ocamlformat.format ~path:file_path ~contents:file_contents'
-    else file_contents'
+    match original_formatting with
+    | Some (`Enabled | `Disabled) ->
+        Dyn_ocamlformat.format ~path:file_path ~contents:file_contents'
+    | Some (`Not_configured _) | None -> file_contents'
   in
   if write
   then Out_channel.write_all (Cwdpath.to_string file_path) ~data:file_contents'
@@ -164,19 +168,47 @@ let wrap str =
            |> String.concat ~sep:"\n")
   |> String.concat_lines
 
+type detailed_fmconf =
+  { conf : Ocamlformat_lib.Conf_t.t
+  ; in_use : [ `Enabled | `Disabled | `Not_configured ]
+  }
+
 let load_ocamlformat_conf ~dune_root ~for_file =
+  (* We want to distinguish three states: - the repo doesn't use ocamlformat at all. In
+     this case, we don't want to call the ocamlformat executable (instead just rely on
+     the linked in one), this way, it's one less piece that might fail when checking
+     out the tool - the repo uses ocamlformat, but it's disabled for this file. In this
+     case, I think it makes more sense not to rewrite such files - the repo uses
+     ocamlformat, and it's enabled for this file. In this case, we want to use that
+     configuration, and call "ocamlformat" to get it correctly formatted.
+
+     Bin_conf doesn't really tell us what we want, short of going in and patching
+     it. So we'll just assume that, if an .ocamlformat exists, it's going be in the
+     dune root. *)
+  let has_ocamlformat =
+    Sys.file_exists (Abspath.to_string (Abspath.concat dune_root ".ocamlformat"))
+  in
   let to_fpath str =
     match Ocamlformat_stdlib.Fpath.of_string str with
     | Ok v -> v
     | Error (`Msg s) -> failwith s
   in
-  Bin_conf.build_config
-    ~enable_outside_detected_project:true
-      (* Not sure if this setting is necessary, but the intention is for people to be
-         able to check out this tool even if ocamlformat isn't in use. *)
-    ~root:(Some (to_fpath (Abspath.to_string dune_root)))
-    ~file:(Cwdpath.to_string for_file) ~is_stdin:false
-  |> Result.ok_or_failwith
+  let conf =
+    Bin_conf.build_config
+      ~enable_outside_detected_project:true
+        (* enable_outside_detected_project:true so ocamlformat doesn't print warnings
+         when .ocamlformat is absent. When that happens, .disable.v is true when that
+         flag is set (but would be false without). *)
+      ~root:(Some (to_fpath (Abspath.to_string dune_root)))
+      ~file:(Cwdpath.to_string for_file) ~is_stdin:false
+    |> Result.ok_or_failwith
+  in
+  { conf
+  ; in_use =
+      (if has_ocamlformat
+       then if conf.opr_opts.disable.v then `Disabled else `Enabled
+       else `Not_configured)
+  }
 
 let flag_optional_with_default_doc_custom name ~all:all_v ~to_string ~default ~doc =
   let open Command.Let_syntax.Let_syntax.Open_on_rhs in
@@ -194,26 +226,32 @@ let ocamlformat_conf_param =
     let unformatted =
       flag_optional_with_default_doc_custom "unformatted" ~all:[ `Skip; `Fail; `Proceed ]
         ~to_string:(function `Skip -> "skip" | `Fail -> "fail" | `Proceed -> "proceed")
-        ~default:`Fail ~doc:"what to do with .ml files not configured with ocamlformat"
+        ~default:`Fail
+        ~doc:"what to do with .ml files for which ocamlformat is explicitly disabled"
     in
     fun ~dune_root file_path ->
-      let fmconf = load_ocamlformat_conf ~dune_root ~for_file:file_path in
-      let fmconf, fm_orig =
-        if not fmconf.opr_opts.disable.v
-        then (fmconf, false)
-        else
-          match unformatted with
-          | `Proceed ->
-              ( Ocamlformat_lib.Conf.Operational.update fmconf ~f:(fun opr_opts ->
+      let { conf = fmconf; in_use } =
+        load_ocamlformat_conf ~dune_root ~for_file:file_path
+      in
+      let fmconf =
+        match in_use with
+        | `Not_configured | `Enabled ->
+            assert (not fmconf.opr_opts.disable.v);
+            fmconf
+        | `Disabled -> (
+            assert fmconf.opr_opts.disable.v;
+            match unformatted with
+            | `Proceed ->
+                Ocamlformat_lib.Conf.Operational.update fmconf ~f:(fun opr_opts ->
                     { opr_opts with
                       disable = Ocamlformat_lib.Conf_t.Elt.make false `Default
                     })
-              , true )
-          | `Skip ->
-              eprintf "warning: ocamlformat disabled for %s\n%!"
-                (Cwdpath.to_string file_path);
-              (fmconf, false)
-          | `Fail -> failwith ("ocamlformat disabled for " ^ Cwdpath.to_string file_path)
+            | `Skip ->
+                eprintf "warning: ocamlformat disabled for %s\n%!"
+                  (Cwdpath.to_string file_path);
+                fmconf
+            | `Fail -> failwith ("ocamlformat disabled for " ^ Cwdpath.to_string file_path)
+            )
       in
       if not fmconf.opr_opts.disable.v
       then
@@ -231,12 +269,17 @@ let ocamlformat_conf_param =
           | Error _ -> conf
           | Ok conf -> conf
         in
+        let fmconf =
+          fmconf
+          |> try_update ~name:"wrap-comments" ~value:"false"
+          |> try_update ~name:"wrap-docstrings" ~value:"false"
+          |> try_update ~name:"parse-docstrings" ~value:"false"
+        in
         Some
           ( fmconf
-            |> try_update ~name:"wrap-comments" ~value:"false"
-            |> try_update ~name:"wrap-docstrings" ~value:"false"
-            |> try_update ~name:"parse-docstrings" ~value:"false"
-          , `Even_orig fm_orig )
+          , match in_use with
+            | `Not_configured -> `Not_configured fmconf
+            | (`Enabled | `Disabled) as in_use -> in_use )
       else None]
 
 let write_param =
@@ -332,12 +375,19 @@ let migrate =
                                   (Build.input_name_matching_compilation_command cmt_infos))
                           |> Option.iter ~f:(fun (contents, { libraries }) ->
                                  Queue.enqueue deps (`Path source_path, libraries);
-                                 diff_or_write ~fmt_ocaml:(Some fm_orig) source_path
-                                   ~write contents)));
+                                 diff_or_write ~original_formatting:(Some fm_orig)
+                                   source_path ~write contents)));
               List.iter
                 (Dune_files.add_dependencies ~dune_root (Queue.to_list deps))
                 ~f:(fun (`Path file_path, before, after) ->
-                  diff_or_write ~fmt_ocaml:None file_path ~write (before, after)))] )
+                  diff_or_write ~original_formatting:None file_path ~write (before, after)))]
+  )
+
+type original_formatting =
+  [ `Not_configured of Ocamlformat_lib.Conf_t.t
+  | `Enabled
+  | `Disabled
+  ]
 
 type transform_ctx =
   { source_path : Cwdpath.t
@@ -345,9 +395,9 @@ type transform_ctx =
   ; cmt_infos : Cmt_format.cmt_infos Lazy.t
   ; listing : Build.Listing.t
   ; type_index : Build.Type_index.t Lazy.t
-  ; ocamlformat_conf : (Ocamlformat_lib.Conf_t.t * [ `Even_orig of bool ]) option Lazy.t
+  ; ocamlformat_conf : (Ocamlformat_lib.Conf_t.t * original_formatting) option Lazy.t
   ; diff_or_write :
-      fmt_ocaml:[ `Even_orig of bool ] option -> (string * string) option -> unit
+      original_formatting:original_formatting option -> (string * string) option -> unit
   ; artifacts_cache : Build.Artifacts.cache
   }
 
@@ -377,8 +427,8 @@ let make_transform param =
                      ~dune_root:(Result.ok_or_failwith dune_root)
                      source_path)
               in
-              let diff_or_write ~fmt_ocaml =
-                Option.iter __ ~f:(diff_or_write ~fmt_ocaml source_path ~write)
+              let diff_or_write ~original_formatting =
+                Option.iter __ ~f:(diff_or_write ~original_formatting source_path ~write)
               in
               match Build.Listing.locate_cmt listing ~source_path with
               | Error e ->
@@ -420,7 +470,7 @@ let transform =
                  fun ctx ->
                    Transform_strict_sequence.run ~type_index:(force ctx.type_index)
                      ctx.source_path
-                   |> ctx.diff_or_write ~fmt_ocaml:None]) )
+                   |> ctx.diff_or_write ~original_formatting:None]) )
       ; ( "rescope"
         , Command.basic ~summary:"transform scopes, e.g. by removing opens"
             ~readme:(fun () ->
@@ -491,7 +541,7 @@ let transform =
                             (Build.input_name_matching_compilation_command
                                (force ctx.cmt_infos))
                           ~cmt_infos:(Build.read_cmt ctx.cmt_path)
-                        |> ctx.diff_or_write ~fmt_ocaml:(Some fm_orig)])) )
+                        |> ctx.diff_or_write ~original_formatting:(Some fm_orig)])) )
       ; ( "migration-inverse"
         , Command.basic
             ~summary:
@@ -517,7 +567,7 @@ let transform =
                          ~input_name_matching_compilation_command:
                            (Build.input_name_matching_compilation_command
                               (force ctx.cmt_infos))
-                       |> ctx.diff_or_write ~fmt_ocaml:(Some fm_orig)]) )
+                       |> ctx.diff_or_write ~original_formatting:(Some fm_orig)]) )
       ; ( "migration-check"
         , Command.basic
             ~summary:
@@ -540,7 +590,7 @@ let transform =
                          ~input_name_matching_compilation_command:
                            (Build.input_name_matching_compilation_command
                               (force ctx.cmt_infos))
-                       |> ctx.diff_or_write ~fmt_ocaml:(Some fm_orig)]) )
+                       |> ctx.diff_or_write ~original_formatting:(Some fm_orig)]) )
       ; ( "migration-to-typed"
         , Command.basic
             ~summary:
@@ -564,7 +614,7 @@ let transform =
                          ~input_name_matching_compilation_command:
                            (Build.input_name_matching_compilation_command
                               (force ctx.cmt_infos))
-                       |> ctx.diff_or_write ~fmt_ocaml:(Some fm_orig)]) )
+                       |> ctx.diff_or_write ~original_formatting:(Some fm_orig)]) )
       ] )
 
 let substr_split t ~on:substr =
@@ -643,8 +693,9 @@ let replace =
                                 (Option.bind (force cmt_infos)
                                    ~f:Build.input_name_matching_compilation_command)))
                       |> Option.iter
-                           ~f:(diff_or_write ~fmt_ocaml:(Some fm_orig) source_path ~write)))]
-  )
+                           ~f:
+                             (diff_or_write ~original_formatting:(Some fm_orig)
+                                source_path ~write)))] )
 
 let internal_dune_config =
   ( "dune-config"
@@ -703,7 +754,7 @@ let internal_parsetree =
                   Fmast.parse_with_ocamlformat Structure
                     ~conf:
                       (load_ocamlformat_conf ~dune_root ~for_file:(Cwdpath.create "z.ml"))
-                    ~input_name:"z.ml" code
+                        .conf ~input_name:"z.ml" code
                 in
                 print_string (Fmast.debug_print ~raw:true Structure ast_with_comments.ast))]
   )
