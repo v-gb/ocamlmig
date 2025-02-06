@@ -7,6 +7,7 @@ open Common
 val read_cmt : Cwdpath.t -> Cmt_format.cmt_infos
 val comp_unit_of_uid : Shape.Uid.t -> string option
 val input_name_matching_compilation_command : Cmt_format.cmt_infos -> string option
+val is_dune_root : string -> bool
 
 module Listing : sig
   (** Metadata, usually extracted from dune, about the compilation of ml files: where the

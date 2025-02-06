@@ -25,6 +25,8 @@ let comp_unit_of_uid (uid : Shape.Uid.t) =
   | Internal | Predef _ -> None
   | Compilation_unit comp_unit | Item { comp_unit; _ } -> Some comp_unit
 
+let is_dune_root dir = Sys.file_exists (Filename.concat dir "_build")
+
 let input_name_matching_compilation_command (cmt_infos : Cmt_format.cmt_infos) =
   (* The computed "input name" will become the pos_fname in locations in the AST we
      parse. We need it to be equal to pos_fname in the .cmt files, otherwise we will

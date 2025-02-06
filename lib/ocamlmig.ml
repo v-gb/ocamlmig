@@ -135,7 +135,7 @@ let find_dune_root () =
   (* None of the dune commands are usable if you have a dune already running, so hand
      roll this. *)
   let dir = ref (Sys.getcwd ()) in
-  while (not (Sys.file_exists (!dir ^/ "_build"))) && !dir <>: "/" do
+  while (not (Build.is_dune_root !dir)) && !dir <>: "/" do
     dir := Filename.dirname !dir
   done;
   if !dir =: "/" then Error "can't find dune" else Ok (Abspath.create_exn !dir)

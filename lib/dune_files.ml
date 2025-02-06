@@ -192,7 +192,25 @@ let add_dependencies_to_dune_project dune_project_path deps =
     in
     update_text dune_project_contents changes
 
-let dune_path path = Cwdpath.concat (Cwdpath.dirname path) "dune"
+let dune_path path =
+  (* Normally, the dune file that configures a .ml file lives in the same directory.
+     However, in the presence of the (include_subdirs ..) stanza, the dune file can
+     live higher up. We don't check that the stanza is present here, we just assume
+     the dune file we find should be the right one. Even if it wasn't, it wouldn't
+     be a big deal, as it's not used for much. *)
+  let default () =
+    (* for cases that won't work, but we just let the caller fail *)
+    Cwdpath.concat (Cwdpath.dirname path) "dune"
+  in
+  let rec loop dir count =
+    let path = Cwdpath.concat dir "dune" in
+    if Sys.file_exists (Cwdpath.to_string path)
+    then path
+    else if Build.is_dune_root (Cwdpath.to_string dir) || count > 100
+    then default ()
+    else loop (Cwdpath.concat dir "..") (count + 1)
+  in
+  loop (Cwdpath.dirname path) 0
 
 let add_dependencies ~dune_root path_and_deps =
   let dune_paths_and_deps =
@@ -229,7 +247,7 @@ let ppx ~path =
       In_channel.read_all (Cwdpath.to_string (dune_path path))
       |> Parsexp.Many_cst.parse_string_exn
     with e ->
-      raise_s [%sexp "failed to read dune file for ", ~~(path : Cwdpath.t), (e : exn)]
+      raise_s [%sexp "failed to read dune file for", ~~(path : Cwdpath.t), (e : exn)]
   in
   With_return.with_return_option (fun r ->
       List.iter dune_cst ~f:(fun elt ->
