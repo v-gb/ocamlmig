@@ -6,9 +6,9 @@ function ocamlmig {
     ../_build/default/bin/main.exe "$@"
 }
 ocamlmig migrate test_migration.ml "$@"
-ocamlmig transform rescope -unqualify Z test_scope.ml "$@"
-ocamlmig transform rescope -unopen Z test_scope.ml "$@"
-ocamlmig transform rescope -open Z test_scope.ml "$@"
+ocamlmig transform rescope -unqualify Z test_scope_unqualify.ml "$@"
+ocamlmig transform rescope -unopen Z test_scope_unopen.ml "$@"
+ocamlmig transform rescope -open Z test_scope_open.ml "$@"
 ocamlmig transform migration-inverse test_migration_inverse.ml "$@"
 ocamlmig transform migration-check test_migration_check.ml "$@"
 ocamlmig replace \
