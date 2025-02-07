@@ -248,8 +248,9 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
             | _ -> typ)
     ; expr =
         with_log (fun self expr ->
+            let expr = super.expr self expr in
             if in_test && not !should_act_in_test
-            then super.expr self expr
+            then expr
             else
               match expr.pexp_desc with
               | Pexp_ident id -> (
@@ -302,8 +303,8 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
               | Pexp_letopen ({ popen_expr = { pmod_desc = Pmod_ident id; _ }; _ }, e)
                 when is_root id.txt ->
                   changed_something := true;
-                  self.expr self e
-              | _ -> super.expr self expr)
+                  e
+              | _ -> expr)
     ; structure_item =
         update_migrate_test_payload ~match_attr:(__ =: "migrate_test.unopen")
           ~state:should_act_in_test ~changed_something super
@@ -428,8 +429,9 @@ let qualify_for_open ~changed_something ~artifacts ~type_index
             | _ -> pat)
     ; expr =
         with_log (fun self expr ->
+            let expr = super.expr self expr in
             if in_test && not !should_act_in_test
-            then super.expr self expr
+            then expr
             else
               match expr.pexp_desc with
               | Pexp_ident id -> (
@@ -476,25 +478,23 @@ let qualify_for_open ~changed_something ~artifacts ~type_index
                                     Sattr.touched.build ~loc:!Ast_helper.default_loc ()
                                     :: expr.pexp_attributes
                                 })))
-              | Pexp_construct (id, payload) ->
-                  super.expr self
-                    (match
-                       Build.Type_index.expr type_index (Conv.location' expr.pexp_loc)
-                     with
-                    | [] -> expr
-                    | texpr :: _ -> (
-                        match update_constructor texpr.exp_env id with
-                        | None -> expr
-                        | Some new_id ->
-                            changed_something := true;
-                            { expr with
-                              pexp_desc =
-                                Pexp_construct ({ id with txt = new_id }, payload)
-                            ; pexp_attributes =
-                                Sattr.touched.build ~loc:!Ast_helper.default_loc ()
-                                :: expr.pexp_attributes
-                            }))
-              | _ -> super.expr self expr)
+              | Pexp_construct (id, payload) -> (
+                  match
+                    Build.Type_index.expr type_index (Conv.location' expr.pexp_loc)
+                  with
+                  | [] -> expr
+                  | texpr :: _ -> (
+                      match update_constructor texpr.exp_env id with
+                      | None -> expr
+                      | Some new_id ->
+                          changed_something := true;
+                          { expr with
+                            pexp_desc = Pexp_construct ({ id with txt = new_id }, payload)
+                          ; pexp_attributes =
+                              Sattr.touched.build ~loc:!Ast_helper.default_loc ()
+                              :: expr.pexp_attributes
+                          }))
+              | _ -> expr)
     ; structure_item =
         update_migrate_test_payload ~match_attr:(__ =: "migrate_test.open")
           ~state:should_act_in_test ~changed_something super
@@ -556,6 +556,7 @@ let unqualify ~changed_something structure ~artifacts ~type_index
     { super with
       expr =
         with_log (fun self expr ->
+            let expr = super.expr self expr in
             match expr.pexp_desc with
             | Pexp_ident id -> (
                 match Build.Type_index.expr type_index (Conv.location' expr.pexp_loc) with
@@ -606,7 +607,7 @@ let unqualify ~changed_something structure ~artifacts ~type_index
                                   :: expr.pexp_attributes
                               })
                             else expr)))
-            | _ -> super.expr self expr)
+            | _ -> expr)
     ; structure_item = update_migrate_test_payload ~changed_something super
     }
   in
