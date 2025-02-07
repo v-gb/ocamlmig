@@ -9,6 +9,11 @@ type zsum = ZS
 
 exception ZE
 
+type zr =
+  { zr1 : int
+  ; zr2 : int
+  }
+
 let z1 = 1
 let open_out = 2
 let ( !! ) x = x + 1

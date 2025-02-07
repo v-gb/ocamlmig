@@ -77,6 +77,37 @@ let () =
       end)]
 
 let () =
+  test "record"
+    (module struct
+      type cr =
+        { cr1 : int
+        ; cr2 : int
+        }
+
+      open Z
+
+      (* check { a with foo }, when either field missing *)
+      let zr, cr = ({ zr1 = 1; zr2 = 2 }, { cr1 = 1; cr2 = 2 })
+      let _ = (zr.zr2, { zr with zr1 = 1 }, { zr with zr2 = 2 })
+      let _ = (cr.cr2, { cr with cr1 = 1 }, { cr with cr2 = 2 })
+      let _ = fun ({ zr2; zr1 }, { cr2; cr1 }) -> ({ zr2; zr1 }, { cr2; cr1 })
+    end)
+[@@migrate_test.unopen
+  let () =
+    test "record"
+      (module struct
+        type cr =
+          { cr1 : int
+          ; cr2 : int
+          }
+
+        let zr, cr = ({ Z.zr1 = 1; zr2 = 2 }, { cr1 = 1; cr2 = 2 })
+        let _ = (zr.Z.zr2, { zr with Z.zr1 = 1 }, { zr with Z.zr2 = 2 })
+        let _ = (cr.cr2, { cr with cr1 = 1 }, { cr with cr2 = 2 })
+        let _ = fun ({ Z.zr2; zr1 }, { cr2; cr1 }) -> ({ Z.zr2; zr1 }, { cr2; cr1 })
+      end)]
+
+let () =
   test "class & class type"
     (module struct
       class c = object end

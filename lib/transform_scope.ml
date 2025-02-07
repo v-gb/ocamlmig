@@ -291,6 +291,19 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
                     :: ct.pcty_attributes
                 }))
   in
+  let filter_opens env =
+    let rec filter_opens (summary : Env.summary) =
+      match summary with
+      | Env_open (next, path) when is_root' root path -> filter_opens next
+      | _ -> (
+          match Uast.Env_summary.next summary with
+          | None -> summary
+          | Some next -> Uast.Env_summary.set_exn summary ~next:(filter_opens next))
+    in
+    Env.env_of_only_summary
+      (fun sum subst -> Envaux.env_from_summary (filter_opens sum) subst)
+      env
+  in
   let constructor_may_have_been_provided_by_open (id : Longident.t Location.loc)
       (cd : Types.constructor_description) env =
     let env = Envaux.env_of_only_summary env in
@@ -303,22 +316,63 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
              unnecessary, if type based disambiguation was forcing this interpretation,
              but we have no way to determine what constructor disambiguation is in
              play. *)
-        let new_env =
-          let rec filter_opens (summary : Env.summary) =
-            match summary with
-            | Env_open (next, path) when is_root' root path -> filter_opens next
-            | _ -> (
-                match Uast.Env_summary.next summary with
-                | None -> summary
-                | Some next -> Uast.Env_summary.set_exn summary ~next:(filter_opens next))
-          in
-          Env.env_of_only_summary
-            (fun sum subst -> Envaux.env_from_summary (filter_opens sum) subst)
-            env
-        in
+        let new_env = filter_opens env in
         match Env.find_constructor_by_name (Conv.longident' id.txt) new_env with
         | exception Stdlib.Not_found -> true
         | cd_new_env -> not (Shape.Uid.equal cd_new_env.cstr_uid cd.cstr_uid))
+  in
+  let label_may_have_been_provided_by_open (id : Longident.t Location.loc)
+      (ld : Types.label_description) env =
+    let env = Envaux.env_of_only_summary env in
+    match Env.find_label_by_name (Conv.longident' id.txt) env with
+    | exception Stdlib.Not_found -> false
+    | ld_orig_env -> (
+        Shape.Uid.equal ld_orig_env.lbl_uid ld.lbl_uid
+        &&
+        let new_env = filter_opens env in
+        match Env.find_label_by_name (Conv.longident' id.txt) new_env with
+        | exception Stdlib.Not_found -> true
+        | ld_new_env -> not (Shape.Uid.equal ld_new_env.lbl_uid ld.lbl_uid))
+  in
+  let update_field ~type_index_lookup ~match_record ~dotenv ~with_attr fields =
+    let changed_field = ref false in
+    let fields =
+      let has_seen_qualified_field = ref false in
+      let update_field (((label : Longident.t Location.loc), type_constr, value) as field)
+          =
+        match type_index_lookup with
+        | [] ->
+            if !log then print_s [%sexp (label.txt : Longident.t), "missing type"];
+            field
+        | texpr :: _ -> (
+            match match_record texpr with
+            | Some find_exn_fields
+              when label_may_have_been_provided_by_open label
+                     (find_exn_fields ~f:(fun (lbl : Types.label_description) ->
+                          lbl.lbl_name =: Longident.last label.txt))
+                     (dotenv texpr) ->
+                let new_label = maybe_reroot' root label.txt in
+                changed_field := true;
+                changed_something := true;
+                ( { label with txt = new_label }
+                , type_constr
+                , Option.map value ~f:(fun value ->
+                      with_attr value (fun attrs ->
+                          Sattr.touched.build ~loc:!Ast_helper.default_loc () :: attrs))
+                )
+            | _ -> field)
+      in
+      let l =
+        List.map fields ~f:(fun ((label, _, _) as field) ->
+            match label.Location.txt with
+            | Longident.Lident _ -> field
+            | _ -> update_field field)
+      in
+      if !has_seen_qualified_field
+      then l
+      else match l with [] -> [] | hd :: tl -> update_field hd :: tl
+    in
+    if !changed_field then Some fields else None
   in
   let self =
     { super with
@@ -412,6 +466,34 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
                              | Tpat_or _ -> "or"
                               : string)];
                       pat))
+          | Ppat_record (fields, closed) -> (
+              match
+                update_field
+                  ~type_index_lookup:
+                    (Build.Type_index.pat type_index (Conv.location' pat.ppat_loc))
+                  ~match_record:(fun (T tpat) ->
+                    match tpat.pat_desc with
+                    | Tpat_record (fields, _) ->
+                        Some
+                          (fun ~f ->
+                            List.find_map_exn fields ~f:(fun (_, lbl, _) ->
+                                if f lbl then Some lbl else None))
+                    | Tpat_value z -> (
+                        match (z :> Typedtree.pattern).pat_desc with
+                        | Tpat_record (fields, _) ->
+                            Some
+                              (fun ~f ->
+                                List.find_map_exn fields ~f:(fun (_, lbl, _) ->
+                                    if f lbl then Some lbl else None))
+                        | _ -> None)
+                    | _ -> None)
+                  ~dotenv:(fun (T tpat) -> tpat.pat_env)
+                  ~with_attr:(fun (p : P.pattern) f ->
+                    { p with ppat_attributes = f p.ppat_attributes })
+                  fields
+              with
+              | None -> pat
+              | Some fields -> { pat with ppat_desc = Ppat_record (fields, closed) })
           | _ -> pat)
     ; expr =
         with_log (fun self expr ->
@@ -492,6 +574,46 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
                               :: expr.pexp_attributes
                           }
                       | _ -> expr))
+              | Pexp_field (arg, id) -> (
+                  match
+                    Build.Type_index.expr type_index (Conv.location' expr.pexp_loc)
+                  with
+                  | [] ->
+                      if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
+                      expr
+                  | texpr :: _ -> (
+                      match texpr.exp_desc with
+                      | Texp_field (_, _, ld)
+                        when label_may_have_been_provided_by_open id ld texpr.exp_env ->
+                          let new_id = maybe_reroot' root id.txt in
+                          changed_something := true;
+                          { expr with
+                            pexp_desc = Pexp_field (arg, { id with txt = new_id })
+                          ; pexp_attributes =
+                              Sattr.touched.build ~loc:!Ast_helper.default_loc ()
+                              :: expr.pexp_attributes
+                          }
+                      | _ -> expr))
+              | Pexp_record (fields, init) -> (
+                  match
+                    update_field
+                      ~type_index_lookup:
+                        (Build.Type_index.expr type_index (Conv.location' expr.pexp_loc))
+                      ~match_record:(fun texpr ->
+                        match texpr.exp_desc with
+                        | Texp_record { fields; _ } ->
+                            Some
+                              (fun ~f ->
+                                Array.find_map_exn fields ~f:(fun (lbl, _) ->
+                                    if f lbl then Some lbl else None))
+                        | _ -> None)
+                      ~dotenv:__.exp_env
+                      ~with_attr:(fun (e : P.expression) f ->
+                        { e with pexp_attributes = f e.pexp_attributes })
+                      fields
+                  with
+                  | None -> expr
+                  | Some fields -> { expr with pexp_desc = Pexp_record (fields, init) })
               | Pexp_new id -> (
                   match
                     Build.Type_index.expr type_index (Conv.location' expr.pexp_loc)
