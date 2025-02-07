@@ -36,15 +36,17 @@ let () =
       end)]
 
 let () =
-  test "class"
+  test "class & class type"
     (module struct
       class c = object end
+
+      class type ct = object end
 
       open Z
 
       let _ = ((new c : #c), (new zc : #zc))
 
-      class _zc2 =
+      class _zc2 : zct =
         object
           inherit zc
         end
@@ -54,7 +56,11 @@ let () =
           inherit zc
         end
 
-      class _c2 =
+      class type _zct2 = object
+        inherit zct
+      end
+
+      class _c2 : ct =
         object
           inherit c
         end
@@ -63,16 +69,22 @@ let () =
         object
           inherit c
         end
+
+      class type _ct2 = object
+        inherit ct
+      end
     end)
 [@@migrate_test.unopen
   let () =
-    test "class"
+    test "class & class type"
       (module struct
         class c = object end
 
+        class type ct = object end
+
         let _ = ((new c : #c), (Z.zc : #Z.zc))
 
-        class _zc2 =
+        class _zc2 : Z.zct =
           object
             inherit Z.zc
           end
@@ -82,7 +94,11 @@ let () =
             inherit Z.zc
           end
 
-        class _c2 =
+        class type _zct2 = object
+          inherit Z.zct
+        end
+
+        class _c2 : ct =
           object
             inherit c
           end
@@ -91,4 +107,8 @@ let () =
           object
             inherit c
           end
+
+        class type _ct2 = object
+          inherit ct
+        end
       end)]

@@ -261,6 +261,28 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
                     :: ce.pcl_attributes
                 }))
   in
+  let update_cty build (ct : P.class_type) (id : Longident.t Location.loc) =
+    match Build.Type_index.cty type_index (Conv.location' ct.pcty_loc) with
+    | [] ->
+        if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
+        ct
+    | ttyp :: _ -> (
+        let env = Envaux.env_of_only_summary ttyp.cltyp_env in
+        match Env.find_cltype_by_name (Conv.longident' id.txt) env with
+        | exception Stdlib.Not_found -> ct
+        | path, _td -> (
+            match maybe_reroot root id.txt path with
+            | None -> ct
+            | Some new_id ->
+                (* could compute merely_aliased here, same as for values *)
+                changed_something := true;
+                { ct with
+                  pcty_desc = build { id with txt = new_id }
+                ; pcty_attributes =
+                    Sattr.touched.build ~loc:!Ast_helper.default_loc ()
+                    :: ct.pcty_attributes
+                }))
+  in
   let self =
     { super with
       typ =
@@ -279,6 +301,16 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
                   (fun id -> Ptyp_class (id, args))
                   typ id
             | _ -> typ)
+    ; class_type =
+        (fun self ct ->
+          let ct = super.class_type self ct in
+          if in_test && not !should_act_in_test
+          then ct
+          else
+            match ct.pcty_desc with
+            | Pcty_constr (id, args) ->
+                update_cty (fun id -> Pcty_constr (id, args)) ct id
+            | _ -> ct)
     ; class_expr =
         (fun self ce ->
           let ce = super.class_expr self ce in

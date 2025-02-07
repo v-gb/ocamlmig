@@ -109,5 +109,6 @@ module Type_index : sig
   val typ : t -> Location.t -> Typedtree.core_type list
   val pat : t -> Location.t -> any_pattern list
   val ce : t -> Location.t -> Typedtree.class_expr list
+  val cty : t -> Location.t -> Typedtree.class_type list
   val constr : t -> Location.t -> Types.constructor_description list
 end

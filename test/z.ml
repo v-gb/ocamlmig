@@ -3,6 +3,8 @@ type z = int
 
 class zc = object end
 
+class type zct = object end
+
 let z1 = 1
 let open_out = 2
 let ( !! ) x = x + 1
