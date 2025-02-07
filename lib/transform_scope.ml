@@ -217,7 +217,36 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
   let should_act_in_test = ref false in
   let self =
     { super with
-      expr =
+      typ =
+        (fun self typ ->
+          let typ = super.typ self typ in
+          if in_test && not !should_act_in_test
+          then typ
+          else
+            match typ.ptyp_desc with
+            | Ptyp_constr (id, args) -> (
+                match Build.Type_index.typ type_index (Conv.location' typ.ptyp_loc) with
+                | [] ->
+                    if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
+                    typ
+                | ttyp :: _ -> (
+                    let env = Envaux.env_of_only_summary ttyp.ctyp_env in
+                    match Env.find_type_by_name (Conv.longident' id.txt) env with
+                    | exception Stdlib.Not_found -> typ
+                    | path, _td -> (
+                        match maybe_reroot root id.txt path with
+                        | None -> typ
+                        | Some new_id ->
+                            (* could compute merely_aliased here, same as for values *)
+                            changed_something := true;
+                            { typ with
+                              ptyp_desc = Ptyp_constr ({ id with txt = new_id }, args)
+                            ; ptyp_attributes =
+                                Sattr.touched.build ~loc:!Ast_helper.default_loc ()
+                                :: typ.ptyp_attributes
+                            })))
+            | _ -> typ)
+    ; expr =
         with_log (fun self expr ->
             if in_test && not !should_act_in_test
             then super.expr self expr

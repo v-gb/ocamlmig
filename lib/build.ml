@@ -661,6 +661,7 @@ module Type_index = struct
     ; pat : (any_pattern[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
     ; constr :
         (Types.constructor_description[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
+    ; typ : (Typedtree.core_type[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
     }
   [@@deriving sexp_of]
 
@@ -672,6 +673,7 @@ module Type_index = struct
         let h_expr = Hashtbl.create (module Uast.Location.Ignoring_filename) in
         let h_pat = Hashtbl.create (module Uast.Location.Ignoring_filename) in
         let h_constr = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+        let h_typ = Hashtbl.create (module Uast.Location.Ignoring_filename) in
         let super = Tast_iterator.default_iterator in
         let self =
           { super with
@@ -687,10 +689,14 @@ module Type_index = struct
                 | _ -> ());
                 super.pat self pat;
                 Hashtbl.add_multi h_pat ~key:pat.pat_loc ~data:(T pat))
+          ; typ =
+              (fun self typ ->
+                super.typ self typ;
+                Hashtbl.add_multi h_typ ~key:typ.ctyp_loc ~data:typ)
           }
         in
         self.structure self structure;
-        { expr = h_expr; pat = h_pat; constr = h_constr }
+        { expr = h_expr; pat = h_pat; constr = h_constr; typ = h_typ }
     | Partial_implementation _ ->
         failwith "unexpected content of cmt (file doesn't fully type?)"
     | _ -> failwith "unexpected content of cmt"
@@ -699,4 +705,5 @@ module Type_index = struct
   let expr t loc = Hashtbl.find_multi t.expr loc
   let pat t loc = Hashtbl.find_multi t.pat loc
   let constr t loc = Hashtbl.find_multi t.constr loc
+  let typ t loc = Hashtbl.find_multi t.typ loc
 end

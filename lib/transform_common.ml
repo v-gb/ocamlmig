@@ -382,28 +382,14 @@ let is_internal_attribute (attr : P.attribute) =
   String.is_prefix ~prefix:Attr.prefix attr.attr_name.txt
 
 let remove_attributes =
-  let drop_internal_attribute_pat (pat : P.pattern) =
-    if List.exists pat.ppat_attributes ~f:is_internal_attribute
-    then
-      { pat with
-        ppat_attributes =
-          List.filter pat.ppat_attributes ~f:(Fn.non is_internal_attribute)
-      }
-    else pat
-  in
-  let drop_internal_attribute (expr : P.expression) =
-    if List.exists expr.pexp_attributes ~f:is_internal_attribute
-    then
-      { expr with
-        pexp_attributes =
-          List.filter expr.pexp_attributes ~f:(Fn.non is_internal_attribute)
-      }
-    else expr
-  in
   let super = Ast_mapper.default_mapper in
   { super with
-    pat = (fun self pat -> super.pat self (drop_internal_attribute_pat pat))
-  ; expr = (fun self expr -> super.expr self (drop_internal_attribute expr))
+    attributes =
+      (fun self attributes ->
+        let attributes = super.attributes self attributes in
+        if List.exists attributes ~f:is_internal_attribute
+        then List.filter attributes ~f:(Fn.non is_internal_attribute)
+        else attributes)
   }
 
 let update_loc (loc : Location.t) update_pos : Location.t =

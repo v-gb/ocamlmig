@@ -106,6 +106,7 @@ module Type_index : sig
   val create : Cwdpath.t -> Listing.one -> t
   val create_from_cmt_infos : Cmt_format.cmt_infos -> Listing.one -> t
   val expr : t -> Location.t -> Typedtree.expression list
+  val typ : t -> Location.t -> Typedtree.core_type list
   val pat : t -> Location.t -> any_pattern list
   val constr : t -> Location.t -> Types.constructor_description list
 end

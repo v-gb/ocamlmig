@@ -1,4 +1,6 @@
 (* used by other tests *)
+type z = int
+
 let z1 = 1
 let open_out = 2
 let ( !! ) x = x + 1
