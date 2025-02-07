@@ -179,16 +179,19 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
   (* It would be more accurate to check if the root name is unbound at every call site,
      and if not, introduce a name like Root_unshadowed to be used instead. *)
   let comp_unit = cmt_infos.cmt_modname in
+  let is_root' root (path : Uast.Path.t) =
+    match path with
+    | Pident root' -> Ident.global root' && Ident.name root' =: root
+    | Pdot (Pident global, root') -> Ident.global global && root' =: root
+    | _ -> false
+  in
   let rec maybe_reroot root (lid : Longident.t) (path : Path.t) : Longident.t option =
     match (lid, path) with
     | Lident s, Pdot (rest, s')
       when (* We look for Root.foo and Global.Root.foo, because the Global might be
               introduced by dune's aliases. Maybe we should simply chop off a suffix
               of [path] instead? *)
-           match rest with
-           | Pident root' -> Ident.global root' && Ident.name root' =: root
-           | Pdot (Pident global, root') -> Ident.global global && root' =: root
-           | _ -> false ->
+           is_root' root rest ->
         assert (s =: s');
         Some (Ldot (Lident root, s))
     | Ldot (lid1, s1), Pdot (path1, s2) -> (
@@ -205,6 +208,12 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
           Some (Lapply (Option.value lidl ~default:lid1, Option.value lidr ~default:lid2))
     | _ -> None
   in
+  let rec maybe_reroot' root (lid : Longident.t) : Longident.t =
+    match lid with
+    | Lident s -> Ldot (Lident root, s)
+    | Ldot (lid1, s1) -> Ldot (maybe_reroot' root lid1, s1)
+    | Lapply _ -> assert false (* can only happen for types, not values *)
+  in
   let initial_env = Envaux.env_of_only_summary cmt_infos.cmt_initial_env in
   let super = Ast_mapper.default_mapper in
   let is_root (lid : Longident.t) = match lid with Lident s -> s =: root | _ -> false in
@@ -215,7 +224,6 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
      constructor (I'd expect [%sexp_of: int] to generate sexp_of_int at the location
      of int). *)
   let should_act_in_test = ref false in
-
   let update_type env_find_x_by_name build (typ : P.core_type)
       (id : Longident.t Location.loc) =
     match Build.Type_index.typ type_index (Conv.location' typ.ptyp_loc) with
@@ -283,6 +291,35 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
                     :: ct.pcty_attributes
                 }))
   in
+  let constructor_may_have_been_provided_by_open (id : Longident.t Location.loc)
+      (cd : Types.constructor_description) env =
+    let env = Envaux.env_of_only_summary env in
+    match Env.find_constructor_by_name (Conv.longident' id.txt) env with
+    | exception Stdlib.Not_found -> false
+    | cd_orig_env -> (
+        Shape.Uid.equal cd_orig_env.cstr_uid cd.cstr_uid
+        &&
+        (* The constructor is in scope, so we should prefix it. The prefixing may be
+             unnecessary, if type based disambiguation was forcing this interpretation,
+             but we have no way to determine what constructor disambiguation is in
+             play. *)
+        let new_env =
+          let rec filter_opens (summary : Env.summary) =
+            match summary with
+            | Env_open (next, path) when is_root' root path -> filter_opens next
+            | _ -> (
+                match Uast.Env_summary.next summary with
+                | None -> summary
+                | Some next -> Uast.Env_summary.set_exn summary ~next:(filter_opens next))
+          in
+          Env.env_of_only_summary
+            (fun sum subst -> Envaux.env_from_summary (filter_opens sum) subst)
+            env
+        in
+        match Env.find_constructor_by_name (Conv.longident' id.txt) new_env with
+        | exception Stdlib.Not_found -> true
+        | cd_new_env -> not (Shape.Uid.equal cd_new_env.cstr_uid cd.cstr_uid))
+  in
   let self =
     { super with
       typ =
@@ -320,6 +357,62 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
             match ce.pcl_desc with
             | Pcl_constr (id, args) -> update_cl (fun id -> Pcl_constr (id, args)) ce id
             | _ -> ce)
+    ; pat =
+        (fun self pat ->
+          let pat = super.pat self pat in
+          match pat.ppat_desc with
+          | Ppat_construct (id, arg_opt) -> (
+              match Build.Type_index.pat type_index (Conv.location' pat.ppat_loc) with
+              | [] ->
+                  if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
+                  pat
+              | T tpat :: _ -> (
+                  match
+                    match tpat.pat_desc with
+                    | Tpat_construct (_, cd, _, _) -> Some cd
+                    | Tpat_value z -> (
+                        (* No clue why we sometimes get Tpat_value around constructors,
+                           and sometimes not, and it's a mystery what Tpat_value even
+                           is. *)
+                        match (z :> Typedtree.pattern).pat_desc with
+                        | Tpat_construct (_, cd, _, _) -> Some cd
+                        | _ -> None)
+                    | _ -> None
+                  with
+                  | Some cd
+                    when constructor_may_have_been_provided_by_open id cd tpat.pat_env ->
+                      let new_id = maybe_reroot' root id.txt in
+                      changed_something := true;
+                      { pat with
+                        ppat_desc = Ppat_construct ({ id with txt = new_id }, arg_opt)
+                      ; ppat_attributes =
+                          Sattr.touched.build ~loc:!Ast_helper.default_loc ()
+                          :: pat.ppat_attributes
+                      }
+                  | _ ->
+                      if !log
+                      then
+                        print_s
+                          [%sexp
+                            (id.txt : Longident.t)
+                          , "not a construct in typedtree"
+                          , (match tpat.pat_desc with
+                             | Tpat_any -> "any"
+                             | Tpat_var _ -> "var"
+                             | Tpat_alias _ -> "alias"
+                             | Tpat_constant _ -> "constant"
+                             | Tpat_tuple _ -> "tuple"
+                             | Tpat_construct _ -> "construct"
+                             | Tpat_variant _ -> "variant"
+                             | Tpat_record _ -> "record"
+                             | Tpat_array _ -> "array"
+                             | Tpat_lazy _ -> "lazy"
+                             | Tpat_value _ -> "value"
+                             | Tpat_exception _ -> "exn"
+                             | Tpat_or _ -> "or"
+                              : string)];
+                      pat))
+          | _ -> pat)
     ; expr =
         with_log (fun self expr ->
             let expr = super.expr self expr in
@@ -378,6 +471,27 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
                 when is_root id.txt ->
                   changed_something := true;
                   e
+              | Pexp_construct (id, arg_opt) -> (
+                  match
+                    Build.Type_index.expr type_index (Conv.location' expr.pexp_loc)
+                  with
+                  | [] ->
+                      if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
+                      expr
+                  | texpr :: _ -> (
+                      match texpr.exp_desc with
+                      | Texp_construct (_, cd, _)
+                        when constructor_may_have_been_provided_by_open id cd
+                               texpr.exp_env ->
+                          let new_id = maybe_reroot' root id.txt in
+                          changed_something := true;
+                          { expr with
+                            pexp_desc = Pexp_construct ({ id with txt = new_id }, arg_opt)
+                          ; pexp_attributes =
+                              Sattr.touched.build ~loc:!Ast_helper.default_loc ()
+                              :: expr.pexp_attributes
+                          }
+                      | _ -> expr))
               | Pexp_new id -> (
                   match
                     Build.Type_index.expr type_index (Conv.location' expr.pexp_loc)

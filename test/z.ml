@@ -5,6 +5,10 @@ class zc = object end
 
 class type zct = object end
 
+type zsum = ZS
+
+exception ZE
+
 let z1 = 1
 let open_out = 2
 let ( !! ) x = x + 1

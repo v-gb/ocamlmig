@@ -36,6 +36,42 @@ let () =
       end)]
 
 let () =
+  test "constructor"
+    (module struct
+      type sum = CS
+
+      exception CE
+
+      open Z
+
+      let _ = (ZS, ZE, CS, CE)
+      let _ = match () with () | (exception ZE) | (exception CE) -> ()
+      let __ v = match v with Some ZS, Some CS -> () | _ -> ()
+
+      exception ZE2 = ZE (* TODO *)
+      exception CE2 = CE
+
+      let _ = (ZE2, CE2)
+    end)
+[@@migrate_test.unopen
+  let () =
+    test "constructor"
+      (module struct
+        type sum = CS
+
+        exception CE
+
+        let _ = (Z.ZS, Z.ZE, CS, CE)
+        let _ = match () with () | (exception Z.ZE) | (exception CE) -> ()
+        let __ v = match v with Some Z.ZS, Some CS -> () | _ -> ()
+
+        exception ZE2 = ZE
+        exception CE2 = CE
+
+        let _ = (ZE2, CE2)
+      end)]
+
+let () =
   test "class & class type"
     (module struct
       class c = object end
