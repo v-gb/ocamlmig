@@ -42,8 +42,11 @@ let () =
 
       exception CE
 
+      let _disamguation_before_open (ZS : Z.zsum) (CS : sum) = ()
+
       open Z
 
+      let _disamguation_after_open (ZS : Z.zsum) (CS : sum) = ()
       let _ = (ZS, ZE, CS, CE)
       let _ = match () with () | (exception ZE) | (exception CE) -> ()
       let __ v = match v with Some ZS, Some CS -> () | _ -> ()
@@ -61,6 +64,8 @@ let () =
 
         exception CE
 
+        let _disamguation_before_open (ZS : Z.zsum) (CS : sum) = ()
+        let _disamguation_after_open (Z.ZS : Z.zsum) (CS : sum) = ()
         let _ = (Z.ZS, Z.ZE, CS, CE)
         let _ = match () with () | (exception Z.ZE) | (exception CE) -> ()
         let __ v = match v with Some Z.ZS, Some CS -> () | _ -> ()
