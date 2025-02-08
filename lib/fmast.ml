@@ -227,6 +227,7 @@ type expression = Parsetree.expression
 type pattern = Parsetree.pattern
 type structure_item = Parsetree.structure_item
 type structure = Parsetree.structure
+type core_type = Parsetree.core_type
 
 let sexp_of_expression ?raw e =
   sexp_of_string
@@ -240,6 +241,9 @@ let sexp_of_structure_item s =
 
 let sexp_of_structure l =
   sexp_of_string (String.chop_suffix_if_exists (debug_print Structure l) ~suffix:"\n")
+
+let sexp_of_core_type t =
+  sexp_of_string (String.chop_suffix_if_exists (debug_print Core_type t) ~suffix:"\n")
 
 type arg_label = Asttypes.arg_label
 
