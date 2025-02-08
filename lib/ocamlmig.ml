@@ -90,16 +90,6 @@ let diff ?label1 ?label2 src1 src2 =
           if code <> 0 && code <> 1 then failwith "diffing failed"))
 
 let diff_or_write ~original_formatting file_path ~write (file_contents, file_contents') =
-  let file_contents =
-    lazy
-      (match original_formatting with
-      | Some `Disabled -> Dyn_ocamlformat.format ~path:file_path ~contents:file_contents
-      | Some (`Not_configured conf) ->
-          Fmast.parse_with_ocamlformat ~conf ~input_name:"wontmatter" Structure
-            file_contents
-          |> Fmast.ocamlformat_print Structure ~conf __
-      | None | Some `Enabled -> file_contents)
-  in
   let file_contents' =
     match original_formatting with
     | Some (`Enabled | `Disabled) ->
@@ -109,9 +99,17 @@ let diff_or_write ~original_formatting file_path ~write (file_contents, file_con
   if write
   then Out_channel.write_all (Cwdpath.to_string file_path) ~data:file_contents'
   else
+    let file_contents =
+      match original_formatting with
+      | Some `Disabled -> Dyn_ocamlformat.format ~path:file_path ~contents:file_contents
+      | Some (`Not_configured conf) ->
+          Fmast.parse_with_ocamlformat ~conf ~input_name:"wontmatter" Structure
+            file_contents
+          |> Fmast.ocamlformat_print Structure ~conf __
+      | None | Some `Enabled -> file_contents
+    in
     diff ~label1:(Cwdpath.to_string file_path) ~label2:(Cwdpath.to_string file_path)
-      (`Str (force file_contents))
-      (`Str file_contents')
+      (`Str file_contents) (`Str file_contents')
 
 let cwdpath_param = Command.Arg_type.map Filename_unix.arg_type ~f:Cwdpath.create
 
