@@ -89,13 +89,16 @@ let debug_print (type a) ?(raw = false) (kind : a Ocamlformat_lib.Extended_ast.t
 let debug_print_pattern =
   let open Ocamlformat_parser_extended in
   fun ?fmconf (ast : Parsetree.pattern) ->
+    (* Use [function pat -> .] rather than [fun pat -> .] because the latter adds
+       potentially unwanted parens. *)
     let open Ast_helper in
     debug_print ?fmconf Expression
-      (Exp.function_
-         [ { pparam_desc = Pparam_val (Nolabel, None, ast); pparam_loc = ast.ppat_loc } ]
-         None
-         (Pfunction_body (Exp.unreachable ())))
-    |> String.chop_prefix_if_exists ~prefix:"fun "
+      (Exp.function_ [] None
+         (Pfunction_cases
+            ( [ { pc_lhs = ast; pc_guard = None; pc_rhs = Exp.unreachable () } ]
+            , Ocamlformat_ocaml_common.Location.none
+            , [] )))
+    |> String.chop_prefix_if_exists ~prefix:"function "
     |> String.chop_suffix_if_exists ~suffix:"\n"
     |> String.chop_suffix_if_exists ~suffix:" -> ."
 
