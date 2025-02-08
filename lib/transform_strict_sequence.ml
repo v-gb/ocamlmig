@@ -59,4 +59,4 @@ let run ~type_index file_path =
         copy_orig loc.loc_end.pos_cnum;
         Buffer.add_string buf ")");
     copy_orig (String.length file_contents);
-    Some (file_contents, Buffer.contents buf)
+    Some (file_contents, Buffer.contents buf, None)

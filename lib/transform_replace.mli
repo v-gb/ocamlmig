@@ -12,4 +12,4 @@ val run :
   -> type_index:Build.Type_index.t option Lazy.t
   -> source_path:Cwdpath.t
   -> input_name_matching_compilation_command:string option Lazy.t
-  -> (string * string) option
+  -> Transform_common.result option

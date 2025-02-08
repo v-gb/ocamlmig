@@ -484,6 +484,15 @@ let process_ast structure f =
       , res )
   else None
 
+type result =
+  string
+  * string
+  * (Ocamlformat_lib.Extended_ast.structure
+     Ocamlformat_lib.Parse_with_comments.with_comments
+    * Ocamlformat_lib.Extended_ast.structure
+      Ocamlformat_lib.Parse_with_comments.with_comments)
+    option
+
 let process_file' ~fmconf:conf ~source_path ~input_name_matching_compilation_command f =
   let source_contents = In_channel.read_all (Cwdpath.to_string source_path) in
   let structure =
@@ -494,9 +503,10 @@ let process_file' ~fmconf:conf ~source_path ~input_name_matching_compilation_com
       Structure source_contents
   in
   Fmast.update_structure structure (process_ast __ f)
-  |> Option.map ~f:(fun (structure, other) ->
-         let source_contents' = Fmast.ocamlformat_print Structure ~conf structure in
-         ((source_contents, source_contents'), other))
+  |> Option.map ~f:(fun (structure', other) ->
+         let source_contents' = Fmast.ocamlformat_print Structure ~conf structure' in
+         ( ((source_contents, source_contents', Some (structure, structure')) : result)
+         , other ))
 
 let process_file ~fmconf ~source_path ~input_name_matching_compilation_command f =
   process_file' ~fmconf ~source_path ~input_name_matching_compilation_command (fun a b ->

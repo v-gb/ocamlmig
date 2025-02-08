@@ -5,4 +5,4 @@
 open! Base
 open Common
 
-val run : type_index:Build.Type_index.t -> Cwdpath.t -> (string * string) option
+val run : type_index:Build.Type_index.t -> Cwdpath.t -> Transform_common.result option

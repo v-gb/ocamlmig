@@ -84,16 +84,25 @@ val process_ast :
   -> (bool ref -> P.structure -> P.structure * 'other)
   -> (P.structure * 'other) option
 
+type result =
+  string
+  * string
+  * (Ocamlformat_lib.Extended_ast.structure
+     Ocamlformat_lib.Parse_with_comments.with_comments
+    * Ocamlformat_lib.Extended_ast.structure
+      Ocamlformat_lib.Parse_with_comments.with_comments)
+    option
+
 val process_file' :
      fmconf:Ocamlformat_lib.Conf_t.t
   -> source_path:Cwdpath.t
   -> input_name_matching_compilation_command:string option
   -> (bool ref -> P.structure -> P.structure * 'other)
-  -> ((string * string) * 'other) option
+  -> (result * 'other) option
 
 val process_file :
      fmconf:Ocamlformat_lib.Conf_t.t
   -> source_path:Cwdpath.t
   -> input_name_matching_compilation_command:string option
   -> (bool ref -> P.structure -> P.structure)
-  -> (string * string) option
+  -> result option

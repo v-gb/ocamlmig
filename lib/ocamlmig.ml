@@ -89,7 +89,8 @@ let diff ?label1 ?label2 src1 src2 =
           in
           if code <> 0 && code <> 1 then failwith "diffing failed"))
 
-let diff_or_write ~original_formatting file_path ~write (file_contents, file_contents') =
+let diff_or_write ~original_formatting file_path ~write
+    ((file_contents, file_contents', _asts) : Transform_common.result) =
   let file_contents' =
     match original_formatting with
     | Some (`Enabled | `Disabled) ->
@@ -378,8 +379,8 @@ let migrate =
               List.iter
                 (Dune_files.add_dependencies ~dune_root (Queue.to_list deps))
                 ~f:(fun (`Path file_path, before, after) ->
-                  diff_or_write ~original_formatting:None file_path ~write (before, after)))]
-  )
+                  diff_or_write ~original_formatting:None file_path ~write
+                    (before, after, None)))] )
 
 type original_formatting =
   [ `Not_configured of Ocamlformat_lib.Conf_t.t
@@ -395,7 +396,9 @@ type transform_ctx =
   ; type_index : Build.Type_index.t Lazy.t
   ; ocamlformat_conf : (Ocamlformat_lib.Conf_t.t * original_formatting) option Lazy.t
   ; diff_or_write :
-      original_formatting:original_formatting option -> (string * string) option -> unit
+         original_formatting:original_formatting option
+      -> Transform_common.result option
+      -> unit
   ; artifacts_cache : Build.Artifacts.cache
   }
 

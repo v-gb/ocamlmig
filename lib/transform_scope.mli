@@ -29,4 +29,4 @@ val run :
   -> t
   -> source_path:Cwdpath.t
   -> input_name_matching_compilation_command:string option
-  -> (string * string) option
+  -> Transform_common.result option
