@@ -90,27 +90,42 @@ let diff ?label1 ?label2 src1 src2 =
           if code <> 0 && code <> 1 then failwith "diffing failed"))
 
 let diff_or_write ~original_formatting file_path ~write
-    ((file_contents, file_contents', _asts) : Transform_common.result) =
+    ((file_contents, file_contents', asts) : Transform_common.result) =
+  let preserve_format = Option.is_some (Sys.getenv_opt "OCAMLMIG_PRESERVE_FORMAT") in
+  let debug_diff = Option.is_some (Sys.getenv_opt "DEBUGDIFF") in
   let file_contents' =
-    match original_formatting with
-    | Some (`Enabled | `Disabled) ->
-        Dyn_ocamlformat.format ~path:file_path ~contents:file_contents'
-    | Some (`Not_configured _) | None -> file_contents'
+    match asts with
+    | Some (ast1, ast2) when preserve_format ->
+        Fmast_diff.minprint ~debug_diff ~source_contents:file_contents ~structure:ast1.ast
+          ~structure':ast2.ast
+    | _ -> (
+        match original_formatting with
+        | Some (`Enabled | `Disabled) ->
+            Dyn_ocamlformat.format ~path:file_path ~contents:file_contents'
+        | Some (`Not_configured _) | None -> file_contents')
   in
   if write
   then Out_channel.write_all (Cwdpath.to_string file_path) ~data:file_contents'
-  else
-    let file_contents =
-      match original_formatting with
-      | Some `Disabled -> Dyn_ocamlformat.format ~path:file_path ~contents:file_contents
-      | Some (`Not_configured conf) ->
-          Fmast.parse_with_ocamlformat ~conf ~input_name:"wontmatter" Structure
-            file_contents
-          |> Fmast.ocamlformat_print Structure ~conf __
-      | None | Some `Enabled -> file_contents
-    in
-    diff ~label1:(Cwdpath.to_string file_path) ~label2:(Cwdpath.to_string file_path)
-      (`Str file_contents) (`Str file_contents')
+  else (
+    ();
+    if debug_diff
+    then print_string file_contents'
+    else
+      let file_contents =
+        if Option.is_some asts && preserve_format
+        then file_contents
+        else
+          match original_formatting with
+          | Some `Disabled ->
+              Dyn_ocamlformat.format ~path:file_path ~contents:file_contents
+          | Some (`Not_configured conf) ->
+              Fmast.parse_with_ocamlformat ~conf ~input_name:"wontmatter" Structure
+                file_contents
+              |> Fmast.ocamlformat_print Structure ~conf __
+          | None | Some `Enabled -> file_contents
+      in
+      diff ~label1:(Cwdpath.to_string file_path) ~label2:(Cwdpath.to_string file_path)
+        (`Str file_contents) (`Str file_contents'))
 
 let cwdpath_param = Command.Arg_type.map Filename_unix.arg_type ~f:Cwdpath.create
 

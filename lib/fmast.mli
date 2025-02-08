@@ -34,6 +34,12 @@ val debug_print_pattern :
   -> Ocamlformat_parser_extended.Parsetree.pattern
   -> string
 
+val debug_print_class_field :
+  ?fmconf:Ocamlformat_lib.Conf_t.t -> Parsetree.class_field -> string
+
+val debug_print_class_type :
+  ?fmconf:Ocamlformat_lib.Conf_t.t -> Parsetree.class_type -> string
+
 val parse_with_ocamlformat :
      'a Ocamlformat_lib.Extended_ast.t
   -> conf:Ocamlformat_lib.Conf_t.t
@@ -67,6 +73,12 @@ module Location : sig
       type 'a loc [@@deriving compare, sexp_of]
     end
     with type 'a loc := 'a loc
+
+  module Ignoring_filename : sig
+    type position = Lexing.position [@@deriving compare, hash, sexp_of]
+    type nonrec t = t [@@deriving compare, hash, sexp_of]
+    type nonrec 'a loc = 'a loc [@@deriving compare, sexp_of]
+  end
 end
 
 module Longident : sig
@@ -144,6 +156,8 @@ type pattern = Parsetree.pattern [@@deriving sexp_of]
 type structure = Parsetree.structure [@@deriving sexp_of]
 type structure_item = Parsetree.structure_item [@@deriving sexp_of]
 type core_type = Parsetree.core_type [@@deriving sexp_of]
+type class_field = Parsetree.class_field [@@deriving sexp_of]
+type class_type = Parsetree.class_type [@@deriving sexp_of]
 
 val type_constraint_of_value_constraint :
   Parsetree.value_constraint -> Parsetree.type_constraint

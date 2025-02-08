@@ -102,7 +102,34 @@ let debug_print_pattern =
     |> String.chop_suffix_if_exists ~suffix:"\n"
     |> String.chop_suffix_if_exists ~suffix:" -> ."
 
-let _ = debug_print_pattern
+let debug_print_class_field =
+  let open Ocamlformat_parser_extended in
+  fun ?fmconf (ast : Parsetree.class_field) ->
+    let open Ast_helper in
+    debug_print ?fmconf Structure
+      [ Str.class_
+          [ Ci.mk
+              { txt = "a"; loc = Ocamlformat_ocaml_common.Location.none }
+              (Cl.structure (Cstr.mk None [ ast ]))
+          ]
+      ]
+    |> String.chop_prefix_if_exists ~prefix:"class a ="
+    |> String.strip
+    |> String.chop_prefix_if_exists ~prefix:"object"
+    |> String.strip
+    |> String.chop_suffix_if_exists ~suffix:"end"
+    |> String.strip
+
+let debug_print_class_type =
+  let open Ocamlformat_parser_extended in
+  fun ?fmconf (ast : Parsetree.class_type) ->
+    let open Ast_helper in
+    debug_print ?fmconf Structure
+      [ Str.class_type
+          [ Ci.mk { txt = "a"; loc = Ocamlformat_ocaml_common.Location.none } ast ]
+      ]
+    |> String.chop_prefix_if_exists ~prefix:"class type a ="
+    |> String.strip
 
 let parse_with_ocamlformat kind ~conf ~input_name str =
   Ocamlformat_lib.Parse_with_comments.parse
@@ -169,6 +196,28 @@ module Location = struct
     ; loc : t
     }
   [@@deriving sexp_of, compare]
+
+  module Ignoring_filename = struct
+    type nonrec position = position
+
+    let sexp_of_position = sexp_of_position
+    let compare_position p1 p2 = compare_position p1 { p2 with pos_fname = p1.pos_fname }
+    let hash_fold_position acc p = hash_fold_position acc { p with pos_fname = "" }
+    let hash_position p = hash_position { p with pos_fname = "" }
+
+    type t = Location.t =
+      { loc_start : position
+      ; loc_end : position
+      ; loc_ghost : bool
+      }
+    [@@deriving compare, hash, sexp_of]
+
+    type 'a loc = 'a Location.loc =
+      { txt : 'a
+      ; loc : t
+      }
+    [@@deriving compare, sexp_of]
+  end
 end
 
 module Ast_helper = struct
@@ -231,6 +280,8 @@ type pattern = Parsetree.pattern
 type structure_item = Parsetree.structure_item
 type structure = Parsetree.structure
 type core_type = Parsetree.core_type
+type class_field = Parsetree.class_field
+type class_type = Parsetree.class_type
 
 let sexp_of_expression ?raw e =
   sexp_of_string
@@ -247,6 +298,12 @@ let sexp_of_structure l =
 
 let sexp_of_core_type t =
   sexp_of_string (String.chop_suffix_if_exists (debug_print Core_type t) ~suffix:"\n")
+
+let sexp_of_class_field p =
+  sexp_of_string (String.chop_suffix_if_exists (debug_print_class_field p) ~suffix:"\n")
+
+let sexp_of_class_type p =
+  sexp_of_string (String.chop_suffix_if_exists (debug_print_class_type p) ~suffix:"\n")
 
 type arg_label = Asttypes.arg_label
 
