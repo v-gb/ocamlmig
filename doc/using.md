@@ -8,8 +8,10 @@ To rewrite your code with ocamlmig, you need to:
 - build the ocamlmig command line executable
 - use dune to build your own code
 - use ocamlformat. You can try things out without ocamlformat, but all code will be
-  printed back ocamlformatted. ocamlmig needs not be linked with the exact
-  ocamlformat version you use.
+  printed back ocamlformatted. ocamlmig needs not be linked with the exact ocamlformat
+  version you use. Or if ocamlformat is really not an option, you could try an
+  experimental printer that reduces (but does not minimize) gratuitous reformatting,
+  with `OCAMLMIG_PRESERVE_FORMAT= ocamlmig ...`.
 
 You can set up a test repository this way:
 
