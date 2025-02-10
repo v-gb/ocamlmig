@@ -229,6 +229,10 @@ type structure = Parsetree.structure
 type core_type = Parsetree.core_type
 type class_field = Parsetree.class_field
 type class_type = Parsetree.class_type
+type module_expr = Parsetree.module_expr
+type module_type = Parsetree.module_type
+type signature_item = Parsetree.signature_item
+type signature = Parsetree.signature
 
 let sexp_of_extended_ast ?raw ext v =
   sexp_of_string (String.chop_suffix_if_exists (debug_print ?raw ext v) ~suffix:"\n")
@@ -240,6 +244,10 @@ let sexp_of_structure v = sexp_of_extended_ast Structure v
 let sexp_of_core_type v = sexp_of_extended_ast Core_type v
 let sexp_of_class_field v = sexp_of_extended_ast Class_field v
 let sexp_of_class_type v = sexp_of_extended_ast Class_type v
+let sexp_of_module_expr v = sexp_of_extended_ast Module_expr v
+let sexp_of_module_type v = sexp_of_extended_ast Module_type v
+let sexp_of_signature_item v = sexp_of_extended_ast Signature [ v ]
+let sexp_of_signature v = sexp_of_extended_ast Signature v
 
 type arg_label = Asttypes.arg_label
 

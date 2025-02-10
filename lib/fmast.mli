@@ -147,6 +147,10 @@ type structure_item = Parsetree.structure_item [@@deriving sexp_of]
 type core_type = Parsetree.core_type [@@deriving sexp_of]
 type class_field = Parsetree.class_field [@@deriving sexp_of]
 type class_type = Parsetree.class_type [@@deriving sexp_of]
+type module_expr = Parsetree.module_expr [@@deriving sexp_of]
+type module_type = Parsetree.module_type [@@deriving sexp_of]
+type signature_item = Parsetree.signature_item [@@deriving sexp_of]
+type signature = Parsetree.signature [@@deriving sexp_of]
 
 val type_constraint_of_value_constraint :
   Parsetree.value_constraint -> Parsetree.type_constraint
