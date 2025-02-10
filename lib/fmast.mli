@@ -29,17 +29,6 @@ val debug_print :
   -> 'a
   -> string
 
-val debug_print_pattern :
-     ?fmconf:Ocamlformat_lib.Conf_t.t
-  -> Ocamlformat_parser_extended.Parsetree.pattern
-  -> string
-
-val debug_print_class_field :
-  ?fmconf:Ocamlformat_lib.Conf_t.t -> Parsetree.class_field -> string
-
-val debug_print_class_type :
-  ?fmconf:Ocamlformat_lib.Conf_t.t -> Parsetree.class_type -> string
-
 val parse_with_ocamlformat :
      'a Ocamlformat_lib.Extended_ast.t
   -> conf:Ocamlformat_lib.Conf_t.t

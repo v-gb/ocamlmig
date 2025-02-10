@@ -78,51 +78,6 @@ let debug_print (type a) ?(raw = false) (kind : a Ocamlformat_lib.Extended_ast.t
           Ocamlformat_lib.Extended_ast.map kind fake_pos ast
       }
 
-let debug_print_pattern =
-  let open Ocamlformat_parser_extended in
-  fun ?fmconf (ast : Parsetree.pattern) ->
-    (* Use [function pat -> .] rather than [fun pat -> .] because the latter adds
-       potentially unwanted parens. *)
-    let open Ast_helper in
-    debug_print ?fmconf Expression
-      (Exp.function_ [] None
-         (Pfunction_cases
-            ( [ { pc_lhs = ast; pc_guard = None; pc_rhs = Exp.unreachable () } ]
-            , Ocamlformat_ocaml_common.Location.none
-            , [] )))
-    |> String.chop_prefix_if_exists ~prefix:"function "
-    |> String.chop_suffix_if_exists ~suffix:"\n"
-    |> String.chop_suffix_if_exists ~suffix:" -> ."
-
-let debug_print_class_field =
-  let open Ocamlformat_parser_extended in
-  fun ?fmconf (ast : Parsetree.class_field) ->
-    let open Ast_helper in
-    debug_print ?fmconf Structure
-      [ Str.class_
-          [ Ci.mk
-              { txt = "a"; loc = Ocamlformat_ocaml_common.Location.none }
-              (Cl.structure (Cstr.mk None [ ast ]))
-          ]
-      ]
-    |> String.chop_prefix_if_exists ~prefix:"class a ="
-    |> String.strip
-    |> String.chop_prefix_if_exists ~prefix:"object"
-    |> String.strip
-    |> String.chop_suffix_if_exists ~suffix:"end"
-    |> String.strip
-
-let debug_print_class_type =
-  let open Ocamlformat_parser_extended in
-  fun ?fmconf (ast : Parsetree.class_type) ->
-    let open Ast_helper in
-    debug_print ?fmconf Structure
-      [ Str.class_type
-          [ Ci.mk { txt = "a"; loc = Ocamlformat_ocaml_common.Location.none } ast ]
-      ]
-    |> String.chop_prefix_if_exists ~prefix:"class type a ="
-    |> String.strip
-
 let parse_with_ocamlformat kind ~conf ~input_name str =
   Ocamlformat_lib.Parse_with_comments.parse
     ~disable_w50:true (* avoid exception being thrown *)
@@ -275,27 +230,16 @@ type core_type = Parsetree.core_type
 type class_field = Parsetree.class_field
 type class_type = Parsetree.class_type
 
-let sexp_of_expression ?raw e =
-  sexp_of_string
-    (String.chop_suffix_if_exists (debug_print ?raw Expression e) ~suffix:"\n")
+let sexp_of_extended_ast ?raw ext v =
+  sexp_of_string (String.chop_suffix_if_exists (debug_print ?raw ext v) ~suffix:"\n")
 
-let sexp_of_pattern p =
-  sexp_of_string (String.chop_suffix_if_exists (debug_print_pattern p) ~suffix:"\n")
-
-let sexp_of_structure_item s =
-  sexp_of_string (String.chop_suffix_if_exists (debug_print Structure [ s ]) ~suffix:"\n")
-
-let sexp_of_structure l =
-  sexp_of_string (String.chop_suffix_if_exists (debug_print Structure l) ~suffix:"\n")
-
-let sexp_of_core_type t =
-  sexp_of_string (String.chop_suffix_if_exists (debug_print Core_type t) ~suffix:"\n")
-
-let sexp_of_class_field p =
-  sexp_of_string (String.chop_suffix_if_exists (debug_print_class_field p) ~suffix:"\n")
-
-let sexp_of_class_type p =
-  sexp_of_string (String.chop_suffix_if_exists (debug_print_class_type p) ~suffix:"\n")
+let sexp_of_expression ?raw v = sexp_of_extended_ast ?raw Expression v
+let sexp_of_pattern v = sexp_of_extended_ast Pattern v
+let sexp_of_structure_item v = sexp_of_extended_ast Structure [ v ]
+let sexp_of_structure v = sexp_of_extended_ast Structure v
+let sexp_of_core_type v = sexp_of_extended_ast Core_type v
+let sexp_of_class_field v = sexp_of_extended_ast Class_field v
+let sexp_of_class_type v = sexp_of_extended_ast Class_type v
 
 type arg_label = Asttypes.arg_label
 

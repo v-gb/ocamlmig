@@ -209,7 +209,7 @@ and diff2_meth : type a.
 
 let print_diff vs = diff2 vs (fun x -> print_s [%sexp (x : diff_out)])
 
-let printed_ast (loc : Location.t) which =
+let printed_ast (loc : Location.t) kind ast =
   let target_margin = (* should infer from source file *) 90 in
   let current_indentation = loc.loc_start.pos_cnum - loc.loc_start.pos_bol in
   let fmconf =
@@ -220,13 +220,8 @@ let printed_ast (loc : Location.t) which =
     | Ok v -> v
     | Error e -> failwith (Ocamlformat_lib.Conf_t.Error.to_string e)
   in
-  (match which with
-  | `Pattern p ->
-      String.chop_suffix_if_exists (debug_print_pattern ~fmconf p) ~suffix:"\n"
-  | `Cf p -> String.chop_suffix_if_exists (debug_print_class_field ~fmconf p) ~suffix:"\n"
-  | `Cty p -> String.chop_suffix_if_exists (debug_print_class_type ~fmconf p) ~suffix:"\n"
-  | `Other (kind, ast) ->
-      String.chop_suffix_if_exists (debug_print kind ~fmconf ast) ~suffix:"\n")
+  debug_print kind ~fmconf ast
+  |> String.chop_suffix_if_exists ~suffix:"\n"
   |> String.split ~on:'\n'
   |> List.mapi ~f:(fun i s ->
          if i = 0 then s else String.make current_indentation ' ' ^ s)
@@ -271,22 +266,13 @@ let minprint ~debug_diff ~source_contents ~structure ~structure' =
   List.iter l ~f:(fun diff ->
       let loc, str =
         match diff with
-        | `Expr (e1, e2) ->
-            ( e1.pexp_loc
-            , printed_ast e1.pexp_loc
-                (`Other (Ocamlformat_lib.Extended_ast.Expression, e2)) )
-        | `Pat (p1, p2) -> (p1.ppat_loc, printed_ast p1.ppat_loc (`Pattern p2))
-        | `Stri (s1, s2) ->
-            ( s1.pstr_loc
-            , printed_ast s1.pstr_loc
-                (`Other (Ocamlformat_lib.Extended_ast.Structure, [ s2 ])) )
+        | `Expr (e1, e2) -> (e1.pexp_loc, printed_ast e1.pexp_loc Expression e2)
+        | `Pat (p1, p2) -> (p1.ppat_loc, printed_ast p1.ppat_loc Pattern p2)
+        | `Stri (s1, s2) -> (s1.pstr_loc, printed_ast s1.pstr_loc Structure [ s2 ])
         | `Str _ -> assert false
-        | `Typ (t1, t2) ->
-            ( t1.ptyp_loc
-            , printed_ast t2.ptyp_loc
-                (`Other (Ocamlformat_lib.Extended_ast.Core_type, t2)) )
-        | `Cf (v1, v2) -> (v1.pcf_loc, printed_ast v1.pcf_loc (`Cf v2))
-        | `Cty (v1, v2) -> (v1.pcty_loc, printed_ast v1.pcty_loc (`Cty v2))
+        | `Typ (t1, t2) -> (t1.ptyp_loc, printed_ast t2.ptyp_loc Core_type t2)
+        | `Cf (v1, v2) -> (v1.pcf_loc, printed_ast v1.pcf_loc Class_field v2)
+        | `Cty (v1, v2) -> (v1.pcty_loc, printed_ast v1.pcty_loc Class_type v2)
         | `Rem loc -> (loc, "")
       in
       copy_orig loc.loc_start.pos_cnum;
