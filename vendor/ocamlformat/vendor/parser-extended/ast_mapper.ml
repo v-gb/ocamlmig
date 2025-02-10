@@ -86,7 +86,9 @@ type mapper = {
   with_constraint: mapper -> with_constraint -> with_constraint;
   directive_argument: mapper -> directive_argument -> directive_argument;
   repl_phrase: mapper -> repl_phrase -> repl_phrase;
-}
+  expr_function_param: mapper -> expr_function_param -> expr_function_param;
+  class_function_param: mapper -> class_function_param -> class_function_param;
+  value_constraint: mapper -> value_constraint -> value_constraint }
 
 let map_fst f (x, y) = (f x, y)
 (*let map_snd f (x, y) = (x, f y)*)
@@ -109,7 +111,7 @@ let map_arg_label sub = function
   | Labelled x -> Labelled (map_loc sub x)
   | Optional x -> Optional (map_loc sub x)
 
-let map_value_constraint sub = function
+let map_value_constraint' sub = function
   | Pvc_constraint {locally_abstract_univars=vars; typ} ->
       let locally_abstract_univars = List.map (map_loc sub) vars in
       let typ = sub.typ sub typ in
@@ -126,13 +128,13 @@ module FP = struct
   let map_param_newtype sub (ty : string loc list) : string loc list =
     List.map (map_loc sub) ty
 
-  let map_expr sub = function
+  let map_expr' sub = function
     | Pparam_val x -> Pparam_val (map_param_val sub x)
     | Pparam_newtype x -> Pparam_newtype (map_param_newtype sub x)
 
   let map_class sub x = map_param_val sub x
 
-  let map sub f { pparam_loc; pparam_desc } =
+  let map' sub f { pparam_loc; pparam_desc } =
     let pparam_loc = sub.location sub pparam_loc in
     let pparam_desc = f sub pparam_desc in
     { pparam_loc; pparam_desc }
@@ -501,7 +503,7 @@ end
 module E = struct
   (* Value expressions for the core language *)
 
-  let map_function_param sub { pparam_loc = loc; pparam_desc = desc } =
+  let map_function_param' sub { pparam_loc = loc; pparam_desc = desc } =
     let loc = sub.location sub loc in
     let desc =
       match desc with
@@ -550,7 +552,7 @@ module E = struct
           (sub.expr sub e)
     | Pexp_function (ps, c, b) ->
       function_ ~loc ~attrs
-        (List.map (map_function_param sub) ps)
+        (List.map (sub.expr_function_param sub) ps)
         (map_opt (map_constraint sub) c)
         (map_function_body sub b)
     | Pexp_apply (e, l) ->
@@ -656,8 +658,8 @@ module E = struct
     let open Exp in
     let op = map_loc sub pbop_op in
     let pat = sub.pat sub pbop_pat in
-    let args = List.map (FP.map sub FP.map_expr) pbop_args in
-    let typ = map_opt (map_value_constraint sub) pbop_typ in
+    let args = List.map (sub.expr_function_param sub) pbop_args in
+    let typ = map_opt (sub.value_constraint sub) pbop_typ in
     let exp = sub.expr sub pbop_exp in
     let loc = sub.location sub pbop_loc in
     binding_op op pat args typ exp pbop_is_pun loc
@@ -733,7 +735,7 @@ module CE = struct
         structure ~loc ~attrs (sub.class_structure sub s)
     | Pcl_fun (p, ce) ->
         fun_ ~loc ~attrs
-          (List.map (FP.map sub FP.map_class) p)
+          (List.map (sub.class_function_param sub) p)
           (sub.class_expr sub ce)
     | Pcl_apply (ce, l) ->
         apply ~loc ~attrs (sub.class_expr sub ce)
@@ -756,8 +758,8 @@ module CE = struct
   
   let map_method_kind sub = function
     | Cfk_concrete (o, (args, t), e) ->
-        let args = List.map (FP.map sub FP.map_expr) args in
-        let t = map_opt (map_value_constraint sub) t in
+        let args = List.map (sub.expr_function_param sub) args in
+        let t = map_opt (sub.value_constraint sub) t in
         Cfk_concrete (o, (args, t), sub.expr sub e)
     | Cfk_virtual t -> Cfk_virtual (sub.typ sub t)
 
@@ -794,7 +796,7 @@ module CE = struct
     Ci.mk ~loc ~attrs
      ~virt:(Flag.map_virtual sub pci_virt)
      ~params:(List.map (map_fst (sub.typ sub)) pl)
-     ~args:(List.map (FP.map sub FP.map_class) pci_args)
+     ~args:(List.map (sub.class_function_param sub) pci_args)
      ?constraint_:(map_opt (sub.class_type sub) pci_constraint)
       (map_loc sub pci_name)
       (f pci_expr)
@@ -922,9 +924,9 @@ let default_mapper =
       (fun this {pvb_pat; pvb_args; pvb_body; pvb_constraint; pvb_is_pun; pvb_attributes; pvb_loc} ->
          Vb.mk
            (this.pat this pvb_pat)
-           (List.map (FP.map this FP.map_expr) pvb_args)
+           (List.map (this.expr_function_param this) pvb_args)
            (E.map_function_body this pvb_body)
-           ?value_constraint:(Option.map (map_value_constraint this) pvb_constraint)
+           ?value_constraint:(Option.map (this.value_constraint this) pvb_constraint)
            ~is_pun:pvb_is_pun
            ~loc:(this.location this pvb_loc)
            ~attrs:(this.ext_attrs this pvb_attributes)
@@ -1010,6 +1012,10 @@ let default_mapper =
       (fun this p ->
          { prepl_phrase= this.toplevel_phrase this p.prepl_phrase
          ; prepl_output= p.prepl_output } );
+    
+    expr_function_param = E.map_function_param';
+    class_function_param = (fun this v -> FP.map' this FP.map_class v);
+    value_constraint = map_value_constraint';
   }
 
 (*
