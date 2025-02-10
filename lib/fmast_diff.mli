@@ -20,17 +20,6 @@ open Ocamlformat_parser_extended
 module P := Parsetree
 open! Fmast
 
-val print_diff :
-     [ `Expr of P.expression * P.expression
-     | `Pat of P.pattern * P.pattern
-     | `Str of Fmast.structure * Fmast.structure
-     | `Stri of P.structure_item * P.structure_item
-     | `Typ of P.core_type * P.core_type
-     | `Cf of P.class_field * P.class_field
-     | `Cty of P.class_type * P.class_type
-     ]
-  -> unit
-
 val minprint :
      debug_diff:bool
   -> source_contents:string

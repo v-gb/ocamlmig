@@ -56,9 +56,10 @@ let shallow_equality =
        node. *)
     Poly.( = ) ((meth self1) self2 v1) ((meth self1) self2 v2)
 
-let children meth v =
-  let children = ref [] in
+let children (ctx : Ocamlformat_lib.Ast.t) meth v =
+  let children : (Ocamlformat_lib.Ast.t * _) list ref = ref [] in
   let super = Ast_mapper.default_mapper in
+  let ctx = ref ctx in
   let self1 =
     { super with
       expr =
@@ -72,75 +73,162 @@ let children meth v =
 
                    We only do this with a payload, otherwise our made-up Pexp_construct
                    child would cause the ast to be infinite. *)
-              children :=
-                `Expr
-                  { P.pexp_desc = Pexp_construct (id, None)
-                  ; pexp_attributes = []
-                  ; pexp_loc = id.loc
-                  ; pexp_loc_stack = []
-                  }
-                :: !children
+              let e =
+                { P.pexp_desc = Pexp_construct (id, None)
+                ; pexp_attributes = []
+                ; pexp_loc = id.loc
+                ; pexp_loc_stack = []
+                }
+              in
+              children := (Exp (Ast_helper.Exp.tuple [ e ]), `Expr e) :: !children
           | _ -> ());
           super.expr self v)
     ; pat =
         (fun self v ->
           (match v.ppat_desc with
           | Ppat_construct (id, Some _) ->
-              children :=
-                `Pat
-                  { P.ppat_desc = Ppat_construct (id, None)
-                  ; ppat_attributes = []
-                  ; ppat_loc = id.loc
-                  ; ppat_loc_stack = []
-                  }
-                :: !children
+              let p =
+                { P.ppat_desc = Ppat_construct (id, None)
+                ; ppat_attributes = []
+                ; ppat_loc = id.loc
+                ; ppat_loc_stack = []
+                }
+              in
+              children := (Pat (Ast_helper.Pat.tuple [ p ]), `Pat p) :: !children
           | _ -> ());
           super.pat self v)
     }
+  in
+  (* We need to do something for every constructor in Ast.t, otherwise we can get
+     assertion failures from the [assert_check_exp] kind of functions in ast.ml, due to
+     trying to create [Ast.subexp ~ctx exp] with [exp] not being a child of [ctx]. We
+     can either stop the traversal (like for expr), or update the "parent" node during
+     the traversal of a subtree, as with payload. *)
+  let _ : Ocamlformat_lib.Ast.t -> _ = function
+    | Pld _ -> `Ref
+    | Typ _ -> `Child
+    | Td _ -> `Ref
+    | Cty _ -> `Child
+    | Cd _ -> `Ref
+    | Ctd _ -> `Ref
+    | Pat _ -> `Child
+    | Exp _ -> `Child
+    | Fpe _ -> `Ref
+    | Fpc _ -> `Ref
+    | Vc _ -> `Ref
+    | Lb _ -> `Ref
+    | Bo _ -> `Ref
+    | Mb _ -> `Ref
+    | Md _ -> `Ref
+    | Cl _ -> `Ref
+    | Mty _ -> `Ref
+    | Mod _ -> `Ref
+    | Sig _ -> `Ref
+    | Str _ -> `Child
+    | Clf _ -> `Child
+    | Ctf _ -> `Ref
+    | Tli _ -> `Dont_care_I_think
+    | Top -> `Dont_care_I_think
+    | Rep -> `Dont_care_I_think
   in
   let self2 =
     { super with
       expr =
         (fun _ v ->
-          children := `Expr v :: !children;
+          children := (!ctx, `Expr v) :: !children;
           v)
     ; pat =
         (fun _ v ->
-          children := `Pat v :: !children;
+          children := (!ctx, `Pat v) :: !children;
           v)
     ; structure_item =
         (fun _ v ->
-          children := `Stri v :: !children;
+          children := (!ctx, `Stri v) :: !children;
           v)
     ; structure =
         (fun _ v ->
-          children := `Str v :: !children;
+          children := (!ctx, `Str v) :: !children;
           v)
     ; typ =
         (fun _ v ->
-          children := `Typ v :: !children;
+          children := (!ctx, `Typ v) :: !children;
           v)
     ; class_field =
         (fun _ v ->
-          children := `Cf v :: !children;
+          children := (!ctx, `Cf v) :: !children;
           v)
     ; class_type =
         (fun _ v ->
-          children := `Cty v :: !children;
+          children := (!ctx, `Cty v) :: !children;
           v)
+    ; payload =
+        (fun self v ->
+          Ref.set_temporarily ctx (Pld v) ~f:(fun () -> super.payload self v))
+    ; type_declaration =
+        (fun self v ->
+          Ref.set_temporarily ctx (Td v) ~f:(fun () -> super.type_declaration self v))
+    ; class_declaration =
+        (fun self v ->
+          Ref.set_temporarily ctx (Cd v) ~f:(fun () -> super.class_declaration self v))
+    ; class_type_declaration =
+        (fun self v ->
+          Ref.set_temporarily ctx (Ctd v) ~f:(fun () ->
+              super.class_type_declaration self v))
+    ; expr_function_param =
+        (fun self v ->
+          Ref.set_temporarily ctx (Fpe v) ~f:(fun () -> super.expr_function_param self v))
+    ; class_function_param =
+        (fun self v ->
+          Ref.set_temporarily ctx (Fpc v) ~f:(fun () -> super.class_function_param self v))
+    ; value_constraint =
+        (fun self v ->
+          Ref.set_temporarily ctx (Vc v) ~f:(fun () -> super.value_constraint self v))
+    ; value_binding =
+        (fun self v ->
+          Ref.set_temporarily ctx (Lb v) ~f:(fun () -> super.value_binding self v))
+    ; binding_op =
+        (fun self v ->
+          Ref.set_temporarily ctx (Bo v) ~f:(fun () -> super.binding_op self v))
+    ; module_binding =
+        (fun self v ->
+          Ref.set_temporarily ctx (Mb v) ~f:(fun () -> super.module_binding self v))
+    ; module_declaration =
+        (fun self v ->
+          Ref.set_temporarily ctx (Md v) ~f:(fun () -> super.module_declaration self v))
+    ; class_expr =
+        (fun self v ->
+          Ref.set_temporarily ctx (Cl v) ~f:(fun () -> super.class_expr self v))
+    ; module_type =
+        (fun self v ->
+          Ref.set_temporarily ctx (Mty v) ~f:(fun () -> super.module_type self v))
+    ; module_expr =
+        (fun self v ->
+          Ref.set_temporarily ctx (Mod v) ~f:(fun () -> super.module_expr self v))
+    ; signature_item =
+        (fun self v ->
+          Ref.set_temporarily ctx (Sig v) ~f:(fun () -> super.signature_item self v))
+    ; class_type_field =
+        (fun self v ->
+          Ref.set_temporarily ctx (Ctf v) ~f:(fun () -> super.class_type_field self v))
     }
   in
   ignore ((meth self1) self2 v);
   !children
 
+module Ast = Ocamlformat_lib.Ast
+
+type 'a xt = 'a Ast.xt
+
+let sexp_of_xt sexp_of_a (t : _ xt) = sexp_of_a t.ast
+
 type diff =
-  [ `Expr of expression * expression
-  | `Pat of pattern * pattern
+  [ `Expr of expression * expression xt
+  | `Pat of pattern * pattern xt
   | `Str of structure * structure
-  | `Stri of structure_item * structure_item
-  | `Typ of core_type * core_type
-  | `Cf of class_field * class_field
-  | `Cty of class_type * class_type
+  | `Stri of structure_item * structure_item xt
+  | `Typ of core_type * core_type xt
+  | `Cf of class_field * class_field xt
+  | `Cty of class_type * class_type xt
   ]
 [@@deriving sexp_of]
 
@@ -170,11 +258,11 @@ let list_diff l1 l2 loc_of =
   in
   combine [] [] l1 l2
 
-let rec diff2 (vs : diff) (f : diff_out -> unit) =
+let rec diff2 (vs : diff) (ctx : Ast.t) (f : diff_out -> unit) =
   match vs with
-  | `Expr (v1, v2) -> diff2_meth __.expr vs v1 v2 f
-  | `Pat (v1, v2) -> diff2_meth __.pat vs v1 v2 f
-  | `Stri (v1, v2) -> diff2_meth __.structure_item vs v1 v2 f
+  | `Expr (v1, v2) -> diff2_meth __.expr vs v1 v2.ast ctx f
+  | `Pat (v1, v2) -> diff2_meth __.pat vs v1 v2.ast ctx f
+  | `Stri (v1, v2) -> diff2_meth __.structure_item vs v1 v2.ast ctx f
   | `Str (v1, v2) ->
       if List.length v1 <> List.length v2
       then (
@@ -183,31 +271,36 @@ let rec diff2 (vs : diff) (f : diff_out -> unit) =
           | `Rem stri -> f (`Rem stri.pstr_loc)
           | `Add _ -> failwith "`Add unimplemented");
         let v1, v2 = List.unzip common in
-        diff2_meth __.structure vs v1 v2 f)
-      else diff2_meth __.structure vs v1 v2 f
-  | `Typ (v1, v2) -> diff2_meth __.typ vs v1 v2 f
-  | `Cf (v1, v2) -> diff2_meth __.class_field vs v1 v2 f
-  | `Cty (v1, v2) -> diff2_meth __.class_type vs v1 v2 f
+        diff2_meth __.structure vs v1 v2 ctx f)
+      else diff2_meth __.structure vs v1 v2 ctx f
+  | `Typ (v1, v2) -> diff2_meth __.typ vs v1 v2.ast ctx f
+  | `Cf (v1, v2) -> diff2_meth __.class_field vs v1 v2.ast ctx f
+  | `Cty (v1, v2) -> diff2_meth __.class_type vs v1 v2.ast ctx f
 
 and diff2_meth : type a.
     (Ast_mapper.mapper -> Ast_mapper.mapper -> a -> a) -> _ -> a -> a -> _ =
- fun meth vs v1 v2 f ->
+ fun meth vs v1 v2 ctx f ->
   if shallow_equality meth v1 v2
   then
-    List.iter2_exn (children meth v1) (children meth v2) ~f:(fun c1 c2 ->
+    List.iter2_exn (children Top meth v1) (children ctx meth v2)
+      ~f:(fun (_, c1) (ctx, c2) ->
         match (c1, c2) with
-        | `Expr v1, `Expr v2 -> diff2 (`Expr (v1, v2)) f
-        | `Pat v1, `Pat v2 -> diff2 (`Pat (v1, v2)) f
-        | `Stri v1, `Stri v2 -> diff2 (`Stri (v1, v2)) f
-        | `Str v1, `Str v2 -> diff2 (`Str (v1, v2)) f
-        | `Typ v1, `Typ v2 -> diff2 (`Typ (v1, v2)) f
-        | `Cf v1, `Cf v2 -> diff2 (`Cf (v1, v2)) f
-        | `Cty v1, `Cty v2 -> diff2 (`Cty (v1, v2)) f
+        | `Expr v1, `Expr v2 -> diff2 (`Expr (v1, Ast.sub_exp ~ctx v2)) (Exp v2) f
+        | `Pat v1, `Pat v2 -> diff2 (`Pat (v1, Ast.sub_pat ~ctx v2)) (Pat v2) f
+        | `Stri v1, `Stri v2 -> diff2 (`Stri (v1, Ast.sub_str ~ctx v2)) (Str v2) f
+        | `Str v1, `Str v2 -> diff2 (`Str (v1, v2)) Top f
+        | `Typ v1, `Typ v2 -> diff2 (`Typ (v1, Ast.sub_typ ~ctx v2)) (Typ v2) f
+        | `Cf v1, `Cf v2 -> diff2 (`Cf (v1, Ast.sub_cf ~ctx v2)) (Clf v2) f
+        | `Cty v1, `Cty v2 -> diff2 (`Cty (v1, Ast.sub_cty ~ctx v2)) (Cty v2) f
         | (`Expr _ | `Pat _ | `Stri _ | `Str _ | `Typ _ | `Cf _ | `Cty _), _ ->
             assert false)
   else f (vs : diff :> diff_out)
 
-let print_diff vs = diff2 vs (fun x -> print_s [%sexp (x : diff_out)])
+(* Limiting the type, because we can't use Top as a context for any random fragment of
+   ast, so we'd need to do something smarter like Fmt_ast does. In fact, if we needed
+   to diff more types, maybe we should write a function that creates a context for any
+   extended ast, and use it in Fmt_ast, and potentially here. *)
+let diff2 str1 str2 = diff2 (`Str (str1, str2)) Top
 
 type add_comments =
   { add_comments :
@@ -271,7 +364,7 @@ let minprint ~debug_diff ~source_contents ~structure ~structure' =
   in
   let l =
     let r = ref [] in
-    diff2 (`Str (structure.ast, structure')) (fun x -> r := x :: !r);
+    diff2 structure.ast structure' (fun x -> r := x :: !r);
     List.rev !r
     |> List.sort ~compare:(fun a b -> Location.compare (loc_of_diff a) (loc_of_diff b))
   in
@@ -288,19 +381,33 @@ let minprint ~debug_diff ~source_contents ~structure ~structure' =
               , (x : diff_out)
               , (loc_of_diff x : Location.t)]);
       prev := Some x);
+  (* ideally, we'd pass the context into the printing function, so ocamlformat can
+     print parens nicely, instead of this hack *)
+  let parens_if b str = if b then "(" ^ str ^ ")" else str in
   List.iter l ~f:(fun diff ->
       let loc, str =
         match diff with
         | `Expr (e1, e2) ->
-            (e1.pexp_loc, printed_ast add_comments e1.pexp_loc Expression e2)
-        | `Pat (p1, p2) -> (p1.ppat_loc, printed_ast add_comments p1.ppat_loc Pattern p2)
+            ( e1.pexp_loc
+            , parens_if (Ast.parenze_exp e2)
+                (printed_ast add_comments e1.pexp_loc Expression e2.ast) )
+        | `Pat (p1, p2) ->
+            ( p1.ppat_loc
+            , parens_if (Ast.parenze_pat p2)
+                (printed_ast add_comments p1.ppat_loc Pattern p2.ast) )
         | `Stri (s1, s2) ->
-            (s1.pstr_loc, printed_ast add_comments s1.pstr_loc Structure [ s2 ])
+            (s1.pstr_loc, printed_ast add_comments s1.pstr_loc Structure [ s2.ast ])
         | `Str _ -> assert false
-        | `Typ (t1, t2) -> (t1.ptyp_loc, printed_ast add_comments t1.ptyp_loc Core_type t2)
-        | `Cf (v1, v2) -> (v1.pcf_loc, printed_ast add_comments v1.pcf_loc Class_field v2)
+        | `Typ (t1, t2) ->
+            ( t1.ptyp_loc
+            , parens_if (Ast.parenze_typ t2)
+                (printed_ast add_comments t1.ptyp_loc Core_type t2.ast) )
+        | `Cf (v1, v2) ->
+            (v1.pcf_loc, printed_ast add_comments v1.pcf_loc Class_field v2.ast)
         | `Cty (v1, v2) ->
-            (v1.pcty_loc, printed_ast add_comments v1.pcty_loc Class_type v2)
+            ( v1.pcty_loc
+            , parens_if (Ast.parenze_cty v2)
+                (printed_ast add_comments v1.pcty_loc Class_type v2.ast) )
         | `Rem loc -> (loc, "")
       in
       copy_orig loc.loc_start.pos_cnum;
@@ -316,12 +423,6 @@ let minprint ~debug_diff ~source_contents ~structure ~structure' =
   Buffer.contents buf
 
 (* problems:
-   - the printed new asts are normally printed unparenthesized,
-     but the location on the input ast usually includes surrounding
-     parens, so we end deleting parens and not replacing them. Maybe
-     Ast.parenze_exp could be used for this, but that requires computing
-     context. Which might be possible if we extend our diff type to reach
-     parity with Ast.ctx.
    - should avoid assert failure on additions of structure items
    - record fields should be special cased like variants
  *)
