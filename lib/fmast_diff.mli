@@ -34,6 +34,6 @@ val print_diff :
 val minprint :
      debug_diff:bool
   -> source_contents:string
-  -> structure:Fmast.structure
+  -> structure:Fmast.structure Ocamlformat_lib.Parse_with_comments.with_comments
   -> structure':Fmast.structure
   -> string

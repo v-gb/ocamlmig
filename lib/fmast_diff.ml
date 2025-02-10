@@ -209,7 +209,31 @@ and diff2_meth : type a.
 
 let print_diff vs = diff2 vs (fun x -> print_s [%sexp (x : diff_out)])
 
-let printed_ast (loc : Location.t) kind ast =
+type add_comments =
+  { add_comments :
+      'a. 'a -> Location.t -> 'a Ocamlformat_lib.Parse_with_comments.with_comments
+  }
+
+let indexed_comments
+    (ast_with_comments : _ Ocamlformat_lib.Parse_with_comments.with_comments) =
+  let map =
+    List.map ast_with_comments.comments ~f:(fun comment ->
+        ((Ocamlformat_lib.Cmt.loc comment).loc_start.pos_cnum, comment))
+    |> Map.of_alist_multi (module Int)
+  in
+  { add_comments =
+      (fun ast loc ->
+        { ast_with_comments with
+          ast
+        ; comments =
+            Map.subrange map ~lower_bound:(Incl loc.loc_start.pos_cnum)
+              ~upper_bound:(Incl loc.loc_end.pos_cnum)
+            |> Map.data
+            |> List.concat
+        })
+  }
+
+let printed_ast add_comments (loc : Location.t) ext ast =
   let target_margin = (* should infer from source file *) 90 in
   let current_indentation = loc.loc_start.pos_cnum - loc.loc_start.pos_bol in
   let fmconf =
@@ -220,7 +244,7 @@ let printed_ast (loc : Location.t) kind ast =
     | Ok v -> v
     | Error e -> failwith (Ocamlformat_lib.Conf_t.Error.to_string e)
   in
-  debug_print kind ~fmconf ast
+  ocamlformat_print ext ~conf:fmconf (add_comments.add_comments ast loc)
   |> String.chop_suffix_if_exists ~suffix:"\n"
   |> String.split ~on:'\n'
   |> List.mapi ~f:(fun i s ->
@@ -229,6 +253,7 @@ let printed_ast (loc : Location.t) kind ast =
 
 let minprint ~debug_diff ~source_contents ~structure ~structure' =
   let buf = Buffer.create (String.length source_contents) in
+  let add_comments = indexed_comments structure in
   let pos = ref 0 in
   let copy_orig to_ =
     Buffer.add_substring buf source_contents ~pos:!pos ~len:(to_ - !pos);
@@ -246,7 +271,7 @@ let minprint ~debug_diff ~source_contents ~structure ~structure' =
   in
   let l =
     let r = ref [] in
-    diff2 (`Str (structure, structure')) (fun x -> r := x :: !r);
+    diff2 (`Str (structure.ast, structure')) (fun x -> r := x :: !r);
     List.rev !r
     |> List.sort ~compare:(fun a b -> Location.compare (loc_of_diff a) (loc_of_diff b))
   in
@@ -266,13 +291,16 @@ let minprint ~debug_diff ~source_contents ~structure ~structure' =
   List.iter l ~f:(fun diff ->
       let loc, str =
         match diff with
-        | `Expr (e1, e2) -> (e1.pexp_loc, printed_ast e1.pexp_loc Expression e2)
-        | `Pat (p1, p2) -> (p1.ppat_loc, printed_ast p1.ppat_loc Pattern p2)
-        | `Stri (s1, s2) -> (s1.pstr_loc, printed_ast s1.pstr_loc Structure [ s2 ])
+        | `Expr (e1, e2) ->
+            (e1.pexp_loc, printed_ast add_comments e1.pexp_loc Expression e2)
+        | `Pat (p1, p2) -> (p1.ppat_loc, printed_ast add_comments p1.ppat_loc Pattern p2)
+        | `Stri (s1, s2) ->
+            (s1.pstr_loc, printed_ast add_comments s1.pstr_loc Structure [ s2 ])
         | `Str _ -> assert false
-        | `Typ (t1, t2) -> (t1.ptyp_loc, printed_ast t2.ptyp_loc Core_type t2)
-        | `Cf (v1, v2) -> (v1.pcf_loc, printed_ast v1.pcf_loc Class_field v2)
-        | `Cty (v1, v2) -> (v1.pcty_loc, printed_ast v1.pcty_loc Class_type v2)
+        | `Typ (t1, t2) -> (t1.ptyp_loc, printed_ast add_comments t2.ptyp_loc Core_type t2)
+        | `Cf (v1, v2) -> (v1.pcf_loc, printed_ast add_comments v1.pcf_loc Class_field v2)
+        | `Cty (v1, v2) ->
+            (v1.pcty_loc, printed_ast add_comments v1.pcty_loc Class_type v2)
         | `Rem loc -> (loc, "")
       in
       copy_orig loc.loc_start.pos_cnum;
@@ -294,11 +322,6 @@ let minprint ~debug_diff ~source_contents ~structure ~structure' =
      Ast.parenze_exp could be used for this, but that requires computing
      context. Which might be possible if we extend our diff type to reach
      parity with Ast.ctx.
-   - the ocamlformat display doesn't print comments. That's ok so long as you
-     only print identifiers, but otherwise it's not great. Would probably
-     need to filter the comments down to the one inside the section being
-     removed, but that would break the trick of printing patterns as expression
-     and chopping off bits of syntax. So we'd need to modify ocamlformat.
    - should avoid assert failure on additions of structure items
    - record fields should be special cased like variants
  *)
