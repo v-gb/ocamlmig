@@ -300,7 +300,10 @@ and diff2_meth : type a.
    ast, so we'd need to do something smarter like Fmt_ast does. In fact, if we needed
    to diff more types, maybe we should write a function that creates a context for any
    extended ast, and use it in Fmt_ast, and potentially here. *)
-let diff2 str1 str2 = diff2 (`Str (str1, str2)) Top
+let diff2 str1 str2 =
+  let r = ref [] in
+  diff2 (`Str (str1, str2)) Top (fun diff -> r := diff :: !r);
+  List.rev !r
 
 type add_comments =
   { add_comments :
@@ -363,9 +366,7 @@ let minprint ~debug_diff ~source_contents ~structure ~structure' =
     | `Rem loc -> loc
   in
   let l =
-    let r = ref [] in
-    diff2 structure.ast structure' (fun x -> r := x :: !r);
-    List.rev !r
+    diff2 structure.ast structure'
     |> List.sort ~compare:(fun a b -> Location.compare (loc_of_diff a) (loc_of_diff b))
   in
   let prev = ref None in
