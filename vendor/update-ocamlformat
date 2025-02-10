@@ -12,6 +12,7 @@ rsync -m -r --delete --delete-excluded "$TMP"/ ocamlformat/ --include '*/' \
       --include '/vendor/**' \
       --include '/LICENSE' \
       --include '/.ocamlformat' \
+      --include '/.ocamlformat-ignore' \
       --exclude '*'
 find ocamlformat/ -name dune \
     | xargs -r sed -E -i \
