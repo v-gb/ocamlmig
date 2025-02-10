@@ -75,15 +75,7 @@ let debug_print (type a) ?(raw = false) (kind : a Ocamlformat_lib.Extended_ast.t
              source (the empty string above), and fails. The fake pos helps because we
              have the ocamlformat linked is modified to not look in the source for such
              pos. *)
-          (match kind with
-          | Structure -> fake_pos.structure fake_pos ast
-          | Signature -> fake_pos.signature fake_pos ast
-          | Use_file -> ast
-          | Core_type -> fake_pos.typ fake_pos ast
-          | Module_type -> fake_pos.module_type fake_pos ast
-          | Expression -> fake_pos.expr fake_pos ast
-          | Repl_file -> ast
-          | Documentation -> ast)
+          Ocamlformat_lib.Extended_ast.map kind fake_pos ast
       }
 
 let debug_print_pattern =
