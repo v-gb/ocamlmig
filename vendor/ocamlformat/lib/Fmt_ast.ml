@@ -4828,6 +4828,26 @@ let fmt_file (type a) ~ctx ~fmt_code ~debug (fragment : a Extended_ast.t)
       (* TODO: [source] and [cmts] should have never been computed when
          formatting doc. *)
       Fmt_odoc.fmt_ast c.conf ~fmt_code:c.fmt_code d
+  | Pattern, _ -> fmt_pattern c (sub_pat ~ctx:(Pld (PPat (itms, None))) itms)
+  | Class_field, _ ->
+      fmt_class_field c
+        (sub_cf
+           ~ctx:
+             (Cl
+                { pcl_desc=
+                    Pcl_structure {pcstr_fields= [itms]; pcstr_self= None}
+                ; pcl_loc= Location.none
+                ; pcl_attributes= [] } )
+           itms )
+  | Class_type, _ ->
+      fmt_class_type c
+        (sub_cty
+           ~ctx:
+             (Ctf
+                { pctf_desc= Pctf_inherit itms
+                ; pctf_loc= Location.none
+                ; pctf_attributes= [] } )
+           itms )
 
 let fmt_parse_result conf ~debug ast_kind ast source comments
     ~set_margin:set_margin_p ~fmt_code =
