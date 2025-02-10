@@ -17,7 +17,27 @@ ocamlmig replace \
          -e 'List.memq __etc /// List.mem ~eq:Stdlib.(==) __etc' \
          -e '{ field1 = __field1; __etc } /// { __etc; field3 = __field1 }' \
          *.ml "$@"
-
+{
+    cp test_preserve_format.ml test_preserve_format.ml.corrected
+    OCAMLMIG_PRESERVE_FORMAT= ocamlmig replace \
+                            -e 'Fun.id __e /// __e' \
+                            -w test_preserve_format.ml.corrected
+    new_contents=$(
+        function real_text {
+            grep -B 1000 "Result:" | grep -v "Result:"
+        }
+        real_text < test_preserve_format.ml
+        echo "(* Result:"
+        echo
+        real_text < test_preserve_format.ml.corrected
+        echo "*)"
+    )
+    if [ $# -eq 0 ]; then
+        diff --label test_preserve_format.ml --label test_preserve_format.ml.corrected -u test_preserve_format.ml <(echo "$new_contents") 
+    else
+        echo "$new_contents" > test_preserve_format.ml
+    fi
+}
 cp ../examples/stdlib_to_base/stdlib_to_base.ml ../examples/stdlib_to_base_check/stdlib_to_base_check.ml
 sleep 0.1
 ocamlmig transform migration-check ../examples/stdlib_to_base_check/stdlib_to_base_check.ml -w

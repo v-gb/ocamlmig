@@ -299,7 +299,6 @@ let minprint ~debug_diff ~source_contents ~structure ~structure' =
      need to filter the comments down to the one inside the section being
      removed, but that would break the trick of printing patterns as expression
      and chopping off bits of syntax. So we'd need to modify ocamlformat.
-   - should add tests
    - should avoid assert failure on additions of structure items
    - record fields should be special cased like variants
  *)
