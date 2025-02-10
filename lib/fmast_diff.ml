@@ -297,7 +297,7 @@ let minprint ~debug_diff ~source_contents ~structure ~structure' =
         | `Stri (s1, s2) ->
             (s1.pstr_loc, printed_ast add_comments s1.pstr_loc Structure [ s2 ])
         | `Str _ -> assert false
-        | `Typ (t1, t2) -> (t1.ptyp_loc, printed_ast add_comments t2.ptyp_loc Core_type t2)
+        | `Typ (t1, t2) -> (t1.ptyp_loc, printed_ast add_comments t1.ptyp_loc Core_type t2)
         | `Cf (v1, v2) -> (v1.pcf_loc, printed_ast add_comments v1.pcf_loc Class_field v2)
         | `Cty (v1, v2) ->
             (v1.pcty_loc, printed_ast add_comments v1.pcty_loc Class_type v2)
