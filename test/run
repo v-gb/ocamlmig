@@ -21,6 +21,7 @@ ocamlmig replace \
     cp test_preserve_format.ml test_preserve_format.ml.corrected
     OCAMLMIG_PRESERVE_FORMAT= ocamlmig replace \
                             -e 'Fun.id __e /// __e' \
+                            -e '"hello" /// (); "hello"' \
                             -w test_preserve_format.ml.corrected
     new_contents=$(
         function real_text {
