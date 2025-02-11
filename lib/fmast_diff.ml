@@ -236,6 +236,7 @@ type diff =
 type diff_out =
   [ diff
   | `Rem of Location.t
+  | `Add of Location.t * (int * structure_item)
   ]
 [@@deriving sexp_of]
 
@@ -245,37 +246,46 @@ let list_diff l1 l2 loc_of =
      (which is likely the case, because no/few transformations would currently touch
      structure items), and because we try very hard to have sensible location even in
      added code, since it majorly impact comment placement. *)
-  let rec combine diff acc l1 l2 =
+  let compare_loc loc1 loc2 =
+    (* Items from the migration are lowest, so they are added as soon as possible by
+       the merge below. *)
+    [%compare: bool * Location.Ignoring_filename.t]
+      (not (Transform_common.is_migrate_filename loc1), loc1)
+      (not (Transform_common.is_migrate_filename loc2), loc2)
+  in
+  let rec combine diff acc l1 l2 prev1 =
     match (l1, l2) with
-    | [], l2 -> (List.rev diff @ List.map l2 ~f:(`Add __), List.rev acc)
+    | [], l2 ->
+        (List.rev diff @ List.map l2 ~f:(fun x2 -> `Add (prev1, x2, None)), List.rev acc)
     | l1, [] -> (List.rev diff @ List.map l1 ~f:(`Rem __), List.rev acc)
     | x1 :: tl1, x2 :: tl2 ->
-        let c = Location.Ignoring_filename.compare (loc_of x1) (loc_of x2) in
+        let c = compare_loc (loc_of x1) (loc_of x2) in
         if c = 0
-        then combine diff ((x1, x2) :: acc) tl1 tl2
+        then combine diff ((x1, x2) :: acc) tl1 tl2 (Some x1)
         else if c < 0
-        then combine (`Rem x1 :: diff) acc tl1 l2
-        else combine (`Add x2 :: diff) acc l1 tl2
+        then combine (`Rem x1 :: diff) acc tl1 l2 (Some x1)
+        else combine (`Add (prev1, x2, Some x1) :: diff) acc l1 tl2 prev1
   in
-  combine [] [] l1 l2
+  combine [] [] l1 l2 None
 
-let rec diff2 (vs : diff) (f : diff_out -> unit) =
+let rec diff2 ~source (vs : diff) (f : diff_out -> unit) =
   match vs with
-  | `Expr (v1, v2) -> diff2_meth __.expr vs v1 v2.ast (Exp v2.ast) f
-  | `Pat (v1, v2) -> diff2_meth __.pat vs v1 v2.ast (Pat v2.ast) f
-  | `Stri (v1, v2) -> diff2_meth __.structure_item vs v1 v2.ast (Str v2.ast) f
+  | `Expr (v1, v2) -> diff2_meth ~source __.expr vs v1 v2.ast (Exp v2.ast) f
+  | `Pat (v1, v2) -> diff2_meth ~source __.pat vs v1 v2.ast (Pat v2.ast) f
+  | `Stri (v1, v2) -> diff2_meth ~source __.structure_item vs v1 v2.ast (Str v2.ast) f
   | `Me (v1, v2) -> (
       match (v1.pmod_desc, v2.ast.pmod_desc) with
       | Pmod_structure l1, Pmod_structure l2 when List.length l1 <> List.length l2 -> (
-          match diff_structure l1 l2 f with
+          match diff_structure ~source l1 l2 f with
           | `Ok -> ()
-          | `Whole_structure -> diff2_meth __.module_expr vs v1 v2.ast (Mod v2.ast) f)
-      | _ -> diff2_meth __.module_expr vs v1 v2.ast (Mod v2.ast) f)
-  | `Typ (v1, v2) -> diff2_meth __.typ vs v1 v2.ast (Typ v2.ast) f
-  | `Cf (v1, v2) -> diff2_meth __.class_field vs v1 v2.ast (Clf v2.ast) f
-  | `Cty (v1, v2) -> diff2_meth __.class_type vs v1 v2.ast (Cty v2.ast) f
+          | `Whole_structure ->
+              diff2_meth ~source __.module_expr vs v1 v2.ast (Mod v2.ast) f)
+      | _ -> diff2_meth ~source __.module_expr vs v1 v2.ast (Mod v2.ast) f)
+  | `Typ (v1, v2) -> diff2_meth ~source __.typ vs v1 v2.ast (Typ v2.ast) f
+  | `Cf (v1, v2) -> diff2_meth ~source __.class_field vs v1 v2.ast (Clf v2.ast) f
+  | `Cty (v1, v2) -> diff2_meth ~source __.class_type vs v1 v2.ast (Cty v2.ast) f
 
-and diff_structure l1 l2 f =
+and diff_structure ~source l1 l2 f =
   let diff, common =
     match List.zip l1 l2 with
     | Ok common -> ([], common)
@@ -286,31 +296,59 @@ and diff_structure l1 l2 f =
       | `Rem stri ->
           f (`Rem stri.pstr_loc);
           false
-      | `Add _ -> true)
+      | `Add (_prev, stri, next) -> (
+          match next with
+          | None -> true
+          | Some item ->
+              (not
+                 (String.is_empty
+                    (String.strip
+                       (string_sub source ~pos1:item.pstr_loc.loc_start.pos_bol
+                          ~pos2:item.pstr_loc.loc_start.pos_cnum))))
+              ||
+              let indent =
+                item.pstr_loc.loc_start.pos_cnum - item.pstr_loc.loc_start.pos_bol
+              in
+              let pos =
+                { item.pstr_loc.loc_start with
+                  pos_cnum = item.pstr_loc.loc_start.pos_bol
+                }
+              in
+              let loc : Location.t =
+                { loc_start = pos; loc_end = pos; loc_ghost = false }
+              in
+              f (`Add (loc, (indent, stri)));
+              false))
   then
     (* The problem here is: what position to use for the new structure item? We'd
          need to keep track of neighboring items. *)
     `Whole_structure
   else (
     List.iter common ~f:(fun (stri1, stri2) ->
-        diff2 (`Stri (stri1, Ast.sub_str ~ctx:Top stri2)) f);
+        diff2 ~source (`Stri (stri1, Ast.sub_str ~ctx:Top stri2)) f);
     `Ok)
 
 and diff2_meth : type a.
-    (Ast_mapper.mapper -> Ast_mapper.mapper -> a -> a) -> _ -> a -> a -> Ast.t -> _ =
- fun meth vs v1 v2 ctx f ->
+       source:_
+    -> (Ast_mapper.mapper -> Ast_mapper.mapper -> a -> a)
+    -> _
+    -> a
+    -> a
+    -> Ast.t
+    -> _ =
+ fun ~source meth vs v1 v2 ctx f ->
   if shallow_equality meth v1 v2
   then
     List.iter2_exn (children Top meth v1) (children ctx meth v2)
       ~f:(fun (_, c1) (ctx, c2) ->
         match (c1, c2) with
-        | `Expr v1, `Expr v2 -> diff2 (`Expr (v1, Ast.sub_exp ~ctx v2)) f
-        | `Pat v1, `Pat v2 -> diff2 (`Pat (v1, Ast.sub_pat ~ctx v2)) f
-        | `Stri v1, `Stri v2 -> diff2 (`Stri (v1, Ast.sub_str ~ctx v2)) f
-        | `Me v1, `Me v2 -> diff2 (`Me (v1, Ast.sub_mod ~ctx v2)) f
-        | `Typ v1, `Typ v2 -> diff2 (`Typ (v1, Ast.sub_typ ~ctx v2)) f
-        | `Cf v1, `Cf v2 -> diff2 (`Cf (v1, Ast.sub_cf ~ctx v2)) f
-        | `Cty v1, `Cty v2 -> diff2 (`Cty (v1, Ast.sub_cty ~ctx v2)) f
+        | `Expr v1, `Expr v2 -> diff2 ~source (`Expr (v1, Ast.sub_exp ~ctx v2)) f
+        | `Pat v1, `Pat v2 -> diff2 ~source (`Pat (v1, Ast.sub_pat ~ctx v2)) f
+        | `Stri v1, `Stri v2 -> diff2 ~source (`Stri (v1, Ast.sub_str ~ctx v2)) f
+        | `Me v1, `Me v2 -> diff2 ~source (`Me (v1, Ast.sub_mod ~ctx v2)) f
+        | `Typ v1, `Typ v2 -> diff2 ~source (`Typ (v1, Ast.sub_typ ~ctx v2)) f
+        | `Cf v1, `Cf v2 -> diff2 ~source (`Cf (v1, Ast.sub_cf ~ctx v2)) f
+        | `Cty v1, `Cty v2 -> diff2 ~source (`Cty (v1, Ast.sub_cty ~ctx v2)) f
         | (`Expr _ | `Pat _ | `Stri _ | `Me _ | `Typ _ | `Cf _ | `Cty _), _ ->
             assert false)
   else f (vs : diff :> diff_out)
@@ -319,9 +357,11 @@ and diff2_meth : type a.
    ast, so we'd need to do something smarter like Fmt_ast does. In fact, if we needed
    to diff more types, maybe we should write a function that creates a context for any
    extended ast, and use it in Fmt_ast, and potentially here. *)
-let diff2 str1 str2 =
+let diff2 (str1 : _ Ocamlformat_lib.Parse_with_comments.with_comments) str2 =
+  let source : string = fst (Stdlib.Obj.magic str1.source) in
+  assert (Stdlib.Obj.tag (Stdlib.Obj.repr source) = Stdlib.Obj.string_tag);
   let r = ref [] in
-  match diff_structure str1 str2 (fun diff -> r := diff :: !r) with
+  match diff_structure ~source str1.ast str2 (fun diff -> r := diff :: !r) with
   | `Ok -> `Ok (List.rev !r)
   | `Whole_structure -> `Whole_structure
 
@@ -343,7 +383,7 @@ let indexed_comments
           ast
         ; comments =
             Map.subrange map ~lower_bound:(Incl loc.loc_start.pos_cnum)
-              ~upper_bound:(Incl loc.loc_end.pos_cnum)
+              ~upper_bound:(Excl loc.loc_end.pos_cnum)
             |> Map.data
             |> List.concat
         })
@@ -405,7 +445,7 @@ let cobble_code_together ~ocaml_version ~debug_diff orig f =
   in
   let pos = ref 0 in
   let copy_orig ~parsed to_ =
-    add_string ~parsed (String.sub orig ~pos:!pos ~len:(to_ - !pos));
+    add_string ~parsed (string_sub orig ~pos1:!pos ~pos2:to_);
     pos := to_
   in
   f (fun (loc : Location.t) str ->
@@ -432,8 +472,9 @@ let print ~ocaml_version ~debug_diff ~source_contents ~structure ~structure' =
     | `Cf (v, _) -> v.pcf_loc
     | `Cty (v, _) -> v.pcty_loc
     | `Rem loc -> loc
+    | `Add (loc, _) -> loc
   in
-  match diff2 structure.ast structure' with
+  match diff2 structure structure' with
   | `Whole_structure ->
       ocamlformat_print ~conf:Ocamlformat_lib.Conf.default Structure
         { structure with ast = structure' }
@@ -483,11 +524,14 @@ let print ~ocaml_version ~debug_diff ~source_contents ~structure ~structure' =
                 f v1.pcty_loc
                   (parens_if (Ast.parenze_cty v2)
                      (printed_ast add_comments v1.pcty_loc Class_type v2.ast))
-            | `Rem loc -> f loc ""))
+            | `Rem loc -> f loc ""
+            | `Add (loc, (indent, s2)) ->
+                f loc
+                  (String.make indent ' '
+                  ^ printed_ast add_comments loc Structure [ s2 ]
+                  ^ "\n")))
 
 (* problems:
-   - should create an incremental change on -open, instead of falling back to reprinting
-     the whole file
    - record fields should be special cased like variants
    - let foo : type = function causes diff because we fix up the new ast, but not the
      old one.

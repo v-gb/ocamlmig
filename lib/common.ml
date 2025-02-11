@@ -175,3 +175,5 @@ let lexing_from_string str ~file_path =
   let lexbuf = Lexing.from_string str in
   Lexing.set_filename lexbuf file_path;
   lexbuf
+
+let string_sub str ~pos1 ~pos2 = String.sub str ~pos:pos1 ~len:(pos2 - pos1)

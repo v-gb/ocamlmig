@@ -17,28 +17,41 @@ ocamlmig replace \
          -e 'List.memq __etc /// List.mem ~eq:Stdlib.(==) __etc' \
          -e '{ field1 = __field1; __etc } /// { __etc; field3 = __field1 }' \
          *.ml "$@"
-{
-    cp test_preserve_format.ml test_preserve_format.ml.corrected
-    OCAMLMIG_PRESERVE_FORMAT= ocamlmig replace \
-                            -e 'Fun.id __e /// __e' \
-                            -e '"hello" /// (); "hello"' \
-                            -w test_preserve_format.ml.corrected
-    new_contents=$(
-        function real_text {
-            grep -B 1000 "Result:" | grep -v "Result:"
-        }
-        real_text < test_preserve_format.ml
-        echo "(* Result:"
-        echo
-        real_text < test_preserve_format.ml.corrected
-        echo "*)"
-    )
+(
+    unset OCAMLMIG_TEST
     if [ $# -eq 0 ]; then
-        diff --label test_preserve_format.ml --label test_preserve_format.ml.corrected -u test_preserve_format.ml <(echo "$new_contents") 
+        write=
     else
-        echo "$new_contents" > test_preserve_format.ml
+        write=true
     fi
-}
+    function with_preserve_format {
+        file="$1"
+        shift;
+        cp "$file" "$file".corrected
+        OCAMLMIG_PRESERVE_FORMAT= ocamlmig "$@" -w "$file".corrected
+        new_contents=$(
+            function real_text {
+                (cat; echo "Result:") | grep -m 1 -B 1000 "Result:" | grep -v "Result:"
+            }
+            real_text < "$file"
+            echo "(* Result:"
+            echo
+            real_text < "$file".corrected
+            echo "*)"
+                    )
+        if [ "$write" ]; then
+            echo "$new_contents" > "$file"
+        else
+            diff --label "$file" --label "$file".corrected -u "$file" <(echo "$new_contents") 
+        fi        
+    }
+    with_preserve_format test_preserve_format.ml \
+                         replace \
+                         -e 'Fun.id __e /// __e' \
+                         -e '"hello" /// (); "hello"'
+    with_preserve_format test_preserve_format_open.ml tr rescope -open Format
+    with_preserve_format test_preserve_format_unopen.ml tr rescope -unopen Format
+)
 cp ../examples/stdlib_to_base/stdlib_to_base.ml ../examples/stdlib_to_base_check/stdlib_to_base_check.ml
 sleep 0.1
 ocamlmig transform migration-check ../examples/stdlib_to_base_check/stdlib_to_base_check.ml -w
