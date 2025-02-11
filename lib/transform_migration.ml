@@ -1769,8 +1769,6 @@ let payload_from_val_fmast ~fmconf ~type_index ~artifacts (comp_unit, id, ident_
           None
       | Some comp_unit' -> (
           let source = if comp_unit' =: comp_unit then `impl else `intf in
-          (* This works with .cmt files internally, but maybe we should make this
-             work with .cmi files, for generality. *)
           match Build.Artifacts.sigitem_from_def_uid artifacts (uid, source) with
           | None ->
               if !log

@@ -597,17 +597,25 @@ module Artifacts = struct
   let sigitem_from_def_uid t (uid, impl_or_intf) =
     match decl_from_def_uid t (uid, impl_or_intf) with
     | Some item_decl -> Some (`Decl item_decl)
-    | None ->
-        Option.bind (comp_unit_of_uid uid) ~f:(fun comp_unit ->
-            (* If there's no cmt, try the .cmi instead. This might help in the case of
+    | None -> (
+        (* Should revisit when rebasing onto ocaml 5.3, where uids will finally be
+         unique. Without this condition, when processing a .ml, we can end up reading
+         its .cmi, at which point we're suspectible to uid collision. Since `impl is only
+         passed it when a def comes from the same compilation unit as the use, this
+         relies on the fact that we rely on the cmt for the current compilation unit. *)
+        match impl_or_intf with
+        | `impl -> None
+        | `intf ->
+            Option.bind (comp_unit_of_uid uid) ~f:(fun comp_unit ->
+                (* If there's no cmt, try the .cmi instead. This might help in the case of
                 opam packages installed without .cmt. *)
-            match loaded_cmi t ~comp_unit with
-            | None -> None
-            | Some (_, loaded_cmi) ->
-                if !log
-                then print_s [%sexp `sig_item_from_def_uid (uid : Uast.Shape.Uid.t)];
-                Types.Uid.Tbl.find_opt (force loaded_cmi.defs) uid)
-        |> Option.map ~f:(fun s -> `Sigitem s)
+                match loaded_cmi t ~comp_unit with
+                | None -> None
+                | Some (_, loaded_cmi) ->
+                    if !log
+                    then print_s [%sexp `sig_item_from_def_uid (uid : Uast.Shape.Uid.t)];
+                    Types.Uid.Tbl.find_opt (force loaded_cmi.defs) uid)
+            |> Option.map ~f:(fun s -> `Sigitem s))
 
   type find_decl_result =
     (Shape.Uid.t * Typedtree.item_declaration option, string Lazy.t) Result.t
