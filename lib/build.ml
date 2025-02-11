@@ -604,7 +604,8 @@ module Artifacts = struct
             match loaded_cmi t ~comp_unit with
             | None -> None
             | Some (_, loaded_cmi) ->
-                if !log then print_s [%sexp `decl_from_def_uid (uid : Uast.Shape.Uid.t)];
+                if !log
+                then print_s [%sexp `sig_item_from_def_uid (uid : Uast.Shape.Uid.t)];
                 Types.Uid.Tbl.find_opt (force loaded_cmi.defs) uid)
         |> Option.map ~f:(fun s -> `Sigitem s)
 
