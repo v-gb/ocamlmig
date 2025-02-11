@@ -454,4 +454,6 @@ let minprint ~debug_diff ~source_contents ~structure ~structure' =
    - should create an incremental change on -open, instead of falling back to reprinting
      the whole file
    - record fields should be special cased like variants
+   - let foo : type = function causes diff because we fix up the new ast, but not the
+     old one.
  *)
