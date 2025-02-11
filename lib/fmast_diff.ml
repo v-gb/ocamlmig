@@ -451,6 +451,7 @@ let minprint ~debug_diff ~source_contents ~structure ~structure' =
       Buffer.contents buf
 
 (* problems:
-   - should avoid assert failure on additions of structure items
+   - should create an incremental change on -open, instead of falling back to reprinting
+     the whole file
    - record fields should be special cased like variants
  *)
