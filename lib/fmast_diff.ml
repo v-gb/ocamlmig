@@ -41,8 +41,10 @@ let shallow_equality =
   in
   let self2 =
     { super with
-      expr = (fun _ _ -> dummy_expr)
-    ; location = (fun _ _ -> dummy_loc)
+      location =
+        (fun _ _ -> dummy_loc)
+        (* these methods should be in sync with the ones in [children] *)
+    ; expr = (fun _ _ -> dummy_expr)
     ; pat = (fun _ _ -> dummy_pat)
     ; structure_item = (fun _ _ -> dummy_stri)
     ; structure = (fun _ _ -> dummy_str)
@@ -133,6 +135,7 @@ let children (ctx : Ocamlformat_lib.Ast.t) meth v =
   in
   let self2 =
     { super with
+      (* these methods should be in sync with the ones in [shallow_equality] *)
       expr =
         (fun _ v ->
           children := (!ctx, `Expr v) :: !children;
@@ -161,6 +164,7 @@ let children (ctx : Ocamlformat_lib.Ast.t) meth v =
         (fun _ v ->
           children := (!ctx, `Cty v) :: !children;
           v)
+        (* *)
     ; payload =
         (fun self v ->
           Ref.set_temporarily ctx (Pld v) ~f:(fun () -> super.payload self v))
