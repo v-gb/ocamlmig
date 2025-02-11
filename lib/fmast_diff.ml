@@ -262,11 +262,11 @@ let list_diff l1 l2 loc_of =
   in
   combine [] [] l1 l2
 
-let rec diff2 (vs : diff) (ctx : Ast.t) (f : diff_out -> unit) =
+let rec diff2 (vs : diff) (f : diff_out -> unit) =
   match vs with
-  | `Expr (v1, v2) -> diff2_meth __.expr vs v1 v2.ast ctx f
-  | `Pat (v1, v2) -> diff2_meth __.pat vs v1 v2.ast ctx f
-  | `Stri (v1, v2) -> diff2_meth __.structure_item vs v1 v2.ast ctx f
+  | `Expr (v1, v2) -> diff2_meth __.expr vs v1 v2.ast (Exp v2.ast) f
+  | `Pat (v1, v2) -> diff2_meth __.pat vs v1 v2.ast (Pat v2.ast) f
+  | `Stri (v1, v2) -> diff2_meth __.structure_item vs v1 v2.ast (Str v2.ast) f
   | `Str (v1, v2) ->
       if List.length v1 <> List.length v2
       then (
@@ -275,27 +275,27 @@ let rec diff2 (vs : diff) (ctx : Ast.t) (f : diff_out -> unit) =
           | `Rem stri -> f (`Rem stri.pstr_loc)
           | `Add _ -> failwith "`Add unimplemented");
         let v1, v2 = List.unzip common in
-        diff2_meth __.structure vs v1 v2 ctx f)
-      else diff2_meth __.structure vs v1 v2 ctx f
-  | `Typ (v1, v2) -> diff2_meth __.typ vs v1 v2.ast ctx f
-  | `Cf (v1, v2) -> diff2_meth __.class_field vs v1 v2.ast ctx f
-  | `Cty (v1, v2) -> diff2_meth __.class_type vs v1 v2.ast ctx f
+        diff2_meth __.structure vs v1 v2 Top f)
+      else diff2_meth __.structure vs v1 v2 Top f
+  | `Typ (v1, v2) -> diff2_meth __.typ vs v1 v2.ast (Typ v2.ast) f
+  | `Cf (v1, v2) -> diff2_meth __.class_field vs v1 v2.ast (Clf v2.ast) f
+  | `Cty (v1, v2) -> diff2_meth __.class_type vs v1 v2.ast (Cty v2.ast) f
 
 and diff2_meth : type a.
-    (Ast_mapper.mapper -> Ast_mapper.mapper -> a -> a) -> _ -> a -> a -> _ =
+    (Ast_mapper.mapper -> Ast_mapper.mapper -> a -> a) -> _ -> a -> a -> Ast.t -> _ =
  fun meth vs v1 v2 ctx f ->
   if shallow_equality meth v1 v2
   then
     List.iter2_exn (children Top meth v1) (children ctx meth v2)
       ~f:(fun (_, c1) (ctx, c2) ->
         match (c1, c2) with
-        | `Expr v1, `Expr v2 -> diff2 (`Expr (v1, Ast.sub_exp ~ctx v2)) (Exp v2) f
-        | `Pat v1, `Pat v2 -> diff2 (`Pat (v1, Ast.sub_pat ~ctx v2)) (Pat v2) f
-        | `Stri v1, `Stri v2 -> diff2 (`Stri (v1, Ast.sub_str ~ctx v2)) (Str v2) f
-        | `Str v1, `Str v2 -> diff2 (`Str (v1, v2)) Top f
-        | `Typ v1, `Typ v2 -> diff2 (`Typ (v1, Ast.sub_typ ~ctx v2)) (Typ v2) f
-        | `Cf v1, `Cf v2 -> diff2 (`Cf (v1, Ast.sub_cf ~ctx v2)) (Clf v2) f
-        | `Cty v1, `Cty v2 -> diff2 (`Cty (v1, Ast.sub_cty ~ctx v2)) (Cty v2) f
+        | `Expr v1, `Expr v2 -> diff2 (`Expr (v1, Ast.sub_exp ~ctx v2)) f
+        | `Pat v1, `Pat v2 -> diff2 (`Pat (v1, Ast.sub_pat ~ctx v2)) f
+        | `Stri v1, `Stri v2 -> diff2 (`Stri (v1, Ast.sub_str ~ctx v2)) f
+        | `Str v1, `Str v2 -> diff2 (`Str (v1, v2)) f
+        | `Typ v1, `Typ v2 -> diff2 (`Typ (v1, Ast.sub_typ ~ctx v2)) f
+        | `Cf v1, `Cf v2 -> diff2 (`Cf (v1, Ast.sub_cf ~ctx v2)) f
+        | `Cty v1, `Cty v2 -> diff2 (`Cty (v1, Ast.sub_cty ~ctx v2)) f
         | (`Expr _ | `Pat _ | `Stri _ | `Str _ | `Typ _ | `Cf _ | `Cty _), _ ->
             assert false)
   else f (vs : diff :> diff_out)
@@ -306,7 +306,7 @@ and diff2_meth : type a.
    extended ast, and use it in Fmt_ast, and potentially here. *)
 let diff2 str1 str2 =
   let r = ref [] in
-  diff2 (`Str (str1, str2)) Top (fun diff -> r := diff :: !r);
+  diff2 (`Str (str1, str2)) (fun diff -> r := diff :: !r);
   List.rev !r
 
 type add_comments =
