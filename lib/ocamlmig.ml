@@ -761,7 +761,18 @@ let internal_parsetree =
               Ocamlformat_parser_shims.Clflags.locations := loc;
               Clflags.locations := loc;
               let dune_root = find_dune_root () |> Result.ok_or_failwith in
-              if upstream
+              if false
+              then
+                print_string
+                  (Fmast.debug_print Module_expr
+                     (Fmast.Ast_helper.Mod.structure
+                        [ Fmast.Ast_helper.Str.exception_
+                            (Fmast.Ast_helper.Te.mk_exception
+                               (Fmast.Ast_helper.Te.constructor
+                                  { txt = "A"; loc = Fmast.Location.none }
+                                  (Pext_decl ([], Pcstr_tuple [], None))))
+                        ]))
+              else if upstream
               then
                 let ast = Uast.Parse.implementation (Lexing.from_string code) in
                 Format.printf "%a@." Printast.implementation ast

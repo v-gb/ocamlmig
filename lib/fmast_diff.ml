@@ -12,7 +12,7 @@ let dummy_lidloc : _ Location.loc = { txt = dummy_lid; loc = dummy_loc }
 let dummy_expr = Ast_helper.Exp.hole ()
 let dummy_pat = Ast_helper.Pat.any ()
 let dummy_stri = Ast_helper.Str.eval dummy_expr
-let dummy_str = []
+let dummy_me = Ast_helper.Mod.ident dummy_lidloc
 let dummy_typ = Ast_helper.Typ.any ()
 let dummy_payload : P.payload = PStr []
 let dummy_ext : P.extension = (dummy_stringloc, dummy_payload)
@@ -47,7 +47,7 @@ let shallow_equality =
     ; expr = (fun _ _ -> dummy_expr)
     ; pat = (fun _ _ -> dummy_pat)
     ; structure_item = (fun _ _ -> dummy_stri)
-    ; structure = (fun _ _ -> dummy_str)
+    ; module_expr = (fun _ _ -> dummy_me)
     ; typ = (fun _ _ -> dummy_typ)
     ; class_field = (fun _ _ -> dummy_class_field)
     ; class_type = (fun _ _ -> dummy_class_type)
@@ -124,7 +124,7 @@ let children (ctx : Ocamlformat_lib.Ast.t) meth v =
     | Md _ -> `Ref
     | Cl _ -> `Ref
     | Mty _ -> `Ref
-    | Mod _ -> `Ref
+    | Mod _ -> `Child
     | Sig _ -> `Ref
     | Str _ -> `Child
     | Clf _ -> `Child
@@ -148,9 +148,9 @@ let children (ctx : Ocamlformat_lib.Ast.t) meth v =
         (fun _ v ->
           children := (!ctx, `Stri v) :: !children;
           v)
-    ; structure =
+    ; module_expr =
         (fun _ v ->
-          children := (!ctx, `Str v) :: !children;
+          children := (!ctx, `Me v) :: !children;
           v)
     ; typ =
         (fun _ v ->
@@ -205,9 +205,6 @@ let children (ctx : Ocamlformat_lib.Ast.t) meth v =
     ; module_type =
         (fun self v ->
           Ref.set_temporarily ctx (Mty v) ~f:(fun () -> super.module_type self v))
-    ; module_expr =
-        (fun self v ->
-          Ref.set_temporarily ctx (Mod v) ~f:(fun () -> super.module_expr self v))
     ; signature_item =
         (fun self v ->
           Ref.set_temporarily ctx (Sig v) ~f:(fun () -> super.signature_item self v))
@@ -228,7 +225,7 @@ let sexp_of_xt sexp_of_a (t : _ xt) = sexp_of_a t.ast
 type diff =
   [ `Expr of expression * expression xt
   | `Pat of pattern * pattern xt
-  | `Str of structure * structure
+  | `Me of module_expr * module_expr xt
   | `Stri of structure_item * structure_item xt
   | `Typ of core_type * core_type xt
   | `Cf of class_field * class_field xt
@@ -267,19 +264,37 @@ let rec diff2 (vs : diff) (f : diff_out -> unit) =
   | `Expr (v1, v2) -> diff2_meth __.expr vs v1 v2.ast (Exp v2.ast) f
   | `Pat (v1, v2) -> diff2_meth __.pat vs v1 v2.ast (Pat v2.ast) f
   | `Stri (v1, v2) -> diff2_meth __.structure_item vs v1 v2.ast (Str v2.ast) f
-  | `Str (v1, v2) ->
-      if List.length v1 <> List.length v2
-      then (
-        let diff, common = list_diff v1 v2 __.pstr_loc in
-        List.iter diff ~f:(function
-          | `Rem stri -> f (`Rem stri.pstr_loc)
-          | `Add _ -> failwith "`Add unimplemented");
-        let v1, v2 = List.unzip common in
-        diff2_meth __.structure vs v1 v2 Top f)
-      else diff2_meth __.structure vs v1 v2 Top f
+  | `Me (v1, v2) -> (
+      match (v1.pmod_desc, v2.ast.pmod_desc) with
+      | Pmod_structure l1, Pmod_structure l2 when List.length l1 <> List.length l2 -> (
+          match diff_structure l1 l2 f with
+          | `Ok -> ()
+          | `Whole_structure -> diff2_meth __.module_expr vs v1 v2.ast (Mod v2.ast) f)
+      | _ -> diff2_meth __.module_expr vs v1 v2.ast (Mod v2.ast) f)
   | `Typ (v1, v2) -> diff2_meth __.typ vs v1 v2.ast (Typ v2.ast) f
   | `Cf (v1, v2) -> diff2_meth __.class_field vs v1 v2.ast (Clf v2.ast) f
   | `Cty (v1, v2) -> diff2_meth __.class_type vs v1 v2.ast (Cty v2.ast) f
+
+and diff_structure l1 l2 f =
+  let diff, common =
+    match List.zip l1 l2 with
+    | Ok common -> ([], common)
+    | Unequal_lengths -> list_diff l1 l2 __.pstr_loc
+  in
+  if
+    List.exists diff ~f:(function
+      | `Rem stri ->
+          f (`Rem stri.pstr_loc);
+          false
+      | `Add _ -> true)
+  then
+    (* The problem here is: what position to use for the new structure item? We'd
+         need to keep track of neighboring items. *)
+    `Whole_structure
+  else (
+    List.iter common ~f:(fun (stri1, stri2) ->
+        diff2 (`Stri (stri1, Ast.sub_str ~ctx:Top stri2)) f);
+    `Ok)
 
 and diff2_meth : type a.
     (Ast_mapper.mapper -> Ast_mapper.mapper -> a -> a) -> _ -> a -> a -> Ast.t -> _ =
@@ -292,11 +307,11 @@ and diff2_meth : type a.
         | `Expr v1, `Expr v2 -> diff2 (`Expr (v1, Ast.sub_exp ~ctx v2)) f
         | `Pat v1, `Pat v2 -> diff2 (`Pat (v1, Ast.sub_pat ~ctx v2)) f
         | `Stri v1, `Stri v2 -> diff2 (`Stri (v1, Ast.sub_str ~ctx v2)) f
-        | `Str v1, `Str v2 -> diff2 (`Str (v1, v2)) f
+        | `Me v1, `Me v2 -> diff2 (`Me (v1, Ast.sub_mod ~ctx v2)) f
         | `Typ v1, `Typ v2 -> diff2 (`Typ (v1, Ast.sub_typ ~ctx v2)) f
         | `Cf v1, `Cf v2 -> diff2 (`Cf (v1, Ast.sub_cf ~ctx v2)) f
         | `Cty v1, `Cty v2 -> diff2 (`Cty (v1, Ast.sub_cty ~ctx v2)) f
-        | (`Expr _ | `Pat _ | `Stri _ | `Str _ | `Typ _ | `Cf _ | `Cty _), _ ->
+        | (`Expr _ | `Pat _ | `Stri _ | `Me _ | `Typ _ | `Cf _ | `Cty _), _ ->
             assert false)
   else f (vs : diff :> diff_out)
 
@@ -306,8 +321,9 @@ and diff2_meth : type a.
    extended ast, and use it in Fmt_ast, and potentially here. *)
 let diff2 str1 str2 =
   let r = ref [] in
-  diff2 (`Str (str1, str2)) (fun diff -> r := diff :: !r);
-  List.rev !r
+  match diff_structure str1 str2 (fun diff -> r := diff :: !r) with
+  | `Ok -> `Ok (List.rev !r)
+  | `Whole_structure -> `Whole_structure
 
 type add_comments =
   { add_comments :
@@ -363,69 +379,76 @@ let minprint ~debug_diff ~source_contents ~structure ~structure' =
     | `Expr (e, _) -> e.pexp_loc
     | `Pat (p, _) -> p.ppat_loc
     | `Stri (si, _) -> si.pstr_loc
-    | `Str _ -> assert false
+    | `Me (me, _) -> me.pmod_loc
     | `Typ (t, _) -> t.ptyp_loc
     | `Cf (v, _) -> v.pcf_loc
     | `Cty (v, _) -> v.pcty_loc
     | `Rem loc -> loc
   in
-  let l =
-    diff2 structure.ast structure'
-    |> List.sort ~compare:(fun a b -> Location.compare (loc_of_diff a) (loc_of_diff b))
-  in
-  let prev = ref None in
-  List.iter l ~f:(fun x ->
-      Option.iter !prev ~f:(fun prev ->
-          if (loc_of_diff prev).loc_end.pos_cnum > (loc_of_diff x).loc_start.pos_cnum
-          then
-            raise_s
-              [%sexp
-                "unexpected overlap in diff"
-              , (prev : diff_out)
-              , (loc_of_diff prev : Location.t)
-              , (x : diff_out)
-              , (loc_of_diff x : Location.t)]);
-      prev := Some x);
-  (* ideally, we'd pass the context into the printing function, so ocamlformat can
-     print parens nicely, instead of this hack *)
-  let parens_if b str = if b then "(" ^ str ^ ")" else str in
-  List.iter l ~f:(fun diff ->
-      let loc, str =
-        match diff with
-        | `Expr (e1, e2) ->
-            ( e1.pexp_loc
-            , parens_if (Ast.parenze_exp e2)
-                (printed_ast add_comments e1.pexp_loc Expression e2.ast) )
-        | `Pat (p1, p2) ->
-            ( p1.ppat_loc
-            , parens_if (Ast.parenze_pat p2)
-                (printed_ast add_comments p1.ppat_loc Pattern p2.ast) )
-        | `Stri (s1, s2) ->
-            (s1.pstr_loc, printed_ast add_comments s1.pstr_loc Structure [ s2.ast ])
-        | `Str _ -> assert false
-        | `Typ (t1, t2) ->
-            ( t1.ptyp_loc
-            , parens_if (Ast.parenze_typ t2)
-                (printed_ast add_comments t1.ptyp_loc Core_type t2.ast) )
-        | `Cf (v1, v2) ->
-            (v1.pcf_loc, printed_ast add_comments v1.pcf_loc Class_field v2.ast)
-        | `Cty (v1, v2) ->
-            ( v1.pcty_loc
-            , parens_if (Ast.parenze_cty v2)
-                (printed_ast add_comments v1.pcty_loc Class_type v2.ast) )
-        | `Rem loc -> (loc, "")
+  match diff2 structure.ast structure' with
+  | `Whole_structure ->
+      ocamlformat_print ~conf:Ocamlformat_lib.Conf.default Structure
+        { structure with ast = structure' }
+  | `Ok l ->
+      let l =
+        List.sort l ~compare:(fun a b -> Location.compare (loc_of_diff a) (loc_of_diff b))
       in
-      copy_orig loc.loc_start.pos_cnum;
-      if debug_diff
-      then (
-        Buffer.add_string buf "[34m[[31m";
-        copy_orig loc.loc_end.pos_cnum;
-        Buffer.add_string buf "[32m");
-      Buffer.add_string buf str;
-      if debug_diff then Buffer.add_string buf "[34m][39m";
-      pos := loc.loc_end.pos_cnum);
-  copy_orig (String.length source_contents);
-  Buffer.contents buf
+      let prev = ref None in
+      List.iter l ~f:(fun x ->
+          Option.iter !prev ~f:(fun prev ->
+              if (loc_of_diff prev).loc_end.pos_cnum > (loc_of_diff x).loc_start.pos_cnum
+              then
+                raise_s
+                  [%sexp
+                    "unexpected overlap in diff"
+                  , (prev : diff_out)
+                  , (loc_of_diff prev : Location.t)
+                  , (x : diff_out)
+                  , (loc_of_diff x : Location.t)]);
+          prev := Some x);
+      (* ideally, we'd pass the context into the printing function, so ocamlformat can
+     print parens nicely, instead of this hack *)
+      let parens_if b str = if b then "(" ^ str ^ ")" else str in
+      List.iter l ~f:(fun diff ->
+          let loc, str =
+            match diff with
+            | `Expr (e1, e2) ->
+                ( e1.pexp_loc
+                , parens_if (Ast.parenze_exp e2)
+                    (printed_ast add_comments e1.pexp_loc Expression e2.ast) )
+            | `Pat (p1, p2) ->
+                ( p1.ppat_loc
+                , parens_if (Ast.parenze_pat p2)
+                    (printed_ast add_comments p1.ppat_loc Pattern p2.ast) )
+            | `Stri (s1, s2) ->
+                (s1.pstr_loc, printed_ast add_comments s1.pstr_loc Structure [ s2.ast ])
+            | `Me (v1, v2) ->
+                ( v1.pmod_loc
+                , String.lstrip (printed_ast add_comments v1.pmod_loc Module_expr v2.ast)
+                )
+            | `Typ (t1, t2) ->
+                ( t1.ptyp_loc
+                , parens_if (Ast.parenze_typ t2)
+                    (printed_ast add_comments t1.ptyp_loc Core_type t2.ast) )
+            | `Cf (v1, v2) ->
+                (v1.pcf_loc, printed_ast add_comments v1.pcf_loc Class_field v2.ast)
+            | `Cty (v1, v2) ->
+                ( v1.pcty_loc
+                , parens_if (Ast.parenze_cty v2)
+                    (printed_ast add_comments v1.pcty_loc Class_type v2.ast) )
+            | `Rem loc -> (loc, "")
+          in
+          copy_orig loc.loc_start.pos_cnum;
+          if debug_diff
+          then (
+            Buffer.add_string buf "[34m[[31m";
+            copy_orig loc.loc_end.pos_cnum;
+            Buffer.add_string buf "[32m");
+          Buffer.add_string buf str;
+          if debug_diff then Buffer.add_string buf "[34m][39m";
+          pos := loc.loc_end.pos_cnum);
+      copy_orig (String.length source_contents);
+      Buffer.contents buf
 
 (* problems:
    - should avoid assert failure on additions of structure items
