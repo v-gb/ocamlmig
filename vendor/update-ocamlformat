@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e -u -o pipefail
 cd "$(dirname "$0")"
-REV=e270abbfdc8334c5d9a8c58a4a3d139a2fb8e1e3
+REV=689261af1fa14f22c2ad3973325bf29e244736cc
 TMP=/tmp/ocamlformat-$REV
 if ! [ -d "$TMP" ]; then
     git clone https://github.com/v-gb/ocamlformat --no-checkout "$TMP"

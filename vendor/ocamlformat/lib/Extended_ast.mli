@@ -29,6 +29,7 @@ type 'a t =
   | Pattern : pattern t
   | Class_field : class_field t
   | Class_type : class_type t
+  | Module_expr : module_expr t
 
 type any_t = Any : 'a t -> any_t [@@unboxed]
 

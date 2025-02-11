@@ -4848,6 +4848,12 @@ let fmt_file (type a) ~ctx ~fmt_code ~debug (fragment : a Extended_ast.t)
                 ; pctf_loc= Location.none
                 ; pctf_attributes= [] } )
            itms )
+  | Module_expr, _ ->
+      fmt_module_statement c
+        ~attributes:{attrs_before= []; attrs_after= []; attrs_extension= None}
+        (sub_mod
+           ~ctx:(Str (Ast_helper.Str.include_ (Ast_helper.Incl.mk itms)))
+           itms )
 
 let fmt_parse_result conf ~debug ast_kind ast source comments
     ~set_margin:set_margin_p ~fmt_code =
