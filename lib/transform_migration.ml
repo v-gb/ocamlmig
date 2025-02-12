@@ -1619,7 +1619,7 @@ let update_attribute_payload_fmast (attributes : P.attributes) payload =
         { attr with attr_payload = PStr (payload_attribute ~attrs payload) }
     | z -> z)
 
-let find_side_migration_uast ~fmconf (e : Typedtree.expression) =
+let find_extra_migration_uast ~fmconf (e : Typedtree.expression) =
   match e.exp_desc with
   | Texp_ident (_, id, _) -> (
       match find_attribute_payload_uast ~fmconf e.exp_attributes with
@@ -1652,7 +1652,7 @@ let find_side_migration_uast ~fmconf (e : Typedtree.expression) =
       | Some payload -> Some (e1, id1, payload))
   | _ -> None
 
-let find_side_migration_fmast (e : P.expression) =
+let find_extra_migration_fmast (e : P.expression) =
   match e.pexp_desc with
   | Pexp_ident id -> (
       match find_attribute_payload_fmast e.pexp_attributes with
@@ -1792,7 +1792,7 @@ let payload_from_val_fmast ~fmconf ~type_index ~artifacts (comp_unit, id, ident_
                   opt)))
   | _ -> None
 
-let payload_from_occurence_fmast ~fmconf ~context ~artifacts ~side_migrations
+let payload_from_occurence_fmast ~fmconf ~context ~artifacts ~extra_migrations
     (comp_unit, id) =
   match decl_from_id_fmast ~context ~artifacts (comp_unit, id) with
   | None -> None
@@ -1800,7 +1800,7 @@ let payload_from_occurence_fmast ~fmconf ~context ~artifacts ~side_migrations
       let decl_id =
         match id.txt with Lapply _ -> None | _ -> Some (Decl_id.create id.txt vb)
       in
-      match Option.bind decl_id ~f:(Hashtbl.find side_migrations) with
+      match Option.bind decl_id ~f:(Hashtbl.find extra_migrations) with
       | Some _ as opt ->
           if !log || debug.all
           then
@@ -1885,11 +1885,11 @@ let relativize path e =
   in
   self.expr self e
 
-let inline ~fmconf ~type_index ~side_migrations_cmts ~artifacts:(comp_unit, artifacts)
+let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, artifacts)
     ~changed_something ~add_depends =
-  let side_migrations = Hashtbl.create (module Decl_id) in
-  let add_side_migration_fmast ~comp_unit (expr : P.expression) =
-    match find_side_migration_fmast expr with
+  let extra_migrations = Hashtbl.create (module Decl_id) in
+  let add_extra_migration_fmast ~comp_unit (expr : P.expression) =
+    match find_extra_migration_fmast expr with
     | Some (_src, src_id, _, payload) -> (
         match
           decl_from_id_fmast ~context:"adding inline side migration" ~artifacts
@@ -1897,10 +1897,10 @@ let inline ~fmconf ~type_index ~side_migrations_cmts ~artifacts:(comp_unit, arti
         with
         | None -> ()
         | Some vb ->
-            Hashtbl.set side_migrations ~key:(Decl_id.create src_id.txt vb) ~data:payload)
+            Hashtbl.set extra_migrations ~key:(Decl_id.create src_id.txt vb) ~data:payload)
     | _ -> ()
   in
-  Option.iter side_migrations_cmts
+  Option.iter extra_migrations_cmts
     ~f:(fun (cmt_path, (cmt_infos : Cmt_format.cmt_infos)) ->
       match
         Option.bind cmt_infos.cmt_sourcefile ~f:(fun sourcefile ->
@@ -1929,7 +1929,7 @@ let inline ~fmconf ~type_index ~side_migrations_cmts ~artifacts:(comp_unit, arti
             { super with
               expr =
                 (fun self expr ->
-                  add_side_migration_fmast ~comp_unit:cmt_infos.cmt_modname expr;
+                  add_extra_migration_fmast ~comp_unit:cmt_infos.cmt_modname expr;
                   super.expr self expr)
             }
           in
@@ -1940,7 +1940,7 @@ let inline ~fmconf ~type_index ~side_migrations_cmts ~artifacts:(comp_unit, arti
             { super with
               expr =
                 (fun self expr ->
-                  (match find_side_migration_uast ~fmconf expr with
+                  (match find_extra_migration_uast ~fmconf expr with
                   | Some (_src, src_id, repl) -> (
                       match
                         decl_from_id_uast ~context:"adding side migration" ~artifacts
@@ -1948,7 +1948,7 @@ let inline ~fmconf ~type_index ~side_migrations_cmts ~artifacts:(comp_unit, arti
                       with
                       | None -> ()
                       | Some vb ->
-                          Hashtbl.set side_migrations
+                          Hashtbl.set extra_migrations
                             ~key:(Decl_id.create (Conv.longident src_id.txt) vb)
                             ~data:repl)
                   | None -> ());
@@ -1982,8 +1982,8 @@ let inline ~fmconf ~type_index ~side_migrations_cmts ~artifacts:(comp_unit, arti
     then Ref.set_temporarily ocamlformat_disabled true ~f:(fun () -> wrapped self si)
     else wrapped self si
   in
-  if debug.side_migrations
-  then print_s [%sexp ~~(side_migrations : migrate_payload Hashtbl.M(Decl_id).t)];
+  if debug.extra_migrations
+  then print_s [%sexp ~~(extra_migrations : migrate_payload Hashtbl.M(Decl_id).t)];
   let super = Ast_mapper.default_mapper in
   { super with
     expr =
@@ -1999,7 +1999,7 @@ let inline ~fmconf ~type_index ~side_migrations_cmts ~artifacts:(comp_unit, arti
                   | Some _ as opt -> opt
                   | None ->
                       payload_from_occurence_fmast ~fmconf ~context:"lookup migration"
-                        ~artifacts ~side_migrations (comp_unit, id)
+                        ~artifacts ~extra_migrations (comp_unit, id)
                 with
                 | None -> super.expr self expr
                 | Some { repl = to_expr; libraries } ->
@@ -2027,7 +2027,7 @@ let inline ~fmconf ~type_index ~side_migrations_cmts ~artifacts:(comp_unit, arti
             | _ -> super.expr self expr
           in
           (* After the lookup, so we don't replace the definition itself. *)
-          add_side_migration_fmast ~comp_unit expr;
+          add_extra_migration_fmast ~comp_unit expr;
           expr')
   ; structure_item =
       record_if_ocamlformat_disabled
@@ -2166,7 +2166,7 @@ let use_preferred_names structure =
   in
   self.structure self structure
 
-let run ~artifacts ~type_index ~side_migrations_cmts ~fmconf ~source_path
+let run ~artifacts ~type_index ~extra_migrations_cmts ~fmconf ~source_path
     ~input_name_matching_compilation_command =
   process_file' ~fmconf ~source_path ~input_name_matching_compilation_command
     (fun changed_something structure ->
@@ -2175,7 +2175,7 @@ let run ~artifacts ~type_index ~side_migrations_cmts ~fmconf ~source_path
       in
       let depends = Queue.create () in
       let inline =
-        inline ~fmconf ~type_index ~side_migrations_cmts ~artifacts ~changed_something
+        inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts ~changed_something
           ~add_depends:(Queue.enqueue_all depends)
       in
       let simplify =

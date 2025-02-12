@@ -41,7 +41,7 @@ cat <<EOF
 *** All good! ***
 Now look at bin/main.ml, and try these:
 $ ocamlmig mig
-$ ocamlmig mig -side-migration ocamlmig.stdlib_to_stdlib
+$ ocamlmig mig -extra-migration ocamlmig.stdlib_to_stdlib
 EOF
 ```
 
@@ -204,7 +204,7 @@ In general, the `migrate` attribute is supported:
     - They must be defined in a single-module library. Let's say the library is called
       `use_labels`, then the code above would live in `use_labels.ml`.
     - `ocamlmig migrate` will not apply such transform automatically, this must be
-      requested explicitly with a `-side-migration use_labels` flag.
+      requested explicitly with a `-extra-migration use_labels` flag.
 
     Currently, the following syntax is also supported:
     

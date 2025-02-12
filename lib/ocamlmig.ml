@@ -334,8 +334,8 @@ let migrate =
         let source = source_param
         and write = write_param
         and get_ocamlformat_conf = ocamlformat_conf_param
-        and side_migrations_libraries =
-          flag "-side-migrations"
+        and extra_migrations_libraries =
+          flag "-extra-migrations"
             ~doc:
               "library_name The name of a library in which ocamlmig will look for \
                attributes [let _ = source_function [@migrate ...]], e.g. \
@@ -369,8 +369,8 @@ let migrate =
                             ( cmt_infos.cmt_modname
                             , Build.Artifacts.create ~cache:artifacts_cache listing )
                           in
-                          let side_migrations_cmts =
-                            Option.map side_migrations_libraries ~f:(fun library_name ->
+                          let extra_migrations_cmts =
+                            Option.map extra_migrations_libraries ~f:(fun library_name ->
                                 match
                                   Build.Artifacts.locate_cmt_from_library_name
                                     (snd artifacts) ~dune_root ~library_name
@@ -384,7 +384,7 @@ let migrate =
                           in
                           with_reported_ocaml_exn report_exn None (fun () ->
                               Transform_migration.run ~fmconf ~artifacts ~source_path
-                                ~side_migrations_cmts ~type_index
+                                ~extra_migrations_cmts ~type_index
                                 ~input_name_matching_compilation_command:
                                   (Build.input_name_matching_compilation_command cmt_infos))
                           |> Option.iter ~f:(fun (contents, { libraries }) ->

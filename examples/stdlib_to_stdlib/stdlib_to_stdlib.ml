@@ -2,7 +2,7 @@
     using [Float.acos] instead of [acos].
 
     This is intended to br used this way:
-    {v ocamlmig migrate -side-migration ocamlmig.stdlib_to_stdlib v} *)
+    {v ocamlmig migrate -extra-migration ocamlmig.stdlib_to_stdlib v} *)
 
 (*
 let _ = [ ( == ); phys_equal ] [@@migrate]

@@ -20,25 +20,25 @@ type debug =
   { all : bool
   ; build_artifacts : bool
   ; ocamlformat : bool
-  ; side_migrations : bool
+  ; extra_migrations : bool
   }
 
 let debug =
-  let all b = { all = b; build_artifacts = b; ocamlformat = b; side_migrations = b } in
+  let all b = { all = b; build_artifacts = b; ocamlformat = b; extra_migrations = b } in
   let no_debug = all false in
   match Base.Sys.getenv "DEBUG" with
   | None -> no_debug
   | Some "help" ->
       print_string
         (String.concat_lines
-           [ "all"; "build_artifacts"; "ocamlformat"; "side_migrations" ]);
+           [ "all"; "build_artifacts"; "ocamlformat"; "extra_migrations" ]);
       Stdlib.exit 0
   | Some str ->
       List.fold_left (String.split str ~on:',') ~init:no_debug ~f:(fun d -> function
         | "all" -> all true
         | "build_artifacts" -> { d with build_artifacts = true }
         | "ocamlformat" -> { d with ocamlformat = true }
-        | "side_migrations" -> { d with side_migrations = true }
+        | "extra_migrations" -> { d with extra_migrations = true }
         | s ->
             eprintf "DEBUG: unknown field %S (see DEBUG=help)\n" s;
             d)

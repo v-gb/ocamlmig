@@ -142,7 +142,7 @@ let run_structure structure =
     { super with
       expr =
         (fun self expr ->
-          match Transform_migration.find_side_migration_fmast expr with
+          match Transform_migration.find_extra_migration_fmast expr with
           | None -> super.expr self expr
           | Some (src, src_id, _, { repl; libraries = _ }) -> (
               match inverse_equation { src with pexp_attributes = [] } repl with

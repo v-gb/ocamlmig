@@ -26,7 +26,7 @@ let run_structure changed_something structure =
     { super with
       expr =
         (fun self expr ->
-          match Transform_migration.find_side_migration_fmast expr with
+          match Transform_migration.find_extra_migration_fmast expr with
           | None -> super.expr self expr
           | Some (id_expr, _, _, { repl; libraries = _ }) ->
               changed_something := true;

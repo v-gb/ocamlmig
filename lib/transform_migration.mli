@@ -9,7 +9,7 @@ type res = { libraries : string list }
 val run :
      artifacts:string * Build.Artifacts.t
   -> type_index:Build.Type_index.t
-  -> side_migrations_cmts:(Cwdpath.t * Cmt_format.cmt_infos) option
+  -> extra_migrations_cmts:(Cwdpath.t * Cmt_format.cmt_infos) option
   -> fmconf:Ocamlformat_lib.Conf_t.t
   -> source_path:Cwdpath.t
   -> input_name_matching_compilation_command:string option
@@ -27,7 +27,7 @@ type 'repl gen_migrate_payload =
 
 type migrate_payload = P.expression gen_migrate_payload [@@deriving sexp_of]
 
-val find_side_migration_fmast :
+val find_extra_migration_fmast :
      P.expression
   -> (P.expression
      * Fmast.Longident.t Fmast.Location.loc
