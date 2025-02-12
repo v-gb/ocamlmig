@@ -1885,8 +1885,7 @@ let relativize path e =
   in
   self.expr self e
 
-let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, artifacts)
-    ~changed_something ~add_depends =
+let load_extra_migrations ~cmts ~artifacts ~fmconf =
   let extra_migrations = Hashtbl.create (module Decl_id) in
   let add_extra_migration_fmast ~comp_unit (expr : P.expression) =
     match find_extra_migration_fmast expr with
@@ -1897,11 +1896,11 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
         with
         | None -> ()
         | Some vb ->
-            Hashtbl.set extra_migrations ~key:(Decl_id.create src_id.txt vb) ~data:payload)
+            Hashtbl.set extra_migrations ~key:(Decl_id.create src_id.txt vb) ~data:payload
+        )
     | _ -> ()
   in
-  Option.iter extra_migrations_cmts
-    ~f:(fun (cmt_path, (cmt_infos : Cmt_format.cmt_infos)) ->
+  Option.iter cmts ~f:(fun (cmt_path, (cmt_infos : Cmt_format.cmt_infos)) ->
       match
         Option.bind cmt_infos.cmt_sourcefile ~f:(fun sourcefile ->
             let source_basename = Filename.basename sourcefile in
@@ -1958,6 +1957,15 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
           match cmt_infos.cmt_annots with
           | Implementation structure -> self.structure self structure
           | _ -> failwith "cmt didn't contains what's expected"));
+  if debug.extra_migrations
+  then print_s [%sexp ~~(extra_migrations : migrate_payload Hashtbl.M(Decl_id).t)];
+  (extra_migrations, add_extra_migration_fmast)
+
+let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, artifacts)
+    ~changed_something ~add_depends =
+  let extra_migrations, add_extra_migration_fmast =
+    load_extra_migrations ~cmts:extra_migrations_cmts ~artifacts ~fmconf
+  in
   let ocamlformat_disabled = ref false in
   let has_disabled_ocamlformat (si : Parsetree.structure_item) =
     match si.pstr_desc with
@@ -1982,8 +1990,6 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
     then Ref.set_temporarily ocamlformat_disabled true ~f:(fun () -> wrapped self si)
     else wrapped self si
   in
-  if debug.extra_migrations
-  then print_s [%sexp ~~(extra_migrations : migrate_payload Hashtbl.M(Decl_id).t)];
   let super = Ast_mapper.default_mapper in
   { super with
     expr =
