@@ -676,9 +676,7 @@ module Type_index = struct
     }
   [@@deriving sexp_of]
 
-  let create_from_cmt_infos (cmt_infos : Cmt_format.cmt_infos) (listing1 : Listing.one) =
-    Load_path.init ~auto_include:Load_path.no_auto_include ~visible:[] ~hidden:[];
-    List.iter listing1.cmt_load_paths ~f:(fun (lazy dir) -> Load_path.append_dir dir);
+  let create_without_setting_up_loadpath (cmt_infos : Cmt_format.cmt_infos) =
     match cmt_infos.cmt_annots with
     | Implementation structure ->
         let h_expr = Hashtbl.create (module Uast.Location.Ignoring_filename) in
@@ -727,6 +725,11 @@ module Type_index = struct
     | Partial_implementation _ ->
         failwith "unexpected content of cmt (file doesn't fully type?)"
     | _ -> failwith "unexpected content of cmt"
+
+  let create_from_cmt_infos cmt_infos (listing1 : Listing.one) =
+    Load_path.init ~auto_include:Load_path.no_auto_include ~visible:[] ~hidden:[];
+    List.iter listing1.cmt_load_paths ~f:(fun (lazy dir) -> Load_path.append_dir dir);
+    create_without_setting_up_loadpath cmt_infos
 
   let create cmt_path listing1 = create_from_cmt_infos (read_cmt cmt_path) listing1
   let expr t loc = Hashtbl.find_multi t.expr loc

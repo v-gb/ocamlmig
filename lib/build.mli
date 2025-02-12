@@ -105,6 +105,11 @@ module Type_index : sig
 
   val create : Cwdpath.t -> Listing.one -> t
   val create_from_cmt_infos : Cmt_format.cmt_infos -> Listing.one -> t
+
+  (* Not sure in what way setting up the load path is necessary. I guess we'll see
+     if this causes problems or not. Maybe instead of trying to mimic the load paths
+     of the program, I should just use the maximum load path possible. *)
+  val create_without_setting_up_loadpath : Cmt_format.cmt_infos -> t
   val expr : t -> Location.t -> Typedtree.expression list
   val typ : t -> Location.t -> Typedtree.core_type list
   val pat : t -> Location.t -> any_pattern list

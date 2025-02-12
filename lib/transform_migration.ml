@@ -1802,7 +1802,7 @@ let payload_from_occurence_fmast ~fmconf ~context ~artifacts ~extra_migrations
               [%sexp
                 (id.txt : Longident.t)
               , "found side migration"
-              , (opt : migrate_payload option)];
+              , (opt : (migrate_payload * _ option) option)];
           opt
       | None -> (
           match
@@ -1824,7 +1824,7 @@ let payload_from_occurence_fmast ~fmconf ~context ~artifacts ~extra_migrations
           | Some _ as opt ->
               if !log || debug.all
               then print_s [%sexp (id.txt : Longident.t), "found attribute on def"];
-              opt))
+              Option.map opt ~f:(fun x -> (x, None))))
 
 (* A.B.C.d -> Ldot (Ldot (Ldot (Ldot (Lident A), B), C), d)
    F(M).t -> Ldot (Lapply (F, M)) t
@@ -1881,7 +1881,7 @@ let relativize path e =
 
 let load_extra_migrations ~cmts ~artifacts ~fmconf =
   let extra_migrations = Hashtbl.create (module Decl_id) in
-  let add_extra_migration_fmast ~comp_unit (expr : P.expression) =
+  let add_extra_migration_fmast ~type_index ~comp_unit (expr : P.expression) =
     match find_extra_migration_fmast expr with
     | Some (_src, src_id, _, payload) -> (
         match
@@ -1890,8 +1890,9 @@ let load_extra_migrations ~cmts ~artifacts ~fmconf =
         with
         | None -> ()
         | Some vb ->
-            Hashtbl.set extra_migrations ~key:(Decl_id.create src_id.txt vb) ~data:payload
-        )
+            Hashtbl.set extra_migrations
+              ~key:(Decl_id.create src_id.txt vb)
+              ~data:(payload, type_index))
     | _ -> ()
   in
   Option.iter cmts ~f:(fun (cmt_path, (cmt_infos : Cmt_format.cmt_infos)) ->
@@ -1909,6 +1910,9 @@ let load_extra_migrations ~cmts ~artifacts ~fmconf =
                 if Sys.file_exists f then Some f else None))
       with
       | Some source_path ->
+          let type_index =
+            Build.Type_index.create_without_setting_up_loadpath cmt_infos
+          in
           (* This branch is to handle expressions like let _ = [ id; repl ] [@@migrate],
             so we have the parsetree of repl, instead of the typedtree, which can be
             different from the syntax (optional arguments filled in for instance). *)
@@ -1922,7 +1926,8 @@ let load_extra_migrations ~cmts ~artifacts ~fmconf =
             { super with
               expr =
                 (fun self expr ->
-                  add_extra_migration_fmast ~comp_unit:cmt_infos.cmt_modname expr;
+                  add_extra_migration_fmast ~type_index:(Some type_index)
+                    ~comp_unit:cmt_infos.cmt_modname expr;
                   super.expr self expr)
             }
           in
@@ -1943,7 +1948,7 @@ let load_extra_migrations ~cmts ~artifacts ~fmconf =
                       | Some vb ->
                           Hashtbl.set extra_migrations
                             ~key:(Decl_id.create (Conv.longident src_id.txt) vb)
-                            ~data:repl)
+                            ~data:(repl, None))
                   | None -> ());
                   super.expr self expr)
             }
@@ -1952,8 +1957,71 @@ let load_extra_migrations ~cmts ~artifacts ~fmconf =
           | Implementation structure -> self.structure self structure
           | _ -> failwith "cmt didn't contains what's expected"));
   if debug.extra_migrations
-  then print_s [%sexp ~~(extra_migrations : migrate_payload Hashtbl.M(Decl_id).t)];
+  then
+    print_s
+      [%sexp ~~(extra_migrations : (migrate_payload * _ option) Hashtbl.M(Decl_id).t)];
   (extra_migrations, add_extra_migration_fmast)
+
+let requalify ((expr : P.expression), expr_type_index) new_base_env =
+  if !log || debug.all then print_s [%sexp `requalify (expr : Fmast.expression)];
+  match Build.Type_index.expr expr_type_index (Conv.location' expr.pexp_loc) with
+  | [] -> expr
+  | texp :: _ ->
+      let rebased_env =
+        let base_env = Env.summary texp.exp_env in
+        let n_to_chop = Uast.Env_summary.length base_env in
+        fun (env : Env.t) ->
+          Env.env_of_only_summary
+            (fun sum subst ->
+              let sum =
+                Uast.Env_summary.at_exn sum
+                  (Uast.Env_summary.length sum - n_to_chop)
+                  (fun _ -> Env.summary new_base_env)
+              in
+              Envaux.env_from_summary sum subst)
+            env
+      in
+      let rec req : type a. (Path.t * a) Uast.ns -> _ -> _ -> Longident.t -> Longident.t =
+       fun ns env1 env2 -> function
+         | Lident s -> (
+             (* Ideally, we'd share something with transform_scope.ml *)
+             match Uast.find_by_name ns env1 (Lident s) with
+             | exception Stdlib.Not_found ->
+                 if !log || debug.all
+                 then print_s [%sexp `requalify_lident (s : string), `Out_of_scope];
+                 Lident s
+             | path, v -> (
+                 if !log || debug.all then print_s [%sexp `requalify_lident (s : string)];
+                 match Uast.find_by_name ns env2 (Lident s) with
+                 | _, v' when Shape.Uid.equal (Uast.uid ns v) (Uast.uid ns v') -> Lident s
+                 | (exception Stdlib.Not_found) | _ -> Transform_scope.ident_of_path path)
+             )
+         | Ldot (lid, s) -> Ldot (req Module env1 env2 lid, s)
+         | Lapply (lid1, lid2) -> Lapply (req Module env1 env2 lid1, req ns env1 env2 lid2)
+      in
+      let self =
+        let super = Ast_mapper.default_mapper in
+        { super with
+          expr =
+            (fun self expr ->
+              let expr = super.expr self expr in
+              match expr with
+              | { pexp_desc = Pexp_ident { txt = var; loc }; _ } -> (
+                  match
+                    Build.Type_index.expr expr_type_index (Conv.location' expr.pexp_loc)
+                  with
+                  | [] -> expr
+                  | texp :: _ ->
+                      let var' =
+                        req Value
+                          (Envaux.env_of_only_summary texp.exp_env)
+                          (rebased_env texp.exp_env) var
+                      in
+                      { expr with pexp_desc = Pexp_ident { txt = var'; loc } })
+              | _ -> expr)
+        }
+      in
+      self.expr self expr
 
 let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, artifacts)
     ~changed_something ~add_depends =
@@ -1996,13 +2064,13 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                     payload_from_val_fmast ~fmconf ~type_index ~artifacts
                       (comp_unit, id.txt, expr.pexp_loc)
                   with
-                  | Some _ as opt -> opt
+                  | Some _ as opt -> Option.map opt ~f:(fun x -> (x, None))
                   | None ->
                       payload_from_occurence_fmast ~fmconf ~context:"lookup migration"
                         ~artifacts ~extra_migrations (comp_unit, id)
                 with
                 | None -> super.expr self expr
-                | Some { repl = to_expr; libraries } ->
+                | Some ({ repl = to_expr; libraries }, repl_type_index) ->
                     if !log && !ocamlformat_disabled
                     then
                       print_s
@@ -2011,6 +2079,17 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                            \"disable\"]. The ocamlformat printer will ignore all \
                            modifications made."];
                     add_depends libraries;
+                    let to_expr =
+                      match repl_type_index with
+                      | None -> to_expr
+                      | Some repl_type_index -> (
+                          match
+                            Build.Type_index.expr type_index
+                              (Conv.location' expr.pexp_loc)
+                          with
+                          | texp :: _ -> requalify (to_expr, repl_type_index) texp.exp_env
+                          | [] -> to_expr)
+                    in
                     let to_expr = relativize id.txt to_expr in
                     let to_expr =
                       preserve_loc_to_preserve_comment_pos_expr ~from:expr to_expr
@@ -2027,7 +2106,7 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
             | _ -> super.expr self expr
           in
           (* After the lookup, so we don't replace the definition itself. *)
-          add_extra_migration_fmast ~comp_unit expr;
+          add_extra_migration_fmast ~type_index:(Some type_index) ~comp_unit expr;
           expr')
   ; structure_item =
       record_if_ocamlformat_disabled

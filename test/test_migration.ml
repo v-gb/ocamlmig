@@ -577,19 +577,29 @@ let () =
     end)
 
 let () =
-  (* bug: side migrations should also be sourced from cmt files *)
-  test "side migration"
+  (* bug: extra migrations should also be sourced from cmt files *)
+  test "extra migration"
     (module struct
       let _ = List.map [@migrate { repl = (fun f l -> Base.List.map l ~f) }]
 
       let __ = (List.map Fun.id [], Stdlib.List.map Fun.id [])
       [@@migrate_test let __ = (Base.List.map ~f:Fun.id [], Base.List.map ~f:Fun.id [])]
 
-      (* Side migrations in list syntax. *)
+      (* Extra migrations in list syntax. *)
       let f ?(a = 0) ~b ~c () = a + b + c
       let f2 = f
       let _ = [ f; (fun ?a:_ ~b ~c () -> f2 ~c ~b ()) ] [@migrate]
       let __ = f ~c:1 ~b:2 () [@@migrate_test let __ = f2 ~c:1 ~b:2 ()]
+
+      (* When we have type information (in list syntax, currently), we avoid
+         captures in the replacement expression. *)
+      let _ = [ infinity; Float.infinity ] [@migrate]
+      let _ = [ max_int; Int.max_int ] [@migrate]
+
+      module Float = struct end
+
+      let _ = (infinity, max_int)
+      [@@migrate_test let _ = (Stdlib.Float.infinity, Int.max_int)]
     end)
 
 let () =

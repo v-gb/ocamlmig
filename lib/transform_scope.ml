@@ -656,6 +656,12 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
   in
   self.structure self structure
 
+let rec ident_of_path : Path.t -> Longident.t = function
+  | Pident ident -> Lident (Ident.name ident)
+  | Pdot (p, s) -> Ldot (ident_of_path p, s)
+  | Papply (p1, p2) -> Lapply (ident_of_path p1, ident_of_path p2)
+  | Pextra_ty _ -> raise Stdlib.Not_found
+
 let qualify_for_open ~changed_something ~artifacts ~type_index
     ~(cmt_infos : Cmt_format.cmt_infos) structure root ~bang ~conservative =
   let comp_unit = cmt_infos.cmt_modname in
@@ -682,12 +688,6 @@ let qualify_for_open ~changed_something ~artifacts ~type_index
     Env.env_of_only_summary
       (fun sum subst -> Envaux.env_from_summary (sum_prepend_root sum) subst)
       env
-  in
-  let rec ident_of_path : Path.t -> Longident.t = function
-    | Pident ident -> Lident (Ident.name ident)
-    | Pdot (p, s) -> Ldot (ident_of_path p, s)
-    | Papply (p1, p2) -> Lapply (ident_of_path p1, ident_of_path p2)
-    | Pextra_ty _ -> raise Stdlib.Not_found
   in
   let update_constructor env (id : Longident.t Location.loc) =
     let prepended_env = prepended_env_of_only_summary env in
