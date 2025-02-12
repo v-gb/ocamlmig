@@ -639,21 +639,70 @@ let substr_split t ~on:substr =
 
 let replace =
   ( "replace"
-  , Command.basic ~summary:"Update code in a sed-like way, but structured"
+  , Command.basic ~summary:"Replace every occurrence of specified code fragments"
       ~readme:(fun () ->
         wrap
-          "WARNING: this is currently very incomplete.\n\n\
-           Example, to reorder the arguments of List.map:\n\
-           ocamlmig replace -e 'List.map ~f:__f __l /// List.map __l ~f:__f'\n\n\
-           PATTERN is an expression to be matched, where variables starting with __ are \
-           placeholders.\n\
-           REPL is the code to pattern a match with, with the placeholders replaced by \
-           their matches in the pattern.")
+          {|
+WARNING: this is currently very incomplete.
+
+A few examples:
+
+  ocamlmig replace -e 'List.map __f __l /// ListLabels.map __l ~f:__f'
+  # replace List.map by ListLabels.map
+
+  ocamlmig replace -e 'List.map __f __l /// ListLabels.map __l ~f:__f [@@reorder]'
+  # replace List.map by ListLabels.map, and specifically swap the order of the arguments
+
+Syntax of the motifs:
+
+  Float.sqrt, "thing", 1
+       matches that literal name or constant in the source code
+       ex: *Float.sqrt* 1.
+       non-ex: *sqrt*, *Stdlib.Float.sqrt*
+
+  __a
+      matches any expression/pattern in the source code,
+      and names it (except for the __ motif). Currently a
+      given such pattern can only occur once.
+      ex: __a matches *1 + 1*
+      non-ex: none!
+
+  (MOTIF : type)
+      matches any expression/pattern that matches MOTIF
+      and whose type is compatible with type
+      ex: (__ : int) matches 1
+      nonex: (__ : int) does not match "1"
+
+  (MOTIF, MOTIF), Some MOTIF, `Some MOTIF, { label = MOTIF }, lazy MOTIF
+      matches any algebraic data types by matching the constructor
+      syntactically, their payload recursively
+
+  MOTIF | MOTIF, MOTIF & MOTIF
+      disjunction and conjunction of motifs
+
+  f MOTIF ~arg2:MOTIF
+      matches a function call of the right arity, up to argument
+      order. A variable motif starting with __etc would match all
+      remaining arguments.
+      ex: f __arg __etc /// f __etc (g __arg) on f 1 2 3 would generate f 2 3 (g 1)
+
+  MOTIF; MOTIF
+  fun MOTIF -> MOTIF
+    the obvious match
+
+  [%move_def MOTIF]
+  Matches any identifier whose definition is located in the current
+  source file, and matches the definition against the inner MOTIF.
+  If the overall motif matches using a [%move_def], then the matched
+  definition will be removed.
+  Effectively, it means that [%move_dev: __def] /// __def inline
+  every locally-defined identifier.
+|})
       [%map_open.Command
         let patterns_and_repls =
-          (* What we really want is -e PATTERN REPL, but command doesn't support that,
+          (* What we really want is -e MOTIF REPL, but command doesn't support that,
              and I don't think cmdliner does either. *)
-          flag "-e" ~doc:"PATTERN /// REPL"
+          flag "-e" ~doc:"MOTIF///REPL "
             (one_or_more_as_list
                (Arg_type.create (fun str ->
                     match substr_split str ~on:"///" with
@@ -663,7 +712,7 @@ let replace =
                           [%sexp
                             "unexpected exactly one \"///\" in argument"
                           , (str : string)
-                          , "to separate PATTERN and REPL"])))
+                          , "to separate MOTIF and REPL"])))
         and source = source_param
         and write = write_param
         and get_ocamlformat_conf = ocamlformat_conf_param in
