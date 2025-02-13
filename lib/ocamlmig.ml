@@ -96,7 +96,7 @@ let diff_or_write ~original_formatting file_path ~write
   let file_contents' =
     match asts with
     | Some (ast1, ast2) when preserve_format ->
-        Fmast_diff.minprint ~debug_diff ~source_contents:file_contents ~structure:ast1
+        Fmast_diff.print ~debug_diff ~source_contents:file_contents ~structure:ast1
           ~structure':ast2.ast
     | _ -> (
         match original_formatting with

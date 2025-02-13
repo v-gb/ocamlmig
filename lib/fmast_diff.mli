@@ -1,10 +1,10 @@
 (** Experimental functionality for printing an ocamlformat ast without formatting the
     code.
 
-    I estimated early 2025 that the proportion of ocamlformat among groups that publish to
-    opam is 38%. But while small projects should just migrate, for larger projects, it's
-    not necessarily so easy. So while I decidedly do not want to embark on a costly
-    implementation of such functionality, maybe something cheap is possible.
+    I estimated early 2025 that the proportion of ocamlformat users among groups that
+    publish to opam is 38%. But while small projects should just migrate, for larger
+    projects, it's not necessarily so easy. So while I decidedly do not want to embark on
+    a costly implementation of such functionality, maybe something cheap is possible.
 
     The idea is that we can diff the ast before vs after, and print the new code as the
     old code, where every modified subexpression is the ocamlformat expression from the
@@ -20,7 +20,7 @@ open Ocamlformat_parser_extended
 module P := Parsetree
 open! Fmast
 
-val minprint :
+val print :
      debug_diff:bool
   -> source_contents:string
   -> structure:Fmast.structure Ocamlformat_lib.Parse_with_comments.with_comments

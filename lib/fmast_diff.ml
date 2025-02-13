@@ -367,7 +367,7 @@ let printed_ast add_comments (loc : Location.t) ext ast =
          if i = 0 then s else String.make current_indentation ' ' ^ s)
   |> String.concat ~sep:"\n"
 
-let minprint ~debug_diff ~source_contents ~structure ~structure' =
+let print ~debug_diff ~source_contents ~structure ~structure' =
   let buf = Buffer.create (String.length source_contents) in
   let add_comments = indexed_comments structure in
   let pos = ref 0 in
