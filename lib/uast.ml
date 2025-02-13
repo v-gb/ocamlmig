@@ -429,3 +429,33 @@ let sigitem_attributes (signature_item : Types.signature_item) =
 let decl_or_sigitem_attributes = function
   | `Decl d -> decl_attributes d
   | `Sigitem s -> sigitem_attributes s
+
+type 'a ns =
+  | Value : (Path.t * Types.value_description) ns
+  | Type : (Path.t * Types.type_declaration) ns
+  | Module : (Path.t * Types.module_declaration) ns
+  | Module_type : (Path.t * Types.modtype_declaration) ns
+  | Class : (Path.t * Types.class_declaration) ns
+  | Class_type : (Path.t * Types.class_type_declaration) ns
+  | Constructor : Types.constructor_description ns
+  | Label : Types.label_description ns
+
+let find_by_name (type a) (ns : a ns) env lid : a =
+  match ns with
+  | Value -> Env.find_value_by_name lid env
+  | Type -> Env.find_type_by_name lid env
+  | Module -> Env.find_module_by_name lid env
+  | Module_type -> Env.find_modtype_by_name lid env
+  | Class -> Env.find_class_by_name lid env
+  | Class_type -> Env.find_cltype_by_name lid env
+  | Constructor -> Env.find_constructor_by_name lid env
+  | Label -> Env.find_label_by_name lid env
+
+let uid (type a) (ns : (Path.t * a) ns) (v : a) =
+  match ns with
+  | Value -> v.val_uid
+  | Type -> v.type_uid
+  | Module -> v.md_uid
+  | Module_type -> v.mtd_uid
+  | Class -> v.cty_uid
+  | Class_type -> v.clty_uid

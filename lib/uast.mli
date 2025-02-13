@@ -190,3 +190,16 @@ val sigitem_attributes : Types.signature_item -> Parsetree.attributes
 val decl_or_sigitem_attributes :
      [ `Decl of Typedtree.item_declaration | `Sigitem of Types.signature_item ]
   -> Parsetree.attributes
+
+type 'a ns =
+  | Value : (Path.t * Types.value_description) ns
+  | Type : (Path.t * Types.type_declaration) ns
+  | Module : (Path.t * Types.module_declaration) ns
+  | Module_type : (Path.t * Types.modtype_declaration) ns
+  | Class : (Path.t * Types.class_declaration) ns
+  | Class_type : (Path.t * Types.class_type_declaration) ns
+  | Constructor : Types.constructor_description ns
+  | Label : Types.label_description ns
+
+val find_by_name : 'a ns -> env -> Longident.t -> 'a
+val uid : (Path.t * 'a) ns -> 'a -> Shape.Uid.t
