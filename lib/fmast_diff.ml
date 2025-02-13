@@ -367,14 +367,28 @@ let printed_ast add_comments (loc : Location.t) ext ast =
          if i = 0 then s else String.make current_indentation ' ' ^ s)
   |> String.concat ~sep:"\n"
 
-let print ~debug_diff ~source_contents ~structure ~structure' =
-  let buf = Buffer.create (String.length source_contents) in
-  let add_comments = indexed_comments structure in
+let cobble_code_together ~debug_diff orig f =
+  let buf = Buffer.create (String.length orig) in
   let pos = ref 0 in
   let copy_orig to_ =
-    Buffer.add_substring buf source_contents ~pos:!pos ~len:(to_ - !pos);
+    Buffer.add_substring buf orig ~pos:!pos ~len:(to_ - !pos);
     pos := to_
   in
+  f (fun (loc : Location.t) str ->
+      copy_orig loc.loc_start.pos_cnum;
+      if debug_diff
+      then (
+        Buffer.add_string buf "[34m[[31m";
+        copy_orig loc.loc_end.pos_cnum;
+        Buffer.add_string buf "[32m");
+      Buffer.add_string buf str;
+      if debug_diff then Buffer.add_string buf "[34m][39m";
+      pos := loc.loc_end.pos_cnum);
+  copy_orig (String.length orig);
+  Buffer.contents buf
+
+let print ~debug_diff ~source_contents ~structure ~structure' =
+  let add_comments = indexed_comments structure in
   let loc_of_diff : diff_out -> _ = function
     | `Expr (e, _) -> e.pexp_loc
     | `Pat (p, _) -> p.ppat_loc
@@ -409,46 +423,33 @@ let print ~debug_diff ~source_contents ~structure ~structure' =
       (* ideally, we'd pass the context into the printing function, so ocamlformat can
      print parens nicely, instead of this hack *)
       let parens_if b str = if b then "(" ^ str ^ ")" else str in
-      List.iter l ~f:(fun diff ->
-          let loc, str =
-            match diff with
+      cobble_code_together ~debug_diff source_contents (fun f ->
+          List.iter l ~f:(function
             | `Expr (e1, e2) ->
-                ( e1.pexp_loc
-                , parens_if (Ast.parenze_exp e2)
-                    (printed_ast add_comments e1.pexp_loc Expression e2.ast) )
+                f e1.pexp_loc
+                  (parens_if (Ast.parenze_exp e2)
+                     (printed_ast add_comments e1.pexp_loc Expression e2.ast))
             | `Pat (p1, p2) ->
-                ( p1.ppat_loc
-                , parens_if (Ast.parenze_pat p2)
-                    (printed_ast add_comments p1.ppat_loc Pattern p2.ast) )
+                f p1.ppat_loc
+                  (parens_if (Ast.parenze_pat p2)
+                     (printed_ast add_comments p1.ppat_loc Pattern p2.ast))
             | `Stri (s1, s2) ->
-                (s1.pstr_loc, printed_ast add_comments s1.pstr_loc Structure [ s2.ast ])
+                f s1.pstr_loc (printed_ast add_comments s1.pstr_loc Structure [ s2.ast ])
             | `Me (v1, v2) ->
-                ( v1.pmod_loc
-                , String.lstrip (printed_ast add_comments v1.pmod_loc Module_expr v2.ast)
-                )
+                f v1.pmod_loc
+                  (String.lstrip
+                     (printed_ast add_comments v1.pmod_loc Module_expr v2.ast))
             | `Typ (t1, t2) ->
-                ( t1.ptyp_loc
-                , parens_if (Ast.parenze_typ t2)
-                    (printed_ast add_comments t1.ptyp_loc Core_type t2.ast) )
+                f t1.ptyp_loc
+                  (parens_if (Ast.parenze_typ t2)
+                     (printed_ast add_comments t1.ptyp_loc Core_type t2.ast))
             | `Cf (v1, v2) ->
-                (v1.pcf_loc, printed_ast add_comments v1.pcf_loc Class_field v2.ast)
+                f v1.pcf_loc (printed_ast add_comments v1.pcf_loc Class_field v2.ast)
             | `Cty (v1, v2) ->
-                ( v1.pcty_loc
-                , parens_if (Ast.parenze_cty v2)
-                    (printed_ast add_comments v1.pcty_loc Class_type v2.ast) )
-            | `Rem loc -> (loc, "")
-          in
-          copy_orig loc.loc_start.pos_cnum;
-          if debug_diff
-          then (
-            Buffer.add_string buf "[34m[[31m";
-            copy_orig loc.loc_end.pos_cnum;
-            Buffer.add_string buf "[32m");
-          Buffer.add_string buf str;
-          if debug_diff then Buffer.add_string buf "[34m][39m";
-          pos := loc.loc_end.pos_cnum);
-      copy_orig (String.length source_contents);
-      Buffer.contents buf
+                f v1.pcty_loc
+                  (parens_if (Ast.parenze_cty v2)
+                     (printed_ast add_comments v1.pcty_loc Class_type v2.ast))
+            | `Rem loc -> f loc ""))
 
 (* problems:
    - should create an incremental change on -open, instead of falling back to reprinting
