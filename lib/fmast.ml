@@ -6,6 +6,12 @@ module Format = Stdlib.Format
 open Common
 module Parsetree = Ocamlformat_parser_extended.Parsetree
 
+let ocaml_version (fmconf : Ocamlformat_lib.Conf.t) = fmconf.opr_opts.ocaml_version.v
+
+let ocaml_version' fmconf =
+  let ocaml_version = ocaml_version fmconf in
+  Ocaml_version.(major ocaml_version, minor ocaml_version)
+
 let maybe_add_debug conf =
   let open Ocamlformat_lib in
   if not debug.ocamlformat

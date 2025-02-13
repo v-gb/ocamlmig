@@ -16,6 +16,9 @@ open Base
 module Format := Stdlib.Format
 module Parsetree = Ocamlformat_parser_extended.Parsetree
 
+val ocaml_version : Ocamlformat_lib.Conf.t -> Ocaml_version.t
+val ocaml_version' : Ocamlformat_lib.Conf.t -> int * int
+
 val ocamlformat_print :
      'ext Ocamlformat_lib.Extended_ast.t
   -> conf:Ocamlformat_lib.Conf_t.t

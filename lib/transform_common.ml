@@ -490,7 +490,8 @@ type result =
   * (Ocamlformat_lib.Extended_ast.structure
      Ocamlformat_lib.Parse_with_comments.with_comments
     * Ocamlformat_lib.Extended_ast.structure
-      Ocamlformat_lib.Parse_with_comments.with_comments)
+      Ocamlformat_lib.Parse_with_comments.with_comments
+    * Ocamlformat_lib.Conf_t.t)
     option
 
 let process_file' ~fmconf:conf ~source_path ~input_name_matching_compilation_command f =
@@ -505,7 +506,8 @@ let process_file' ~fmconf:conf ~source_path ~input_name_matching_compilation_com
   Fmast.update_structure structure (process_ast __ f)
   |> Option.map ~f:(fun (structure', other) ->
          let source_contents' = Fmast.ocamlformat_print Structure ~conf structure' in
-         ( ((source_contents, source_contents', Some (structure, structure')) : result)
+         ( ((source_contents, source_contents', Some (structure, structure', conf))
+             : result)
          , other ))
 
 let process_file ~fmconf ~source_path ~input_name_matching_compilation_command f =

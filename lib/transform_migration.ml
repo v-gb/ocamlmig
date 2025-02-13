@@ -122,12 +122,6 @@ let internalize_reorder_attribute (expr : P.expression) =
     }
   else expr
 
-let ocaml_version (fmconf : Ocamlformat_lib.Conf.t) = fmconf.opr_opts.ocaml_version.v
-
-let ocaml_version' fmconf =
-  let ocaml_version = ocaml_version fmconf in
-  Ocaml_version.(major ocaml_version, minor ocaml_version)
-
 let fmexpr_of_uexpr ~fmconf source e =
   let e_str = Format.asprintf "%a" Uast.Pprintast.expression e in
   let expr =

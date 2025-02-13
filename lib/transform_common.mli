@@ -90,7 +90,8 @@ type result =
   * (Ocamlformat_lib.Extended_ast.structure
      Ocamlformat_lib.Parse_with_comments.with_comments
     * Ocamlformat_lib.Extended_ast.structure
-      Ocamlformat_lib.Parse_with_comments.with_comments)
+      Ocamlformat_lib.Parse_with_comments.with_comments
+    * Ocamlformat_lib.Conf_t.t)
     option
 
 val process_file' :
