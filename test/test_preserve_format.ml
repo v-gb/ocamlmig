@@ -37,8 +37,8 @@ let _ = ignore (();
 let () =
   let e = 1 in
   let ( .!{} ) _ _ = () in
-  (fun _ _ _ _ -> ()) 1.11(None).!{0};
-  (fun _ _ _ _ _ -> ()) 1.e1Nonee;
+  (fun _ _ _ _ -> ()) 1. 1 1(None).!{0};
+  (fun _ _ _ _ _ -> ()) 1. e 1 None e;
   ignore (match 1 with 1 -> 1 + match () with () -> 2 | _ -> 3);
   ()
 

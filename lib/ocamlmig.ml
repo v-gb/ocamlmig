@@ -95,9 +95,10 @@ let diff_or_write ~original_formatting file_path ~write
   let debug_diff = (not write) && Option.is_some (Sys.getenv_opt "DEBUGDIFF") in
   let file_contents' =
     match asts with
-    | Some (ast1, ast2, _fmconf) when preserve_format ->
-        Fmast_diff.print ~debug_diff ~source_contents:file_contents ~structure:ast1
-          ~structure':ast2.ast
+    | Some (ast1, ast2, fmconf) when preserve_format ->
+        Fmast_diff.print
+          ~ocaml_version:(Some (Fmast.ocaml_version' fmconf))
+          ~debug_diff ~source_contents:file_contents ~structure:ast1 ~structure':ast2.ast
     | _ -> (
         match original_formatting with
         | Some (`Enabled | `Disabled) ->

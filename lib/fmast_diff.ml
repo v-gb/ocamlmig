@@ -367,27 +367,61 @@ let printed_ast add_comments (loc : Location.t) ext ast =
          if i = 0 then s else String.make current_indentation ' ' ^ s)
   |> String.concat ~sep:"\n"
 
-let cobble_code_together ~debug_diff orig f =
+let tokens_would_fuse ~ocaml_version str1 str2 =
+  let tokens str =
+    let lexbuf = Lexing.from_string str in
+    Ocamlformat_parser_extended.Lexer.init ~keyword_edition:(ocaml_version, []) ();
+    let rec loop acc =
+      match Ocamlformat_parser_extended.Lexer.token lexbuf with
+      | exception (Ocamlformat_parser_extended.Lexer.Error _ as e) -> Error e
+      | EOF -> Ok (List.rev acc)
+      | token -> loop (token :: acc)
+    in
+    loop []
+  in
+  (* The sections of text we consider are cut at expressions/types/etc boundaries, so
+     they are also token boundaries, so we don't need to lex from start of file. *)
+  match (tokens str1, tokens (str1 ^ str2)) with
+  | Error e, _ -> raise e
+  | _, Error _ -> true
+  | Ok tokens1, Ok tokens12 ->
+      not
+        (List.is_prefix ~prefix:tokens1 tokens12 ~equal:(Poly.equal : Parser.token -> _))
+
+let cobble_code_together ~ocaml_version ~debug_diff orig f =
   let buf = Buffer.create (String.length orig) in
+  let add_string =
+    let last_chunk_of_data = ref "" in
+    fun ~parsed str ->
+      if parsed && not (String.is_empty str)
+      then (
+        if tokens_would_fuse ~ocaml_version !last_chunk_of_data str
+        then (
+          if debug_diff then Buffer.add_string buf "[42m";
+          Buffer.add_string buf " ";
+          if debug_diff then Buffer.add_string buf "[49m");
+        last_chunk_of_data := str);
+      Buffer.add_string buf str
+  in
   let pos = ref 0 in
-  let copy_orig to_ =
-    Buffer.add_substring buf orig ~pos:!pos ~len:(to_ - !pos);
+  let copy_orig ~parsed to_ =
+    add_string ~parsed (String.sub orig ~pos:!pos ~len:(to_ - !pos));
     pos := to_
   in
   f (fun (loc : Location.t) str ->
-      copy_orig loc.loc_start.pos_cnum;
+      copy_orig loc.loc_start.pos_cnum ~parsed:true;
       if debug_diff
       then (
-        Buffer.add_string buf "[34m[[31m";
-        copy_orig loc.loc_end.pos_cnum;
-        Buffer.add_string buf "[32m");
-      Buffer.add_string buf str;
-      if debug_diff then Buffer.add_string buf "[34m][39m";
+        add_string "[34m[[31m" ~parsed:false;
+        copy_orig loc.loc_end.pos_cnum ~parsed:false;
+        add_string "[32m" ~parsed:false);
+      add_string str ~parsed:true;
+      if debug_diff then add_string "[34m][39m" ~parsed:false;
       pos := loc.loc_end.pos_cnum);
-  copy_orig (String.length orig);
+  copy_orig (String.length orig) ~parsed:true;
   Buffer.contents buf
 
-let print ~debug_diff ~source_contents ~structure ~structure' =
+let print ~ocaml_version ~debug_diff ~source_contents ~structure ~structure' =
   let add_comments = indexed_comments structure in
   let loc_of_diff : diff_out -> _ = function
     | `Expr (e, _) -> e.pexp_loc
@@ -423,7 +457,7 @@ let print ~debug_diff ~source_contents ~structure ~structure' =
       (* ideally, we'd pass the context into the printing function, so ocamlformat can
      print parens nicely, instead of this hack *)
       let parens_if b str = if b then "(" ^ str ^ ")" else str in
-      cobble_code_together ~debug_diff source_contents (fun f ->
+      cobble_code_together ~ocaml_version ~debug_diff source_contents (fun f ->
           List.iter l ~f:(function
             | `Expr (e1, e2) ->
                 f e1.pexp_loc

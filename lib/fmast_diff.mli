@@ -21,7 +21,8 @@ module P := Parsetree
 open! Fmast
 
 val print :
-     debug_diff:bool
+     ocaml_version:(int * int) option
+  -> debug_diff:bool
   -> source_contents:string
   -> structure:Fmast.structure Ocamlformat_lib.Parse_with_comments.with_comments
   -> structure':Fmast.structure
