@@ -849,18 +849,25 @@ let qualify_for_open ~changed_something ~artifacts ~type_index
         mod_ =: root
     | _ -> false
   then structure'
-  else (
-    changed_something := true;
-    Ast_helper.with_default_loc (migrate_loc `Gen) (fun () ->
-        let loc = !Ast_helper.default_loc in
-        Ast_helper.Str.open_
-          { popen_expr = Ast_helper.Mod.ident { txt = Lident root; loc }
-          ; popen_override = (if bang then Override else Fresh)
-          ; popen_loc = loc
-          ; popen_attributes =
-              { attrs_extension = None; attrs_before = []; attrs_after = [] }
-          })
-    :: structure')
+  else
+    (changed_something := true;
+     let loc =
+       (* Tried to set a position that would make the "open" follow the copyright
+          comments at the top of files, but that doesn't work for unknown reasons. *)
+       match List.hd structure' with
+       | None -> migrate_loc `Gen
+       | Some stri ->
+           let pos = { stri.pstr_loc.loc_start with pos_fname = migrate_filename `Gen } in
+           { loc_start = pos; loc_end = pos; loc_ghost = false }
+     in
+     Ast_helper.Str.open_ ~loc
+       { popen_expr = Ast_helper.Mod.ident ~loc { txt = Lident root; loc }
+       ; popen_override = (if bang then Override else Fresh)
+       ; popen_loc = loc
+       ; popen_attributes =
+           { attrs_extension = None; attrs_before = []; attrs_after = [] }
+       })
+    :: structure'
 
 let unqualify ~changed_something structure ~artifacts ~type_index
     ~(cmt_infos : Cmt_format.cmt_infos) roots =
