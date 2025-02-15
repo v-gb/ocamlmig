@@ -443,13 +443,9 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
             else
               match expr.pexp_desc with
               | Pexp_ident id -> (
-                  match
-                    Build.Type_index.exp type_index (Conv.location' expr.pexp_loc)
-                  with
-                  | [] ->
-                      if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
-                      expr
-                  | texpr :: _ -> (
+                  match type_index_find_first Exp expr id with
+                  | None -> expr
+                  | Some texpr -> (
                       (* When [f] is transformed by the typechecker in [f ~foo:None] to
                          fill in unsupplied optional argument, the loc of the location and
                          argument seem to be the loc of f, and not even marked as ghost?
