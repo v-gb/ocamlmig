@@ -498,9 +498,10 @@ let transform =
                  - specified modules must be toplevel (i.e. correspond to files)\n\
                  - when identifiers are requalified, not all possible shadowings are \
                  taken into account, so complicated cases when end up with type errors\n\
-                 - not all scopes are implemented. Identifiers to values are always \
-                 implemented, and most others (identifiers of types, modules, module \
-                 types, constructors, exception constructors) are not.\n")
+                 - not all scopes are implemented, for open and unqualify. Identifiers \
+                 to values are always implemented, and most others (identifiers of \
+                 types, modules, module types, constructors, exception constructors) are \
+                 not.\n")
             (make_transform
                (let module_name = Command.Arg_type.create Unit_info.modulize in
                 [%map_open.Command

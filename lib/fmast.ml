@@ -297,8 +297,10 @@ module Node = struct
     | Exp : ([> `Exp ], expression, Parsetree.expression_desc, Typedtree.expression) t
     | Pat : ([> `Pat ], pattern, Parsetree.pattern_desc, Build.Type_index.any_pattern) t
     | Typ : ([> `Typ ], core_type, Parsetree.core_type_desc, Typedtree.core_type) t
-    | Mexp : ([> `Mexp ], module_expr, Parsetree.module_expr_desc, unit) t
-    | Mtyp : ([> `Mtyp ], module_type, Parsetree.module_type_desc, unit) t
+    | Mexp :
+        ([> `Mexp ], module_expr, Parsetree.module_expr_desc, Typedtree.module_expr) t
+    | Mtyp :
+        ([> `Mtyp ], module_type, Parsetree.module_type_desc, Typedtree.module_type) t
     | Cexp :
         ( [> `Cexp ]
         , Parsetree.class_expr
@@ -376,7 +378,15 @@ module Node = struct
         ; pcty_attributes = Option.value attributes ~default:v.pcty_attributes
         }
 
-  let index (type w a b e) (t : ([ `Exp | `Pat | `Typ | `Cexp | `Ctyp ], a, b, e) t) :
+  let index (type w a b e)
+      (t : ([ `Exp | `Pat | `Typ | `Cexp | `Ctyp | `Mexp | `Mtyp ], a, b, e) t) :
       e Build.Type_index.index =
-    match t with Exp -> Exp | Pat -> Pat | Typ -> Typ | Cexp -> Cexp | Ctyp -> Ctyp
+    match t with
+    | Exp -> Exp
+    | Pat -> Pat
+    | Typ -> Typ
+    | Cexp -> Cexp
+    | Ctyp -> Ctyp
+    | Mexp -> Mexp
+    | Mtyp -> Mtyp
 end

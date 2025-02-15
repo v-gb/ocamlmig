@@ -108,6 +108,29 @@ let () =
       end)]
 
 let () =
+  test "module"
+    (module struct
+      module M = struct end
+
+      module type S = sig end
+
+      open Z
+      module A : S = M
+      module B : ZS = ZM
+    end)
+[@@migrate_test.unopen
+  let () =
+    test "module"
+      (module struct
+        module M = struct end
+
+        module type S = sig end
+
+        module A : S = M
+        module B : Z.ZS = Z.ZM
+      end)]
+
+let () =
   test "class & class type"
     (module struct
       class c = object end

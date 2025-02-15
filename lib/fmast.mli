@@ -174,8 +174,10 @@ module Node : sig
     | Exp : ([> `Exp ], expression, Parsetree.expression_desc, Typedtree.expression) t
     | Pat : ([> `Pat ], pattern, Parsetree.pattern_desc, Build.Type_index.any_pattern) t
     | Typ : ([> `Typ ], core_type, Parsetree.core_type_desc, Typedtree.core_type) t
-    | Mexp : ([> `Mexp ], module_expr, Parsetree.module_expr_desc, unit) t
-    | Mtyp : ([> `Mtyp ], module_type, Parsetree.module_type_desc, unit) t
+    | Mexp :
+        ([> `Mexp ], module_expr, Parsetree.module_expr_desc, Typedtree.module_expr) t
+    | Mtyp :
+        ([> `Mtyp ], module_type, Parsetree.module_type_desc, Typedtree.module_type) t
     | Cexp :
         ( [> `Cexp ]
         , Parsetree.class_expr
@@ -192,5 +194,6 @@ module Node : sig
     ?desc:'desc -> ?attributes:Parsetree.attributes -> (_, 'a, 'desc, _) t -> 'a -> 'a
 
   val index :
-    ([ `Exp | `Pat | `Typ | `Cexp | `Ctyp ], _, _, 'e) t -> 'e Build.Type_index.index
+       ([ `Exp | `Pat | `Typ | `Cexp | `Ctyp | `Mexp | `Mtyp ], _, _, 'e) t
+    -> 'e Build.Type_index.index
 end

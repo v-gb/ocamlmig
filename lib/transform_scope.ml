@@ -345,7 +345,27 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
   in
   let self =
     { super with
-      typ =
+      module_expr =
+        (fun self v ->
+          let v = super.module_expr self v in
+          if in_test && not !should_act_in_test
+          then v
+          else
+            match v.pmod_desc with
+            | Pmod_ident id -> update_gen (Mexp, v) (Module, id) (fun id -> Pmod_ident id)
+            | _ -> v)
+    ; module_type =
+        (fun self v ->
+          let v = super.module_type self v in
+          if in_test && not !should_act_in_test
+          then v
+          else
+            match v.pmty_desc with
+            | Pmty_ident id ->
+                update_gen (Mtyp, v) (Module_type, id) (fun id -> Pmty_ident id)
+            | Pmty_alias id -> update_gen (Mtyp, v) (Module, id) (fun id -> Pmty_alias id)
+            | _ -> v)
+    ; typ =
         (fun self typ ->
           let typ = super.typ self typ in
           if in_test && not !should_act_in_test

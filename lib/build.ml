@@ -673,6 +673,8 @@ module Type_index = struct
     ; typ : (Typedtree.core_type[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
     ; ce : (Typedtree.class_expr[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
     ; cty : (Typedtree.class_type[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
+    ; mexp : (Typedtree.module_expr[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
+    ; mtyp : (Typedtree.module_type[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
     }
   [@@deriving sexp_of]
 
@@ -685,6 +687,8 @@ module Type_index = struct
         let h_typ = Hashtbl.create (module Uast.Location.Ignoring_filename) in
         let h_ce = Hashtbl.create (module Uast.Location.Ignoring_filename) in
         let h_cty = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+        let h_mexp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+        let h_mtyp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
         let super = Tast_iterator.default_iterator in
         let self =
           { super with
@@ -712,6 +716,14 @@ module Type_index = struct
               (fun self ct ->
                 super.class_type self ct;
                 Hashtbl.add_multi h_cty ~key:ct.cltyp_loc ~data:ct)
+          ; module_expr =
+              (fun self me ->
+                super.module_expr self me;
+                Hashtbl.add_multi h_mexp ~key:me.mod_loc ~data:me)
+          ; module_type =
+              (fun self v ->
+                super.module_type self v;
+                Hashtbl.add_multi h_mtyp ~key:v.mty_loc ~data:v)
           }
         in
         self.structure self structure;
@@ -721,6 +733,8 @@ module Type_index = struct
         ; typ = h_typ
         ; ce = h_ce
         ; cty = h_cty
+        ; mexp = h_mexp
+        ; mtyp = h_mtyp
         }
     | Partial_implementation _ ->
         failwith "unexpected content of cmt (file doesn't fully type?)"
@@ -738,6 +752,8 @@ module Type_index = struct
   let typ t loc = Hashtbl.find_multi t.typ loc
   let cexp t loc = Hashtbl.find_multi t.ce loc
   let ctyp t loc = Hashtbl.find_multi t.cty loc
+  let mexp t loc = Hashtbl.find_multi t.mexp loc
+  let mtyp t loc = Hashtbl.find_multi t.mtyp loc
 
   type _ index =
     | Exp : Typedtree.expression index
@@ -745,6 +761,8 @@ module Type_index = struct
     | Pat : any_pattern index
     | Cexp : Typedtree.class_expr index
     | Ctyp : Typedtree.class_type index
+    | Mexp : Typedtree.module_expr index
+    | Mtyp : Typedtree.module_type index
     | Constr : Types.constructor_description index
 
   let find (type a) t (i : a index) loc : a list =
@@ -754,6 +772,8 @@ module Type_index = struct
     | Pat -> pat t loc
     | Cexp -> cexp t loc
     | Ctyp -> ctyp t loc
+    | Mexp -> mexp t loc
+    | Mtyp -> mtyp t loc
     | Constr -> constr t loc
 
   let env (type a) (i : a index) (v : a) : Env.t =
@@ -765,5 +785,7 @@ module Type_index = struct
     | Typ -> v.ctyp_env
     | Cexp -> v.cl_env
     | Ctyp -> v.cltyp_env
+    | Mexp -> v.mod_env
+    | Mtyp -> v.mty_env
     | Constr -> invalid_arg "Build.Type_index.env"
 end

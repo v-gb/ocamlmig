@@ -14,6 +14,10 @@ type zr =
   ; zr2 : int
   }
 
+module ZM = struct end
+
+module type ZS = sig end
+
 let z1 = 1
 let open_out = 2
 let ( !! ) x = x + 1

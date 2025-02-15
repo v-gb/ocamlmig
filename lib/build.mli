@@ -123,6 +123,8 @@ module Type_index : sig
     | Pat : any_pattern index
     | Cexp : Typedtree.class_expr index
     | Ctyp : Typedtree.class_type index
+    | Mexp : Typedtree.module_expr index
+    | Mtyp : Typedtree.module_type index
     | Constr : Types.constructor_description index
 
   val find : t -> 'a index -> Location.t -> 'a list
