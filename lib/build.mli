@@ -115,7 +115,6 @@ module Type_index : sig
   val pat : t -> Location.t -> any_pattern list
   val cexp : t -> Location.t -> Typedtree.class_expr list
   val ctyp : t -> Location.t -> Typedtree.class_type list
-  val constr : t -> Location.t -> Types.constructor_description list
 
   type _ index =
     | Exp : Typedtree.expression index
@@ -125,7 +124,6 @@ module Type_index : sig
     | Ctyp : Typedtree.class_type index
     | Mexp : Typedtree.module_expr index
     | Mtyp : Typedtree.module_type index
-    | Constr : Types.constructor_description index
 
   val find : t -> 'a index -> Location.t -> 'a list
   val env : 'a index -> 'a -> Uast.env

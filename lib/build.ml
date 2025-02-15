@@ -666,13 +666,11 @@ module Type_index = struct
   type any_pattern = T : _ Typedtree.general_pattern -> any_pattern
 
   type t =
-    { expr : (Typedtree.expression[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
+    { exp : (Typedtree.expression[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
     ; pat : (any_pattern[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
-    ; constr :
-        (Types.constructor_description[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
     ; typ : (Typedtree.core_type[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
-    ; ce : (Typedtree.class_expr[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
-    ; cty : (Typedtree.class_type[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
+    ; cexp : (Typedtree.class_expr[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
+    ; ctyp : (Typedtree.class_type[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
     ; mexp : (Typedtree.module_expr[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
     ; mtyp : (Typedtree.module_type[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
     }
@@ -681,61 +679,48 @@ module Type_index = struct
   let create_without_setting_up_loadpath (cmt_infos : Cmt_format.cmt_infos) =
     match cmt_infos.cmt_annots with
     | Implementation structure ->
-        let h_expr = Hashtbl.create (module Uast.Location.Ignoring_filename) in
-        let h_pat = Hashtbl.create (module Uast.Location.Ignoring_filename) in
-        let h_constr = Hashtbl.create (module Uast.Location.Ignoring_filename) in
-        let h_typ = Hashtbl.create (module Uast.Location.Ignoring_filename) in
-        let h_ce = Hashtbl.create (module Uast.Location.Ignoring_filename) in
-        let h_cty = Hashtbl.create (module Uast.Location.Ignoring_filename) in
-        let h_mexp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
-        let h_mtyp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+        let exp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+        let pat = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+        let typ = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+        let cexp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+        let ctyp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+        let mexp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+        let mtyp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
         let super = Tast_iterator.default_iterator in
         let self =
           { super with
             expr =
-              (fun self expr ->
-                super.expr self expr;
-                Hashtbl.add_multi h_expr ~key:expr.exp_loc ~data:expr)
+              (fun self v ->
+                super.expr self v;
+                Hashtbl.add_multi exp ~key:v.exp_loc ~data:v)
           ; pat =
-              (fun (type k) self (pat : k Typedtree.general_pattern) ->
-                (match pat.pat_desc with
-                | Tpat_construct (id, constr_desc, _, _) ->
-                    Hashtbl.add_multi h_constr ~key:id.loc ~data:constr_desc
-                | _ -> ());
-                super.pat self pat;
-                Hashtbl.add_multi h_pat ~key:pat.pat_loc ~data:(T pat))
+              (fun self v ->
+                super.pat self v;
+                Hashtbl.add_multi pat ~key:v.pat_loc ~data:(T v))
           ; typ =
-              (fun self typ ->
-                super.typ self typ;
-                Hashtbl.add_multi h_typ ~key:typ.ctyp_loc ~data:typ)
+              (fun self v ->
+                super.typ self v;
+                Hashtbl.add_multi typ ~key:v.ctyp_loc ~data:v)
           ; class_expr =
-              (fun self ce ->
-                super.class_expr self ce;
-                Hashtbl.add_multi h_ce ~key:ce.cl_loc ~data:ce)
+              (fun self v ->
+                super.class_expr self v;
+                Hashtbl.add_multi cexp ~key:v.cl_loc ~data:v)
           ; class_type =
-              (fun self ct ->
-                super.class_type self ct;
-                Hashtbl.add_multi h_cty ~key:ct.cltyp_loc ~data:ct)
+              (fun self v ->
+                super.class_type self v;
+                Hashtbl.add_multi ctyp ~key:v.cltyp_loc ~data:v)
           ; module_expr =
-              (fun self me ->
-                super.module_expr self me;
-                Hashtbl.add_multi h_mexp ~key:me.mod_loc ~data:me)
+              (fun self v ->
+                super.module_expr self v;
+                Hashtbl.add_multi mexp ~key:v.mod_loc ~data:v)
           ; module_type =
               (fun self v ->
                 super.module_type self v;
-                Hashtbl.add_multi h_mtyp ~key:v.mty_loc ~data:v)
+                Hashtbl.add_multi mtyp ~key:v.mty_loc ~data:v)
           }
         in
         self.structure self structure;
-        { expr = h_expr
-        ; pat = h_pat
-        ; constr = h_constr
-        ; typ = h_typ
-        ; ce = h_ce
-        ; cty = h_cty
-        ; mexp = h_mexp
-        ; mtyp = h_mtyp
-        }
+        { exp; pat; typ; cexp; ctyp; mexp; mtyp }
     | Partial_implementation _ ->
         failwith "unexpected content of cmt (file doesn't fully type?)"
     | _ -> failwith "unexpected content of cmt"
@@ -746,12 +731,11 @@ module Type_index = struct
     create_without_setting_up_loadpath cmt_infos
 
   let create cmt_path listing1 = create_from_cmt_infos (read_cmt cmt_path) listing1
-  let exp t loc = Hashtbl.find_multi t.expr loc
+  let exp t loc = Hashtbl.find_multi t.exp loc
   let pat t loc = Hashtbl.find_multi t.pat loc
-  let constr t loc = Hashtbl.find_multi t.constr loc
   let typ t loc = Hashtbl.find_multi t.typ loc
-  let cexp t loc = Hashtbl.find_multi t.ce loc
-  let ctyp t loc = Hashtbl.find_multi t.cty loc
+  let cexp t loc = Hashtbl.find_multi t.cexp loc
+  let ctyp t loc = Hashtbl.find_multi t.ctyp loc
   let mexp t loc = Hashtbl.find_multi t.mexp loc
   let mtyp t loc = Hashtbl.find_multi t.mtyp loc
 
@@ -763,7 +747,6 @@ module Type_index = struct
     | Ctyp : Typedtree.class_type index
     | Mexp : Typedtree.module_expr index
     | Mtyp : Typedtree.module_type index
-    | Constr : Types.constructor_description index
 
   let find (type a) t (i : a index) loc : a list =
     match i with
@@ -774,7 +757,6 @@ module Type_index = struct
     | Ctyp -> ctyp t loc
     | Mexp -> mexp t loc
     | Mtyp -> mtyp t loc
-    | Constr -> constr t loc
 
   let env (type a) (i : a index) (v : a) : Env.t =
     match i with
@@ -787,5 +769,4 @@ module Type_index = struct
     | Ctyp -> v.cltyp_env
     | Mexp -> v.mod_env
     | Mtyp -> v.mty_env
-    | Constr -> invalid_arg "Build.Type_index.env"
 end

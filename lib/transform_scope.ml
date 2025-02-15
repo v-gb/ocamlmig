@@ -224,35 +224,35 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
      constructor (I'd expect [%sexp_of: int] to generate sexp_of_int at the location
      of int). *)
   let should_act_in_test = ref false in
-  let type_index_find_first ns v (id : Longident.t Location.loc) =
+  let type_index_find_first vnode v (id : Longident.t Location.loc) =
     match
-      Build.Type_index.find type_index (Fmast.Node.index ns)
-        (Conv.location' (Fmast.Node.loc ns v))
+      Build.Type_index.find type_index (Fmast.Node.index vnode)
+        (Conv.location' (Fmast.Node.loc vnode v))
     with
     | [] ->
         if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
         None
     | ttyp :: _ -> Some ttyp
   in
-  let update_gen (ctnode, ct) (idns, id) build =
-    let ctindex = Fmast.Node.index ctnode in
-    match type_index_find_first ctnode ct id with
-    | None -> ct
+  let update_gen (srcnode, src) (idns, id) build =
+    let srcindex = Fmast.Node.index srcnode in
+    match type_index_find_first srcnode src id with
+    | None -> src
     | Some ttyp -> (
-        let env = Envaux.env_of_only_summary (Build.Type_index.env ctindex ttyp) in
+        let env = Envaux.env_of_only_summary (Build.Type_index.env srcindex ttyp) in
         match Uast.find_by_name idns env (Conv.longident' id.txt) with
-        | exception Stdlib.Not_found -> ct
+        | exception Stdlib.Not_found -> src
         | path, _td -> (
             match maybe_reroot root id.txt path with
-            | None -> ct
+            | None -> src
             | Some new_id ->
                 (* could compute merely_aliased here, same as for values *)
                 changed_something := true;
-                Fmast.Node.update ctnode ct
+                Fmast.Node.update srcnode src
                   ~desc:(build { id with txt = new_id })
                   ~attributes:
                     (Sattr.touched.build ~loc:!Ast_helper.default_loc ()
-                    :: Fmast.Node.attributes ctnode ct)))
+                    :: Fmast.Node.attributes srcnode src)))
   in
   let filter_opens env =
     let rec filter_opens (summary : Env.summary) =
@@ -304,13 +304,13 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
                   :: Fmast.Node.attributes srcnode src))
             else src)
   in
-  let update_all_fields fields (ctnode, ct) ~match_record build =
+  let update_all_fields fields (srcnode, src) ~match_record build =
     let changed_field = ref false in
     let fields =
       let has_seen_qualified_field = ref false in
       let update_field ((label, type_constr, value) as field) =
-        let ctindex = Fmast.Node.index ctnode in
-        match type_index_find_first ctnode ct label with
+        let srcindex = Fmast.Node.index srcnode in
+        match type_index_find_first srcnode src label with
         | None -> field
         | Some texpr -> (
             match match_record texpr with
@@ -318,17 +318,17 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
               when label_may_have_been_provided_by_open (Label, label)
                      (find_exn_fields ~f:(fun (lbl : Types.label_description) ->
                           lbl.lbl_name =: Longident.last label.txt))
-                     (Build.Type_index.env ctindex texpr) ->
+                     (Build.Type_index.env srcindex texpr) ->
                 let new_label = maybe_reroot' root label.txt in
                 changed_field := true;
                 changed_something := true;
                 ( { label with txt = new_label }
                 , type_constr
                 , Option.map value ~f:(fun value ->
-                      Fmast.Node.update ctnode value
+                      Fmast.Node.update srcnode value
                         ~attributes:
                           (Sattr.touched.build ~loc:!Ast_helper.default_loc ()
-                          :: Fmast.Node.attributes ctnode ct)) )
+                          :: Fmast.Node.attributes srcnode src)) )
             | _ -> field)
       in
       let l =
@@ -341,7 +341,7 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
       then l
       else match l with [] -> [] | hd :: tl -> update_field hd :: tl
     in
-    if !changed_field then Fmast.Node.update ctnode ct ~desc:(build fields) else ct
+    if !changed_field then Fmast.Node.update srcnode src ~desc:(build fields) else src
   in
   let self =
     { super with
@@ -366,43 +366,43 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
             | Pmty_alias id -> update_gen (Mtyp, v) (Module, id) (fun id -> Pmty_alias id)
             | _ -> v)
     ; typ =
-        (fun self typ ->
-          let typ = super.typ self typ in
+        (fun self v ->
+          let v = super.typ self v in
           if in_test && not !should_act_in_test
-          then typ
+          then v
           else
-            match typ.ptyp_desc with
+            match v.ptyp_desc with
             | Ptyp_constr (id, args) ->
-                update_gen (Typ, typ) (Type, id) (fun id -> Ptyp_constr (id, args))
+                update_gen (Typ, v) (Type, id) (fun id -> Ptyp_constr (id, args))
             | Ptyp_class (id, args) ->
-                update_gen (Typ, typ) (Class, id) (fun id -> Ptyp_class (id, args))
-            | _ -> typ)
+                update_gen (Typ, v) (Class, id) (fun id -> Ptyp_class (id, args))
+            | _ -> v)
     ; class_type =
-        (fun self ct ->
-          let ct = super.class_type self ct in
+        (fun self v ->
+          let v = super.class_type self v in
           if in_test && not !should_act_in_test
-          then ct
+          then v
           else
-            match ct.pcty_desc with
+            match v.pcty_desc with
             | Pcty_constr (id, args) ->
-                update_gen (Ctyp, ct) (Class_type, id) (fun id -> Pcty_constr (id, args))
-            | _ -> ct)
+                update_gen (Ctyp, v) (Class_type, id) (fun id -> Pcty_constr (id, args))
+            | _ -> v)
     ; class_expr =
-        (fun self ce ->
-          let ce = super.class_expr self ce in
+        (fun self v ->
+          let v = super.class_expr self v in
           if in_test && not !should_act_in_test
-          then ce
+          then v
           else
-            match ce.pcl_desc with
+            match v.pcl_desc with
             | Pcl_constr (id, args) ->
-                update_gen (Cexp, ce) (Class, id) (fun id -> Pcl_constr (id, args))
-            | _ -> ce)
+                update_gen (Cexp, v) (Class, id) (fun id -> Pcl_constr (id, args))
+            | _ -> v)
     ; pat =
-        (fun self pat ->
-          let pat = super.pat self pat in
-          match pat.ppat_desc with
+        (fun self v ->
+          let v = super.pat self v in
+          match v.ppat_desc with
           | Ppat_construct (id, arg_opt) ->
-              update_label (Pat, pat) (Constructor, id)
+              update_label (Pat, v) (Constructor, id)
                 (fun (T tpat) ->
                   match tpat.pat_desc with
                   | Tpat_construct (_, cd, _, _) -> Some cd
@@ -416,7 +416,7 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
                   | _ -> None)
                 (fun id -> Ppat_construct (id, arg_opt))
           | Ppat_record (fields, closed) ->
-              update_all_fields fields (Pat, pat)
+              update_all_fields fields (Pat, v)
                 ~match_record:(fun (T tpat) ->
                   match tpat.pat_desc with
                   | Tpat_record (fields, _) ->
@@ -434,7 +434,7 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
                       | _ -> None)
                   | _ -> None)
                 (fun fields -> Ppat_record (fields, closed))
-          | _ -> pat)
+          | _ -> v)
     ; expr =
         with_log (fun self expr ->
             let expr = super.expr self expr in
