@@ -202,4 +202,4 @@ type 'a ns =
   | Label : Types.label_description ns
 
 val find_by_name : 'a ns -> env -> Longident.t -> 'a
-val uid : (Path.t * 'a) ns -> 'a -> Shape.Uid.t
+val uid : 'a ns -> 'a -> Shape.Uid.t

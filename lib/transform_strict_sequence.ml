@@ -26,7 +26,7 @@ let run ~type_index file_path =
               (* Maybe we could iterate over the typedtree directly? We'd have to pray
                  that any ppx sets loc_ghost on all the generated code. This seems more
                  robust. *)
-              match Build.Type_index.expr type_index e1.pexp_loc with
+              match Build.Type_index.exp type_index e1.pexp_loc with
               | [] | _ :: _ :: _ ->
                   (* there can be no type information, in attributes for instance *)
                   ()

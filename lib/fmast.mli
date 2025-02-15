@@ -168,3 +168,29 @@ module Arg_label : sig
 
   val to_string : t -> string
 end
+
+module Node : sig
+  type ('w, 'node, 'desc, 'env) t =
+    | Exp : ([> `Exp ], expression, Parsetree.expression_desc, Typedtree.expression) t
+    | Pat : ([> `Pat ], pattern, Parsetree.pattern_desc, Build.Type_index.any_pattern) t
+    | Typ : ([> `Typ ], core_type, Parsetree.core_type_desc, Typedtree.core_type) t
+    | Mexp : ([> `Mexp ], module_expr, Parsetree.module_expr_desc, unit) t
+    | Mtyp : ([> `Mtyp ], module_type, Parsetree.module_type_desc, unit) t
+    | Cexp :
+        ( [> `Cexp ]
+        , Parsetree.class_expr
+        , Parsetree.class_expr_desc
+        , Typedtree.class_expr )
+        t
+    | Ctyp : ([> `Ctyp ], class_type, Parsetree.class_type_desc, Typedtree.class_type) t
+
+  val loc : (_, 'a, _, _) t -> 'a -> Location.t
+  val attributes : (_, 'a, _, _) t -> 'a -> Parsetree.attributes
+  val desc : (_, 'a, 'desc, _) t -> 'a -> 'desc
+
+  val update :
+    ?desc:'desc -> ?attributes:Parsetree.attributes -> (_, 'a, 'desc, _) t -> 'a -> 'a
+
+  val index :
+    ([ `Exp | `Pat | `Typ | `Cexp | `Ctyp ], _, _, 'e) t -> 'e Build.Type_index.index
+end

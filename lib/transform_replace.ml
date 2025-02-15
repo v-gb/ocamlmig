@@ -164,7 +164,7 @@ let rec match_ ~need_type_index (motif : Uast.Parsetree.expression) : stage2 =
             if !log then print_s [%sexp "missing type index"];
             false
         | Some index -> (
-            match Build.Type_index.expr index (Conv.location' expr.pexp_loc) with
+            match Build.Type_index.exp index (Conv.location' expr.pexp_loc) with
             | [] ->
                 if !log then print_s [%sexp "no type"];
                 false
@@ -272,7 +272,7 @@ let rec match_ ~need_type_index (motif : Uast.Parsetree.expression) : stage2 =
                     if !log then print_s [%sexp "missing type index"];
                     false
                 | Some index -> (
-                    match Build.Type_index.expr index (Conv.location' expr.pexp_loc) with
+                    match Build.Type_index.exp index (Conv.location' expr.pexp_loc) with
                     | [] ->
                         if !log then print_s [%sexp "no type"];
                         false

@@ -1243,7 +1243,7 @@ let execute_context_match ~type_index (cases : P.case list) ~(orig : P.expressio
       match case.pc_lhs with
       | { ppat_desc = Ppat_extension ({ txt = "context"; _ }, PTyp user_typ); _ } -> (
           let ttyp = Uast.type_type (utype_of_fmtype user_typ) in
-          match Build.Type_index.expr type_index (Conv.location' orig.pexp_loc) with
+          match Build.Type_index.exp type_index (Conv.location' orig.pexp_loc) with
           | [ texpr ] ->
               (* maybe root env makes more sense *)
               let does_match =
@@ -1365,7 +1365,7 @@ let value_constraint ~ctx ~type_index e : P.value_constraint option =
   if not (might_rely_on_type_based_disambiguation e)
   then None
   else
-    match Build.Type_index.expr type_index (Conv.location' e.pexp_loc) with
+    match Build.Type_index.exp type_index (Conv.location' e.pexp_loc) with
     | [ texpr ] ->
         Some
           (Pvc_constraint
@@ -1754,7 +1754,7 @@ module Decl_id = struct
 end
 
 let payload_from_val_fmast ~fmconf ~type_index ~artifacts (comp_unit, id, ident_loc) =
-  match Build.Type_index.expr type_index (Conv.location' ident_loc) with
+  match Build.Type_index.exp type_index (Conv.location' ident_loc) with
   | { exp_desc = Texp_ident (_, _, vd); _ } :: _ -> (
       let uid = vd.val_uid in
       match Build.comp_unit_of_uid uid with
@@ -1964,7 +1964,7 @@ let load_extra_migrations ~cmts ~artifacts ~fmconf =
 
 let requalify ((expr : P.expression), expr_type_index) new_base_env =
   if !log || debug.all then print_s [%sexp `requalify (expr : Fmast.expression)];
-  match Build.Type_index.expr expr_type_index (Conv.location' expr.pexp_loc) with
+  match Build.Type_index.exp expr_type_index (Conv.location' expr.pexp_loc) with
   | [] -> expr
   | texp :: _ ->
       let rebased_env =
@@ -1990,10 +1990,10 @@ let requalify ((expr : P.expression), expr_type_index) new_base_env =
                  if !log || debug.all
                  then print_s [%sexp `requalify_lident (s : string), `Out_of_scope];
                  Lident s
-             | path, v -> (
+             | (path, _) as v -> (
                  if !log || debug.all then print_s [%sexp `requalify_lident (s : string)];
                  match Uast.find_by_name ns env2 (Lident s) with
-                 | _, v' when Shape.Uid.equal (Uast.uid ns v) (Uast.uid ns v') -> Lident s
+                 | v' when Shape.Uid.equal (Uast.uid ns v) (Uast.uid ns v') -> Lident s
                  | (exception Stdlib.Not_found) | _ -> Transform_scope.ident_of_path path)
              )
          | Ldot (lid, s) -> Ldot (req Module env1 env2 lid, s)
@@ -2008,7 +2008,7 @@ let requalify ((expr : P.expression), expr_type_index) new_base_env =
               match expr with
               | { pexp_desc = Pexp_ident { txt = var; loc }; _ } -> (
                   match
-                    Build.Type_index.expr expr_type_index (Conv.location' expr.pexp_loc)
+                    Build.Type_index.exp expr_type_index (Conv.location' expr.pexp_loc)
                   with
                   | [] -> expr
                   | texp :: _ ->
@@ -2084,8 +2084,7 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                       | None -> to_expr
                       | Some repl_type_index -> (
                           match
-                            Build.Type_index.expr type_index
-                              (Conv.location' expr.pexp_loc)
+                            Build.Type_index.exp type_index (Conv.location' expr.pexp_loc)
                           with
                           | texp :: _ -> requalify (to_expr, repl_type_index) texp.exp_env
                           | [] -> to_expr)

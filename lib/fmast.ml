@@ -291,3 +291,92 @@ let value_constraint_of_type_constraint : P.type_constraint -> P.value_constrain
   function
   | Pconstraint typ -> Pvc_constraint { locally_abstract_univars = []; typ }
   | Pcoerce (ground, coercion) -> Pvc_coercion { ground; coercion }
+
+module Node = struct
+  type ('w, 'node, 'desc, 'env) t =
+    | Exp : ([> `Exp ], expression, Parsetree.expression_desc, Typedtree.expression) t
+    | Pat : ([> `Pat ], pattern, Parsetree.pattern_desc, Build.Type_index.any_pattern) t
+    | Typ : ([> `Typ ], core_type, Parsetree.core_type_desc, Typedtree.core_type) t
+    | Mexp : ([> `Mexp ], module_expr, Parsetree.module_expr_desc, unit) t
+    | Mtyp : ([> `Mtyp ], module_type, Parsetree.module_type_desc, unit) t
+    | Cexp :
+        ( [> `Cexp ]
+        , Parsetree.class_expr
+        , Parsetree.class_expr_desc
+        , Typedtree.class_expr )
+        t
+    | Ctyp : ([> `Ctyp ], class_type, Parsetree.class_type_desc, Typedtree.class_type) t
+
+  let loc (type w a b e) (t : (w, a, b, e) t) (v : a) =
+    match t with
+    | Exp -> v.pexp_loc
+    | Pat -> v.ppat_loc
+    | Typ -> v.ptyp_loc
+    | Mexp -> v.pmod_loc
+    | Mtyp -> v.pmty_loc
+    | Cexp -> v.pcl_loc
+    | Ctyp -> v.pcty_loc
+
+  let attributes (type w a b e) (t : (w, a, b, e) t) (v : a) =
+    match t with
+    | Exp -> v.pexp_attributes
+    | Pat -> v.ppat_attributes
+    | Typ -> v.ptyp_attributes
+    | Mexp -> v.pmod_attributes
+    | Mtyp -> v.pmty_attributes
+    | Cexp -> v.pcl_attributes
+    | Ctyp -> v.pcty_attributes
+
+  let desc (type w a b e) (t : (w, a, b, e) t) (v : a) : b =
+    match t with
+    | Exp -> v.pexp_desc
+    | Pat -> v.ppat_desc
+    | Typ -> v.ptyp_desc
+    | Mexp -> v.pmod_desc
+    | Mtyp -> v.pmty_desc
+    | Cexp -> v.pcl_desc
+    | Ctyp -> v.pcty_desc
+
+  let update (type w a b e) ?(desc : b option) ?attributes (t : (w, a, b, e) t) (v : a) :
+      a =
+    match t with
+    | Exp ->
+        { v with
+          pexp_desc = Option.value desc ~default:v.pexp_desc
+        ; pexp_attributes = Option.value attributes ~default:v.pexp_attributes
+        }
+    | Pat ->
+        { v with
+          ppat_desc = Option.value desc ~default:v.ppat_desc
+        ; ppat_attributes = Option.value attributes ~default:v.ppat_attributes
+        }
+    | Typ ->
+        { v with
+          ptyp_desc = Option.value desc ~default:v.ptyp_desc
+        ; ptyp_attributes = Option.value attributes ~default:v.ptyp_attributes
+        }
+    | Mexp ->
+        { v with
+          pmod_desc = Option.value desc ~default:v.pmod_desc
+        ; pmod_attributes = Option.value attributes ~default:v.pmod_attributes
+        }
+    | Mtyp ->
+        { v with
+          pmty_desc = Option.value desc ~default:v.pmty_desc
+        ; pmty_attributes = Option.value attributes ~default:v.pmty_attributes
+        }
+    | Cexp ->
+        { v with
+          pcl_desc = Option.value desc ~default:v.pcl_desc
+        ; pcl_attributes = Option.value attributes ~default:v.pcl_attributes
+        }
+    | Ctyp ->
+        { v with
+          pcty_desc = Option.value desc ~default:v.pcty_desc
+        ; pcty_attributes = Option.value attributes ~default:v.pcty_attributes
+        }
+
+  let index (type w a b e) (t : ([ `Exp | `Pat | `Typ | `Cexp | `Ctyp ], a, b, e) t) :
+      e Build.Type_index.index =
+    match t with Exp -> Exp | Pat -> Pat | Typ -> Typ | Cexp -> Cexp | Ctyp -> Ctyp
+end

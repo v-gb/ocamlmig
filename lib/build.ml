@@ -732,10 +732,38 @@ module Type_index = struct
     create_without_setting_up_loadpath cmt_infos
 
   let create cmt_path listing1 = create_from_cmt_infos (read_cmt cmt_path) listing1
-  let expr t loc = Hashtbl.find_multi t.expr loc
+  let exp t loc = Hashtbl.find_multi t.expr loc
   let pat t loc = Hashtbl.find_multi t.pat loc
   let constr t loc = Hashtbl.find_multi t.constr loc
   let typ t loc = Hashtbl.find_multi t.typ loc
-  let ce t loc = Hashtbl.find_multi t.ce loc
-  let cty t loc = Hashtbl.find_multi t.cty loc
+  let cexp t loc = Hashtbl.find_multi t.ce loc
+  let ctyp t loc = Hashtbl.find_multi t.cty loc
+
+  type _ index =
+    | Exp : Typedtree.expression index
+    | Typ : Typedtree.core_type index
+    | Pat : any_pattern index
+    | Cexp : Typedtree.class_expr index
+    | Ctyp : Typedtree.class_type index
+    | Constr : Types.constructor_description index
+
+  let find (type a) t (i : a index) loc : a list =
+    match i with
+    | Exp -> exp t loc
+    | Typ -> typ t loc
+    | Pat -> pat t loc
+    | Cexp -> cexp t loc
+    | Ctyp -> ctyp t loc
+    | Constr -> constr t loc
+
+  let env (type a) (i : a index) (v : a) : Env.t =
+    match i with
+    | Exp -> v.exp_env
+    | Pat ->
+        let (T v) = v in
+        v.pat_env
+    | Typ -> v.ctyp_env
+    | Cexp -> v.cl_env
+    | Ctyp -> v.cltyp_env
+    | Constr -> invalid_arg "Build.Type_index.env"
 end

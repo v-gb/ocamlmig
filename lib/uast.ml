@@ -451,11 +451,13 @@ let find_by_name (type a) (ns : a ns) env lid : a =
   | Constructor -> Env.find_constructor_by_name lid env
   | Label -> Env.find_label_by_name lid env
 
-let uid (type a) (ns : (Path.t * a) ns) (v : a) =
+let uid (type a) (ns : a ns) (v : a) =
   match ns with
-  | Value -> v.val_uid
-  | Type -> v.type_uid
-  | Module -> v.md_uid
-  | Module_type -> v.mtd_uid
-  | Class -> v.cty_uid
-  | Class_type -> v.clty_uid
+  | Value -> (snd v).val_uid
+  | Type -> (snd v).type_uid
+  | Module -> (snd v).md_uid
+  | Module_type -> (snd v).mtd_uid
+  | Class -> (snd v).cty_uid
+  | Class_type -> (snd v).clty_uid
+  | Constructor -> v.cstr_uid
+  | Label -> v.lbl_uid

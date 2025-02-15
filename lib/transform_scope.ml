@@ -248,7 +248,7 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
                 }))
   in
   let update_cl build (ce : P.class_expr) (id : Longident.t Location.loc) =
-    match Build.Type_index.ce type_index (Conv.location' ce.pcl_loc) with
+    match Build.Type_index.cexp type_index (Conv.location' ce.pcl_loc) with
     | [] ->
         if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
         ce
@@ -270,7 +270,7 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
                 }))
   in
   let update_cty build (ct : P.class_type) (id : Longident.t Location.loc) =
-    match Build.Type_index.cty type_index (Conv.location' ct.pcty_loc) with
+    match Build.Type_index.ctyp type_index (Conv.location' ct.pcty_loc) with
     | [] ->
         if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
         ct
@@ -504,7 +504,7 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
               match expr.pexp_desc with
               | Pexp_ident id -> (
                   match
-                    Build.Type_index.expr type_index (Conv.location' expr.pexp_loc)
+                    Build.Type_index.exp type_index (Conv.location' expr.pexp_loc)
                   with
                   | [] ->
                       if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
@@ -555,7 +555,7 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
                   e
               | Pexp_construct (id, arg_opt) -> (
                   match
-                    Build.Type_index.expr type_index (Conv.location' expr.pexp_loc)
+                    Build.Type_index.exp type_index (Conv.location' expr.pexp_loc)
                   with
                   | [] ->
                       if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
@@ -576,7 +576,7 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
                       | _ -> expr))
               | Pexp_field (arg, id) -> (
                   match
-                    Build.Type_index.expr type_index (Conv.location' expr.pexp_loc)
+                    Build.Type_index.exp type_index (Conv.location' expr.pexp_loc)
                   with
                   | [] ->
                       if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
@@ -598,7 +598,7 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
                   match
                     update_field
                       ~type_index_lookup:
-                        (Build.Type_index.expr type_index (Conv.location' expr.pexp_loc))
+                        (Build.Type_index.exp type_index (Conv.location' expr.pexp_loc))
                       ~match_record:(fun texpr ->
                         match texpr.exp_desc with
                         | Texp_record { fields; _ } ->
@@ -616,7 +616,7 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
                   | Some fields -> { expr with pexp_desc = Pexp_record (fields, init) })
               | Pexp_new id -> (
                   match
-                    Build.Type_index.expr type_index (Conv.location' expr.pexp_loc)
+                    Build.Type_index.exp type_index (Conv.location' expr.pexp_loc)
                   with
                   | [] ->
                       if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
@@ -770,7 +770,7 @@ let qualify_for_open ~changed_something ~artifacts ~type_index
               match expr.pexp_desc with
               | Pexp_ident id -> (
                   match
-                    Build.Type_index.expr type_index (Conv.location' expr.pexp_loc)
+                    Build.Type_index.exp type_index (Conv.location' expr.pexp_loc)
                   with
                   | [] ->
                       if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
@@ -814,7 +814,7 @@ let qualify_for_open ~changed_something ~artifacts ~type_index
                                 })))
               | Pexp_construct (id, payload) -> (
                   match
-                    Build.Type_index.expr type_index (Conv.location' expr.pexp_loc)
+                    Build.Type_index.exp type_index (Conv.location' expr.pexp_loc)
                   with
                   | [] -> expr
                   | texpr :: _ -> (
@@ -900,7 +900,7 @@ let unqualify ~changed_something structure ~artifacts ~type_index
             let expr = super.expr self expr in
             match expr.pexp_desc with
             | Pexp_ident id -> (
-                match Build.Type_index.expr type_index (Conv.location' expr.pexp_loc) with
+                match Build.Type_index.exp type_index (Conv.location' expr.pexp_loc) with
                 | [] ->
                     if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
                     expr
