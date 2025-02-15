@@ -106,6 +106,7 @@ module Ast_helper : sig
 
     val some : ?loc:loc -> P.pattern -> P.pattern
     val none : ?loc:loc -> unit -> P.pattern
+    val ext_exp : ?loc:loc -> string -> P.expression -> P.pattern
   end
 
   module Exp : sig
@@ -130,6 +131,7 @@ module Ast_helper : sig
     val unit : ?loc:loc -> unit -> P.expression
     val string : ?loc:loc -> ?quotation_delimiter:string -> string -> P.expression
     val int : ?loc:loc -> ?suffix:char -> int -> P.expression
+    val ext_exp : ?loc:loc -> string -> P.expression -> P.expression
   end
 
   module Attr : sig

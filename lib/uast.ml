@@ -9,6 +9,7 @@ module Parsetree = Parsetree
 module Parser = Parser
 module Parse = Parse
 module Pprintast = Pprintast
+module Ast_mapper = Ast_mapper
 
 let typed_print_signature_items ppf l =
   Printtyped.interface ppf

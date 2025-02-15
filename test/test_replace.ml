@@ -30,6 +30,8 @@ let _ =
     ignore { field3 = field1; field2 = "a" }]
 
 module _ = struct
+  (* [%move_def] *)
+
   module M = struct
     let _x = 1
   end

@@ -195,6 +195,9 @@ module Ast_helper = struct
 
     let none ?(loc = !default_loc) () =
       construct ~loc (located ~loc (Longident.Lident "None")) None
+
+    let ext_exp ?(loc = !default_loc) name e =
+      Ast_helper.Pat.extension ({ txt = name; loc }, PStr [ Ast_helper.Str.eval e ])
   end
 
   module Exp = struct
@@ -231,6 +234,9 @@ module Ast_helper = struct
 
     let unit ?(loc = !default_loc) () =
       construct ~loc (located ~loc (Longident.Lident "()")) None
+
+    let ext_exp ?(loc = !default_loc) name e =
+      Ast_helper.Exp.extension ({ txt = name; loc }, PStr [ Ast_helper.Str.eval e ])
   end
 
   module Attr = struct

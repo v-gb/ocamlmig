@@ -21,6 +21,7 @@ module Parsetree = Parsetree
 module Parser = Parser
 module Parse = Parse
 module Pprintast = Pprintast
+module Ast_mapper = Ast_mapper
 
 val typed_print_value_binding : Format.formatter -> Typedtree.value_binding -> unit
 
