@@ -5,6 +5,7 @@ open! Ocamlformat_ocaml_common
 open Ocamlformat_parser_extended
 module P = Parsetree
 open! Fmast
+module Rep = Transform_replace_repetition
 
 (* Thoughts about the design:
    - not clear if identifiers should be matched syntactically or by val_uid.
@@ -111,6 +112,8 @@ type ctx1 =
 
 type env =
   { bindings : (bool * value) Map.M(String).t
+  ; xbindings : (bool * value) Map.M(String).t
+  ; xrest : value option
   ; nodes_to_remove : Shape.Uid.t list
   }
 
@@ -145,19 +148,36 @@ let match_list match_x xs f =
         | Unequal_lengths -> false
         | Ok b -> b)
 
-let match_var ~ctx1 v_motif make_data =
+let same_value (v1 : value) (v2 : value) =
+  match (v1, v2) with
+  | ( Expr { pexp_desc = Pexp_constant { pconst_desc = Pconst_integer (n, None); _ }; _ }
+    , Expr { pexp_desc = Pexp_constant { pconst_desc = Pconst_integer (n', None); _ }; _ }
+    ) ->
+      (* for __count *)
+      n =: n'
+  | _ -> false
+
+let match_var_snd_stage ?(x = false) ~env ~inside_move_def v_motif data =
+  match
+    Map.add
+      (if x then !env.xbindings else !env.bindings)
+      ~key:v_motif ~data:(inside_move_def, data)
+  with
+  | `Ok map ->
+      env := if x then { !env with xbindings = map } else { !env with bindings = map };
+      true
+  | `Duplicate -> (
+      match Map.find (if x then !env.xbindings else !env.bindings) v_motif with
+      | Some (_, data') when same_value data data' -> true
+      | _ -> false)
+
+let match_var ?x ~ctx1 v_motif make_data =
   if v_motif =: "__" (* has a dedicated branch to support multiple __ patterns *)
   then fun _ ~env:_ ~ctx:_ -> true
   else
     let inside_move_def = ctx1.inside_move_def in
     fun data ~env ~ctx:_ ->
-      match
-        Map.add !env.bindings ~key:v_motif ~data:(inside_move_def, make_data data)
-      with
-      | `Ok map ->
-          env := { !env with bindings = map };
-          true
-      | `Duplicate -> false
+      match_var_snd_stage ?x ~env ~inside_move_def v_motif (make_data data)
 
 let etc_field : Longident.t Location.loc * _ option * expression option -> _ = function
   | { txt = Lident v; _ }, None, Some { pexp_desc = Pexp_ident { txt = Lident v'; _ }; _ }
@@ -172,6 +192,9 @@ let etc_arg : function_arg -> _ = function
   | _ -> None
 
 let unsupported_motif loc = Location.raise_errorf ~loc "unsupported motif syntax"
+
+let match_count ~env n =
+  match_var_snd_stage ~env ~inside_move_def:false "__count" (Expr (Ast_helper.Exp.int n))
 
 let rec match_ ~ctx1 (motif : expression) : stage2 =
   match motif.pexp_desc with
@@ -321,6 +344,93 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
         | Pexp_function (params, None, Pfunction_body body) ->
             match_params params ~env ~ctx && match_body body ~env ~ctx
         | _ -> false)
+  | Pexp_extension ({ txt = "acc"; _ }, _) ->
+      fun expr ~env ~ctx:_ ->
+        Option.is_none !env.xrest
+        &&
+        (env := { !env with xrest = Some (Expr expr) };
+         true)
+  | Pexp_extension
+      ( { txt = "X"; _ }
+      , PStr
+          [ { pstr_desc =
+                Pstr_eval ({ pexp_desc = Pexp_ident { txt = Lident motif; _ }; _ }, _)
+            ; _
+            }
+          ] ) ->
+      match_var ~x:true ~ctx1 motif (fun v -> Expr v)
+  | Pexp_extension
+      ({ txt = "repeat"; _ }, PStr [ { pstr_desc = Pstr_eval (motif, _); _ } ]) ->
+      let base, repeated =
+        let base_motif = ref None in
+        let super = Ast_mapper.default_mapper in
+        let mapper =
+          { super with
+            expr =
+              (fun self expr ->
+                match expr.pexp_desc with
+                | Pexp_extension
+                    ({ txt = "acc"; _ }, PStr [ { pstr_desc = Pstr_eval (b, _); _ } ]) ->
+                    base_motif := Some b;
+                    expr
+                | _ -> super.expr self expr)
+          }
+        in
+        let repeated = mapper.expr mapper motif in
+        (Option.value_exn !base_motif, repeated)
+      in
+      let match_repeated = match_ ~ctx1 repeated in
+      let match_base = match_ ~ctx1 base in
+      let rec loop xvars expr ~env ~ctx =
+        let env_before = !env in
+        (if
+           env := { !env with xbindings = Map.empty (module String); xrest = None };
+           match_repeated expr ~env ~ctx
+         then
+           match !env.xrest with
+           | Some (Expr expr) -> loop (!env.xbindings :: xvars) expr ~env ~ctx
+           | rest -> raise_s [%sexp "rest is not expr", (rest : value option)]
+         else false)
+        ||
+        (env := env_before;
+         match_base expr ~env ~ctx
+         && match_count ~env (List.length xvars + 1)
+         && List.for_alli xvars ~f:(fun i map ->
+                let i = i + 2 in
+                Map.for_alli map ~f:(fun ~key ~data:(inside_move_def, data) ->
+                    match_var_snd_stage ~env ~inside_move_def (key ^ Int.to_string i) data)))
+      in
+      loop []
+  | Pexp_extension ({ txt = "repeat2"; _ }, PStr [ { pstr_desc = Pstr_eval (e, _); _ } ])
+    -> (
+      let inside_move_def = ctx1.inside_move_def in
+      match e.pexp_desc with
+      | Pexp_function
+          ( [ { pparam_desc =
+                  Pparam_val
+                    (Nolabel, None, { ppat_desc = Ppat_var { txt = var_base; _ }; _ })
+              ; _
+              }
+            ]
+          , None
+          , Pfunction_body body_motif ) -> (
+          let match_params (params : P.expr_function_param list) ~env ~ctx:_ =
+            List.for_alli params ~f:(fun i param ->
+                match param.pparam_desc with
+                | Pparam_val (Nolabel, None, pat) ->
+                    match_var_snd_stage ~env ~inside_move_def
+                      (var_base ^ Int.to_string (i + 1))
+                      (Pat pat)
+                | Pparam_newtype _ | Pparam_val _ -> false)
+            && match_count ~env (List.length params)
+          in
+          let match_body = match_ ~ctx1 body_motif in
+          fun expr ~env ~ctx ->
+            match expr.pexp_desc with
+            | Pexp_function (params, None, Pfunction_body body) ->
+                match_params params ~env ~ctx && match_body body ~env ~ctx
+            | _ -> false)
+      | _ -> unsupported_motif motif.pexp_loc)
   | Pexp_extension (motif_name, motif_payload) -> (
       ctx1.need_type_index := true;
       let s_payload =
@@ -546,6 +656,16 @@ and match_structure_item ~loc ~ctx1 (motif : structure_item) =
         match s.pstr_desc with Pstr_eval (e, _) -> s1 e ~env ~ctx | _ -> false)
   | _ -> unsupported_motif loc
 
+let get_count bindings =
+  match Map.find bindings "__count" with
+  | Some
+      (lazy
+        (Expr
+           { pexp_desc = Pexp_constant { pconst_desc = Pconst_integer (n, None); _ }; _ }))
+    ->
+      Int.of_string n
+  | _ -> failwith "no __count?"
+
 let subst ~env =
   let super = Ast_mapper.default_mapper in
   { super with
@@ -581,6 +701,11 @@ let subst ~env =
       with_log (fun self expr ->
           let expr =
             match expr.pexp_desc with
+            | Pexp_extension
+                ({ txt = "repeat2"; _ }, PStr [ { pstr_desc = Pstr_eval (e, _); _ } ]) ->
+                Rep.repeat2_template e self ~count:(get_count env)
+                  ~env_pat:(fun var -> env_pat ~loc:expr.pexp_loc env var)
+                  ~env_exp:(fun var -> env_exp ~loc:expr.pexp_loc env var)
             | Pexp_record (fields, init) ->
                 let fields' =
                   List.concat_map fields ~f:(fun ((id, typopt, value) as field) ->
@@ -637,7 +762,14 @@ let subst ~env =
 
 let replace (type a b e) ((vnode : (_, a, b, e) Fmast.Node.t), (v : a)) ~whole_ast
     ~type_index ~stage2 ~(repl : a) =
-  let env = ref { bindings = Map.empty (module String); nodes_to_remove = [] } in
+  let env =
+    ref
+      { bindings = Map.empty (module String)
+      ; xbindings = Map.empty (module String)
+      ; xrest = None
+      ; nodes_to_remove = []
+      }
+  in
   if stage2 v ~env ~ctx:{ type_index; whole_ast }
   then
     let repl : a =
@@ -797,6 +929,7 @@ let compile_motif ~ctx1 motif =
        ~input_name:file_path motif)
       .ast
     |> Ocamlformat_lib.Extended_ast.map ast drop_concrete_syntax_constructs
+    |> Ocamlformat_lib.Extended_ast.map ast remove_attributes
   in
   match String.lsplit2 motif ~on:':' with
   | Some ("binding", motif) -> (
@@ -830,10 +963,18 @@ let compile_motif ~ctx1 motif =
       `Type (match_type ~ctx1 typ)
   | _ ->
       let motif = parse Expression motif in
-      `Expr (match_ ~ctx1 motif)
+      let motif_fm = Rep.infer motif in
+      if
+        debug.replace_repetitions
+        && Sexp.( <> ) [%sexp (motif : expression)] [%sexp (motif_fm : expression)]
+      then
+        print_s
+          [%sexp
+            `inferred_repetition, (motif : expression), "->", (motif_fm : expression)];
+      `Expr (match_ ~ctx1 motif_fm)
 
 let parse_template ~fmconf stage2 repl =
-  let repl wrap unwrap kind =
+  let repl ?(infer_repetition = Fn.id) wrap unwrap kind =
     match !repl with
     | `Forced v -> unwrap v
     | `Unforced repl_str ->
@@ -843,6 +984,7 @@ let parse_template ~fmconf stage2 repl =
                 preserve_loc_to_preserve_comment_pos to work *)
              repl_str)
             .ast
+          |> infer_repetition
           |> Ocamlformat_lib.Extended_ast.map kind
                Transform_migration.internalize_reorder_attribute_mapper
         in
@@ -852,7 +994,10 @@ let parse_template ~fmconf stage2 repl =
   match stage2 with
   | `Expr stage2 ->
       `Expr
-        (stage2, repl (`Expr __) (function `Expr v -> v | _ -> assert false) Expression)
+        ( stage2
+        , repl ~infer_repetition:Rep.infer (`Expr __)
+            (function `Expr v -> v | _ -> assert false)
+            Expression )
   | `Type stage2 ->
       `Type
         (stage2, repl (`Type __) (function `Type v -> v | _ -> assert false) Core_type)

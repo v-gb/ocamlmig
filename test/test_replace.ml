@@ -90,6 +90,33 @@ module _ = struct
     end]
 end
 
+module _ = struct
+  (* n-ary replaces *)
+  let nary _ = ()
+
+  let _ = nary (fun a b c d e -> (a, b, c, d, e))
+  [@@migrate_test.replace let _ = (a, b, c, d, e)]
+
+  let const _ = ()
+  let const2 = const
+  let const3 = const
+  let ( $ ) _ _ = ()
+  let _ = nary (const 1 $ 2 $ 3 $ 5 $ 5 $ 6 $ 7) [@@migrate_test.replace let _ = 1]
+
+  let _ = nary (const2 (fun a b c d e -> (a, b, c, d, e)) $ 2 $ 3 $ 5 $ 5 $ 6 $ 7)
+  [@@migrate_test.replace
+    let _ = nary (const2 (fun a b c d e -> (a, b, c, d, e)) $ 2 $ 3 $ 5 $ 5 $ 6 $ 7)]
+
+  let _ = nary (const2 (fun a b c d e -> (a, b, c, d, e)) $ 2 $ 3 $ 5 $ 5 $ 6)
+  [@@migrate_test.replace let _ = (a, b, c, d, e)]
+
+  let _ = nary (const3 (fun a b c d e -> (a, b, c, d, e)) $ 2 $ 3 $ 5 $ 5 $ 6)
+  [@@migrate_test.replace
+    let _ =
+      let+ a = 2 and+ b = 3 and+ c = 5 and+ d = 5 and+ e = 6 in
+      (a, b, c, d, e)]
+end
+
 (* Replace List.mapi by List.map to observe that the comment is moved. I suspect the
    problem is that as we replace List.map ~f:__f __l by List.map __l ~f:__f, the position
    for the function application is not transferred to the new function application. *)
