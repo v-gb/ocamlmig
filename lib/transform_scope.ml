@@ -224,59 +224,23 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
      constructor (I'd expect [%sexp_of: int] to generate sexp_of_int at the location
      of int). *)
   let should_act_in_test = ref false in
-  let update_type env_find_x_by_name build (typ : P.core_type)
-      (id : Longident.t Location.loc) =
-    match Build.Type_index.typ type_index (Conv.location' typ.ptyp_loc) with
+  let type_index_find_first ns v (id : Longident.t Location.loc) =
+    match
+      Build.Type_index.find type_index (Fmast.Node.index ns)
+        (Conv.location' (Fmast.Node.loc ns v))
+    with
     | [] ->
         if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
-        typ
-    | ttyp :: _ -> (
-        let env = Envaux.env_of_only_summary ttyp.ctyp_env in
-        match env_find_x_by_name (Conv.longident' id.txt) env with
-        | exception Stdlib.Not_found -> typ
-        | path, _td -> (
-            match maybe_reroot root id.txt path with
-            | None -> typ
-            | Some new_id ->
-                (* could compute merely_aliased here, same as for values *)
-                changed_something := true;
-                { typ with
-                  ptyp_desc = build { id with txt = new_id }
-                ; ptyp_attributes =
-                    Sattr.touched.build ~loc:!Ast_helper.default_loc ()
-                    :: typ.ptyp_attributes
-                }))
+        None
+    | ttyp :: _ -> Some ttyp
   in
-  let update_cl build (ce : P.class_expr) (id : Longident.t Location.loc) =
-    match Build.Type_index.cexp type_index (Conv.location' ce.pcl_loc) with
-    | [] ->
-        if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
-        ce
-    | ttyp :: _ -> (
-        let env = Envaux.env_of_only_summary ttyp.cl_env in
-        match Env.find_class_by_name (Conv.longident' id.txt) env with
-        | exception Stdlib.Not_found -> ce
-        | path, _td -> (
-            match maybe_reroot root id.txt path with
-            | None -> ce
-            | Some new_id ->
-                (* could compute merely_aliased here, same as for values *)
-                changed_something := true;
-                { ce with
-                  pcl_desc = build { id with txt = new_id }
-                ; pcl_attributes =
-                    Sattr.touched.build ~loc:!Ast_helper.default_loc ()
-                    :: ce.pcl_attributes
-                }))
-  in
-  let update_cty build (ct : P.class_type) (id : Longident.t Location.loc) =
-    match Build.Type_index.ctyp type_index (Conv.location' ct.pcty_loc) with
-    | [] ->
-        if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
-        ct
-    | ttyp :: _ -> (
-        let env = Envaux.env_of_only_summary ttyp.cltyp_env in
-        match Env.find_cltype_by_name (Conv.longident' id.txt) env with
+  let update_gen (ctnode, ct) (idns, id) build =
+    let ctindex = Fmast.Node.index ctnode in
+    match type_index_find_first ctnode ct id with
+    | None -> ct
+    | Some ttyp -> (
+        let env = Envaux.env_of_only_summary (Build.Type_index.env ctindex ttyp) in
+        match Uast.find_by_name idns env (Conv.longident' id.txt) with
         | exception Stdlib.Not_found -> ct
         | path, _td -> (
             match maybe_reroot root id.txt path with
@@ -284,12 +248,11 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
             | Some new_id ->
                 (* could compute merely_aliased here, same as for values *)
                 changed_something := true;
-                { ct with
-                  pcty_desc = build { id with txt = new_id }
-                ; pcty_attributes =
-                    Sattr.touched.build ~loc:!Ast_helper.default_loc ()
-                    :: ct.pcty_attributes
-                }))
+                Fmast.Node.update ctnode ct
+                  ~desc:(build { id with txt = new_id })
+                  ~attributes:
+                    (Sattr.touched.build ~loc:!Ast_helper.default_loc ()
+                    :: Fmast.Node.attributes ctnode ct)))
   in
   let filter_opens env =
     let rec filter_opens (summary : Env.summary) =
@@ -304,62 +267,68 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
       (fun sum subst -> Envaux.env_from_summary (filter_opens sum) subst)
       env
   in
-  let constructor_may_have_been_provided_by_open (id : Longident.t Location.loc)
-      (cd : Types.constructor_description) env =
+  let label_may_have_been_provided_by_open (ns, (id : Longident.t Location.loc)) cd env =
     let env = Envaux.env_of_only_summary env in
-    match Env.find_constructor_by_name (Conv.longident' id.txt) env with
+    match Uast.find_by_name ns env (Conv.longident' id.txt) with
     | exception Stdlib.Not_found -> false
     | cd_orig_env -> (
-        Shape.Uid.equal cd_orig_env.cstr_uid cd.cstr_uid
+        Shape.Uid.equal (Uast.uid ns cd_orig_env) (Uast.uid ns cd)
         &&
         (* The constructor is in scope, so we should prefix it. The prefixing may be
              unnecessary, if type based disambiguation was forcing this interpretation,
              but we have no way to determine what constructor disambiguation is in
              play. *)
         let new_env = filter_opens env in
-        match Env.find_constructor_by_name (Conv.longident' id.txt) new_env with
+        match Uast.find_by_name ns new_env (Conv.longident' id.txt) with
         | exception Stdlib.Not_found -> true
-        | cd_new_env -> not (Shape.Uid.equal cd_new_env.cstr_uid cd.cstr_uid))
+        | cd_new_env -> not (Shape.Uid.equal (Uast.uid ns cd_new_env) (Uast.uid ns cd)))
   in
-  let label_may_have_been_provided_by_open (id : Longident.t Location.loc)
-      (ld : Types.label_description) env =
-    let env = Envaux.env_of_only_summary env in
-    match Env.find_label_by_name (Conv.longident' id.txt) env with
-    | exception Stdlib.Not_found -> false
-    | ld_orig_env -> (
-        Shape.Uid.equal ld_orig_env.lbl_uid ld.lbl_uid
-        &&
-        let new_env = filter_opens env in
-        match Env.find_label_by_name (Conv.longident' id.txt) new_env with
-        | exception Stdlib.Not_found -> true
-        | ld_new_env -> not (Shape.Uid.equal ld_new_env.lbl_uid ld.lbl_uid))
+  let update_label (srcnode, src) (ns, id) cd build =
+    let index = Fmast.Node.index srcnode in
+    match type_index_find_first srcnode src id with
+    | None -> src
+    | Some texpr -> (
+        match cd texpr with
+        | None -> src
+        | Some cd ->
+            if
+              label_may_have_been_provided_by_open (ns, id) cd
+                (Build.Type_index.env index texpr)
+            then (
+              let new_id = maybe_reroot' root id.txt in
+              changed_something := true;
+              Fmast.Node.update srcnode src
+                ~desc:(build { id with txt = new_id })
+                ~attributes:
+                  (Sattr.touched.build ~loc:!Ast_helper.default_loc ()
+                  :: Fmast.Node.attributes srcnode src))
+            else src)
   in
-  let update_field ~type_index_lookup ~match_record ~dotenv ~with_attr fields =
+  let update_all_fields fields (ctnode, ct) ~match_record build =
     let changed_field = ref false in
     let fields =
       let has_seen_qualified_field = ref false in
-      let update_field (((label : Longident.t Location.loc), type_constr, value) as field)
-          =
-        match type_index_lookup with
-        | [] ->
-            if !log then print_s [%sexp (label.txt : Longident.t), "missing type"];
-            field
-        | texpr :: _ -> (
+      let update_field ((label, type_constr, value) as field) =
+        let ctindex = Fmast.Node.index ctnode in
+        match type_index_find_first ctnode ct label with
+        | None -> field
+        | Some texpr -> (
             match match_record texpr with
             | Some find_exn_fields
-              when label_may_have_been_provided_by_open label
+              when label_may_have_been_provided_by_open (Label, label)
                      (find_exn_fields ~f:(fun (lbl : Types.label_description) ->
                           lbl.lbl_name =: Longident.last label.txt))
-                     (dotenv texpr) ->
+                     (Build.Type_index.env ctindex texpr) ->
                 let new_label = maybe_reroot' root label.txt in
                 changed_field := true;
                 changed_something := true;
                 ( { label with txt = new_label }
                 , type_constr
                 , Option.map value ~f:(fun value ->
-                      with_attr value (fun attrs ->
-                          Sattr.touched.build ~loc:!Ast_helper.default_loc () :: attrs))
-                )
+                      Fmast.Node.update ctnode value
+                        ~attributes:
+                          (Sattr.touched.build ~loc:!Ast_helper.default_loc ()
+                          :: Fmast.Node.attributes ctnode ct)) )
             | _ -> field)
       in
       let l =
@@ -372,7 +341,7 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
       then l
       else match l with [] -> [] | hd :: tl -> update_field hd :: tl
     in
-    if !changed_field then Some fields else None
+    if !changed_field then Fmast.Node.update ctnode ct ~desc:(build fields) else ct
   in
   let self =
     { super with
@@ -384,13 +353,9 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
           else
             match typ.ptyp_desc with
             | Ptyp_constr (id, args) ->
-                update_type Env.find_type_by_name
-                  (fun id -> Ptyp_constr (id, args))
-                  typ id
+                update_gen (Typ, typ) (Type, id) (fun id -> Ptyp_constr (id, args))
             | Ptyp_class (id, args) ->
-                update_type Env.find_class_by_name
-                  (fun id -> Ptyp_class (id, args))
-                  typ id
+                update_gen (Typ, typ) (Class, id) (fun id -> Ptyp_class (id, args))
             | _ -> typ)
     ; class_type =
         (fun self ct ->
@@ -400,7 +365,7 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
           else
             match ct.pcty_desc with
             | Pcty_constr (id, args) ->
-                update_cty (fun id -> Pcty_constr (id, args)) ct id
+                update_gen (Ctyp, ct) (Class_type, id) (fun id -> Pcty_constr (id, args))
             | _ -> ct)
     ; class_expr =
         (fun self ce ->
@@ -409,91 +374,46 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
           then ce
           else
             match ce.pcl_desc with
-            | Pcl_constr (id, args) -> update_cl (fun id -> Pcl_constr (id, args)) ce id
+            | Pcl_constr (id, args) ->
+                update_gen (Cexp, ce) (Class, id) (fun id -> Pcl_constr (id, args))
             | _ -> ce)
     ; pat =
         (fun self pat ->
           let pat = super.pat self pat in
           match pat.ppat_desc with
-          | Ppat_construct (id, arg_opt) -> (
-              match Build.Type_index.pat type_index (Conv.location' pat.ppat_loc) with
-              | [] ->
-                  if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
-                  pat
-              | T tpat :: _ -> (
-                  match
-                    match tpat.pat_desc with
-                    | Tpat_construct (_, cd, _, _) -> Some cd
-                    | Tpat_value z -> (
-                        (* No clue why we sometimes get Tpat_value around constructors,
+          | Ppat_construct (id, arg_opt) ->
+              update_label (Pat, pat) (Constructor, id)
+                (fun (T tpat) ->
+                  match tpat.pat_desc with
+                  | Tpat_construct (_, cd, _, _) -> Some cd
+                  | Tpat_value z -> (
+                      (* No clue why we sometimes get Tpat_value around constructors,
                            and sometimes not, and it's a mystery what Tpat_value even
                            is. *)
-                        match (z :> Typedtree.pattern).pat_desc with
-                        | Tpat_construct (_, cd, _, _) -> Some cd
-                        | _ -> None)
-                    | _ -> None
-                  with
-                  | Some cd
-                    when constructor_may_have_been_provided_by_open id cd tpat.pat_env ->
-                      let new_id = maybe_reroot' root id.txt in
-                      changed_something := true;
-                      { pat with
-                        ppat_desc = Ppat_construct ({ id with txt = new_id }, arg_opt)
-                      ; ppat_attributes =
-                          Sattr.touched.build ~loc:!Ast_helper.default_loc ()
-                          :: pat.ppat_attributes
-                      }
-                  | _ ->
-                      if !log
-                      then
-                        print_s
-                          [%sexp
-                            (id.txt : Longident.t)
-                          , "not a construct in typedtree"
-                          , (match tpat.pat_desc with
-                             | Tpat_any -> "any"
-                             | Tpat_var _ -> "var"
-                             | Tpat_alias _ -> "alias"
-                             | Tpat_constant _ -> "constant"
-                             | Tpat_tuple _ -> "tuple"
-                             | Tpat_construct _ -> "construct"
-                             | Tpat_variant _ -> "variant"
-                             | Tpat_record _ -> "record"
-                             | Tpat_array _ -> "array"
-                             | Tpat_lazy _ -> "lazy"
-                             | Tpat_value _ -> "value"
-                             | Tpat_exception _ -> "exn"
-                             | Tpat_or _ -> "or"
-                              : string)];
-                      pat))
-          | Ppat_record (fields, closed) -> (
-              match
-                update_field
-                  ~type_index_lookup:
-                    (Build.Type_index.pat type_index (Conv.location' pat.ppat_loc))
-                  ~match_record:(fun (T tpat) ->
-                    match tpat.pat_desc with
-                    | Tpat_record (fields, _) ->
-                        Some
-                          (fun ~f ->
-                            List.find_map_exn fields ~f:(fun (_, lbl, _) ->
-                                if f lbl then Some lbl else None))
-                    | Tpat_value z -> (
-                        match (z :> Typedtree.pattern).pat_desc with
-                        | Tpat_record (fields, _) ->
-                            Some
-                              (fun ~f ->
-                                List.find_map_exn fields ~f:(fun (_, lbl, _) ->
-                                    if f lbl then Some lbl else None))
-                        | _ -> None)
-                    | _ -> None)
-                  ~dotenv:(fun (T tpat) -> tpat.pat_env)
-                  ~with_attr:(fun (p : P.pattern) f ->
-                    { p with ppat_attributes = f p.ppat_attributes })
-                  fields
-              with
-              | None -> pat
-              | Some fields -> { pat with ppat_desc = Ppat_record (fields, closed) })
+                      match (z :> Typedtree.pattern).pat_desc with
+                      | Tpat_construct (_, cd, _, _) -> Some cd
+                      | _ -> None)
+                  | _ -> None)
+                (fun id -> Ppat_construct (id, arg_opt))
+          | Ppat_record (fields, closed) ->
+              update_all_fields fields (Pat, pat)
+                ~match_record:(fun (T tpat) ->
+                  match tpat.pat_desc with
+                  | Tpat_record (fields, _) ->
+                      Some
+                        (fun ~f ->
+                          List.find_map_exn fields ~f:(fun (_, lbl, _) ->
+                              if f lbl then Some lbl else None))
+                  | Tpat_value z -> (
+                      match (z :> Typedtree.pattern).pat_desc with
+                      | Tpat_record (fields, _) ->
+                          Some
+                            (fun ~f ->
+                              List.find_map_exn fields ~f:(fun (_, lbl, _) ->
+                                  if f lbl then Some lbl else None))
+                      | _ -> None)
+                  | _ -> None)
+                (fun fields -> Ppat_record (fields, closed))
           | _ -> pat)
     ; expr =
         with_log (fun self expr ->
@@ -553,91 +473,28 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
                 when is_root id.txt ->
                   changed_something := true;
                   e
-              | Pexp_construct (id, arg_opt) -> (
-                  match
-                    Build.Type_index.exp type_index (Conv.location' expr.pexp_loc)
-                  with
-                  | [] ->
-                      if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
-                      expr
-                  | texpr :: _ -> (
+              | Pexp_construct (id, arg_opt) ->
+                  update_label (Exp, expr) (Constructor, id)
+                    (function
+                      | { exp_desc = Texp_construct (_, cd, _); _ } -> Some cd | _ -> None)
+                    (fun id -> Pexp_construct (id, arg_opt))
+              | Pexp_field (arg, id) ->
+                  update_label (Exp, expr) (Label, id)
+                    (function
+                      | { exp_desc = Texp_field (_, _, ld); _ } -> Some ld | _ -> None)
+                    (fun id -> Pexp_field (arg, id))
+              | Pexp_record (fields, init) ->
+                  update_all_fields fields (Exp, expr)
+                    ~match_record:(fun texpr ->
                       match texpr.exp_desc with
-                      | Texp_construct (_, cd, _)
-                        when constructor_may_have_been_provided_by_open id cd
-                               texpr.exp_env ->
-                          let new_id = maybe_reroot' root id.txt in
-                          changed_something := true;
-                          { expr with
-                            pexp_desc = Pexp_construct ({ id with txt = new_id }, arg_opt)
-                          ; pexp_attributes =
-                              Sattr.touched.build ~loc:!Ast_helper.default_loc ()
-                              :: expr.pexp_attributes
-                          }
-                      | _ -> expr))
-              | Pexp_field (arg, id) -> (
-                  match
-                    Build.Type_index.exp type_index (Conv.location' expr.pexp_loc)
-                  with
-                  | [] ->
-                      if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
-                      expr
-                  | texpr :: _ -> (
-                      match texpr.exp_desc with
-                      | Texp_field (_, _, ld)
-                        when label_may_have_been_provided_by_open id ld texpr.exp_env ->
-                          let new_id = maybe_reroot' root id.txt in
-                          changed_something := true;
-                          { expr with
-                            pexp_desc = Pexp_field (arg, { id with txt = new_id })
-                          ; pexp_attributes =
-                              Sattr.touched.build ~loc:!Ast_helper.default_loc ()
-                              :: expr.pexp_attributes
-                          }
-                      | _ -> expr))
-              | Pexp_record (fields, init) -> (
-                  match
-                    update_field
-                      ~type_index_lookup:
-                        (Build.Type_index.exp type_index (Conv.location' expr.pexp_loc))
-                      ~match_record:(fun texpr ->
-                        match texpr.exp_desc with
-                        | Texp_record { fields; _ } ->
-                            Some
-                              (fun ~f ->
-                                Array.find_map_exn fields ~f:(fun (lbl, _) ->
-                                    if f lbl then Some lbl else None))
-                        | _ -> None)
-                      ~dotenv:__.exp_env
-                      ~with_attr:(fun (e : P.expression) f ->
-                        { e with pexp_attributes = f e.pexp_attributes })
-                      fields
-                  with
-                  | None -> expr
-                  | Some fields -> { expr with pexp_desc = Pexp_record (fields, init) })
-              | Pexp_new id -> (
-                  match
-                    Build.Type_index.exp type_index (Conv.location' expr.pexp_loc)
-                  with
-                  | [] ->
-                      if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
-                      expr
-                  | texpr :: _ -> (
-                      let env = Envaux.env_of_only_summary texpr.exp_env in
-                      match Env.find_class_by_name (Conv.longident' id.txt) env with
-                      | exception Stdlib.Not_found ->
-                          (* happens with __, because of ppx_partial *)
-                          expr
-                      | path, _cd -> (
-                          match maybe_reroot root id.txt path with
-                          | None -> expr
-                          | Some new_id ->
-                              changed_something := true;
-                              { expr with
-                                pexp_desc = Pexp_ident { id with txt = new_id }
-                              ; pexp_attributes =
-                                  Sattr.touched.build ~loc:!Ast_helper.default_loc ()
-                                  :: expr.pexp_attributes
-                              })))
+                      | Texp_record { fields; _ } ->
+                          Some
+                            (fun ~f ->
+                              Array.find_map_exn fields ~f:(fun (lbl, _) ->
+                                  if f lbl then Some lbl else None))
+                      | _ -> None)
+                    (fun fields -> Pexp_record (fields, init))
+              | Pexp_new id -> update_gen (Exp, expr) (Class, id) (fun id -> Pexp_new id)
               | _ -> expr)
     ; structure_item =
         update_migrate_test_payload ~match_attr:(__ =: "migrate_test.unopen")

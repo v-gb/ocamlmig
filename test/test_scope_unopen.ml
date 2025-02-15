@@ -154,7 +154,7 @@ let () =
 
         class type ct = object end
 
-        let _ = ((new c : #c), (Z.zc : #Z.zc))
+        let _ = ((new c : #c), (new Z.zc : #Z.zc))
 
         class _zc2 : Z.zct =
           object
