@@ -87,13 +87,17 @@ let drop_defs ~type_index file_type structure uids =
     File_type.map file_type self structure
 
 type value =
-  | Expr of P.expression
+  | Expr of expression
   | Variant of string
-  | Typ of P.core_type
-  | Pat of P.pattern
-  | Args of function_arg list
+  | Typ of core_type
+  | Pat of pattern
+  | Args of (function_arg list[@sexp.opaque])
   | Fields of
-      (Longident.t Location.loc * P.type_constraint option * expression option) list
+      (Longident.t Location.loc
+      * (P.type_constraint option[@sexp.opaque])
+      * expression option)
+      list
+[@@deriving sexp_of]
 
 type ctx =
   { type_index : Build.Type_index.t option Lazy.t
