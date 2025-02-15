@@ -7,12 +7,17 @@ module P = Parsetree
 open! Fmast
 
 (* Possible design:
-   - __etc to match any number of tuple elements/list elements
-   - it may be better for pexp_ident to match the value rather than syntactically,
-     and have some mechanism for a syntactic match. Maybe [%exact foo]?
-   - might be useful to have ways of stating some properties of the code like
+   - unclear if pexp_ident sould match the value rather than syntactically.
+     Maybe have some mechanism for a syntactic match. Maybe [%exact foo]?
+   - maybe it should be possible to replace in context, which in particular
+     enables multiple replaces
+     f (motif1 /// repl1) (motif2 /// repl2)
+     That could be useful for changing a definition and a caller
+     at once
+   - it might be useful to match non-syntactic properties of the code like
      "cannot raise" or "duplicatable", such that you can say things like
      (try Some (Sys.getenv (__var & [%noraise])) with Not_found -> None) /// Sys.getenv_opt __var
+   - unclear how to match on different ast fragments.
 *)
 
 let map_ref_find_and_remove map key =
