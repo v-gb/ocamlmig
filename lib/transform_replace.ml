@@ -753,13 +753,13 @@ let run motif_and_repls () =
                 let ty = super.typ self ty in
                 match
                   List.find_map stage2_and_repls ~f:(function
-                    | `Expr _ | `Binding_op _ | `Binding _ -> None
                     | `Type (stage2, repl) ->
                         replace
                           ( __.typ
                           , preserve_loc_to_preserve_comment_pos __.typ ~from:ty.ptyp_loc
                           )
-                          ty ~whole_ast:structure ~type_index ~stage2 ~repl)
+                          ty ~whole_ast:structure ~type_index ~stage2 ~repl
+                    | _ -> None)
                 with
                 | None -> ty
                 | Some (ty, nodes_to_remove) ->
@@ -771,13 +771,13 @@ let run motif_and_repls () =
                 let vb = super.value_binding self vb in
                 match
                   List.find_map stage2_and_repls ~f:(function
-                    | `Expr _ | `Binding_op _ | `Type _ -> None
                     | `Binding (stage2, repl) ->
                         replace
                           ( __.value_binding
                           , preserve_loc_to_preserve_comment_pos __.value_binding
                               ~from:vb.pvb_loc )
-                          vb ~whole_ast:structure ~type_index ~stage2 ~repl)
+                          vb ~whole_ast:structure ~type_index ~stage2 ~repl
+                    | _ -> None)
                 with
                 | None -> vb
                 | Some (vb, nodes_to_remove) ->
@@ -789,7 +789,6 @@ let run motif_and_repls () =
                 let bop = super.binding_op self bop in
                 match
                   List.find_map stage2_and_repls ~f:(function
-                    | `Expr _ | `Binding _ | `Type _ -> None
                     | `Binding_op (stage2, repl) ->
                         let repl =
                           { repl with
@@ -805,7 +804,8 @@ let run motif_and_repls () =
                           ( __.binding_op
                           , preserve_loc_to_preserve_comment_pos __.binding_op
                               ~from:bop.pbop_loc )
-                          bop ~whole_ast:structure ~type_index ~stage2 ~repl)
+                          bop ~whole_ast:structure ~type_index ~stage2 ~repl
+                    | _ -> None)
                 with
                 | None -> bop
                 | Some (bop, nodes_to_remove) ->
@@ -817,11 +817,11 @@ let run motif_and_repls () =
                 let expr = super.expr self expr in
                 match
                   List.find_map stage2_and_repls ~f:(function
-                    | `Binding _ | `Binding_op _ | `Type _ -> None
                     | `Expr (stage2, repl) ->
                         replace
                           (__.expr, preserve_loc_to_preserve_comment_pos_expr ~from:expr)
-                          expr ~whole_ast:structure ~type_index ~stage2 ~repl)
+                          expr ~whole_ast:structure ~type_index ~stage2 ~repl
+                    | _ -> None)
                 with
                 | None -> expr
                 | Some (expr, nodes_to_remove) ->
