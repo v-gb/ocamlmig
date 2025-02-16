@@ -463,21 +463,21 @@ let printed_ast add_comments (loc : Location.t) ext ast =
          if i = 0 then s else String.make current_indentation ' ' ^ s)
   |> String.concat ~sep:"\n"
 
-let tokens_would_fuse ~ocaml_version str1 str2 =
-  let tokens str =
-    let lexbuf = Lexing.from_string str in
-    Ocamlformat_parser_extended.Lexer.init ~keyword_edition:(ocaml_version, []) ();
-    let rec loop acc =
-      match Ocamlformat_parser_extended.Lexer.token lexbuf with
-      | exception (Ocamlformat_parser_extended.Lexer.Error _ as e) -> Error e
-      | EOF -> Ok (List.rev acc)
-      | token -> loop (token :: acc)
-    in
-    loop []
+let tokens ~ocaml_version str =
+  let lexbuf = Lexing.from_string str in
+  Ocamlformat_parser_extended.Lexer.init ~keyword_edition:(ocaml_version, []) ();
+  let rec loop acc =
+    match Ocamlformat_parser_extended.Lexer.token lexbuf with
+    | exception (Ocamlformat_parser_extended.Lexer.Error _ as e) -> Error e
+    | EOF -> Ok (List.rev acc)
+    | token -> loop (token :: acc)
   in
+  loop []
+
+let tokens_would_fuse ~ocaml_version str1 str2 =
   (* The sections of text we consider are cut at expressions/types/etc boundaries, so
      they are also token boundaries, so we don't need to lex from start of file. *)
-  match (tokens str1, tokens (str1 ^ str2)) with
+  match (tokens ~ocaml_version str1, tokens ~ocaml_version (str1 ^ str2)) with
   | Error e, _ -> raise e
   | _, Error _ -> true
   | Ok tokens1, Ok tokens12 ->
