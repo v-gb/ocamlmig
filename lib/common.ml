@@ -21,10 +21,18 @@ type debug =
   ; build_artifacts : bool
   ; ocamlformat : bool
   ; extra_migrations : bool
+  ; preserve_format_parens : bool
   }
 
 let debug =
-  let all b = { all = b; build_artifacts = b; ocamlformat = b; extra_migrations = b } in
+  let all b =
+    { all = b
+    ; build_artifacts = b
+    ; ocamlformat = b
+    ; extra_migrations = b
+    ; preserve_format_parens = b
+    }
+  in
   let no_debug = all false in
   match Base.Sys.getenv "OCAMLMIG_DEBUG" with
   | None -> no_debug
@@ -39,6 +47,7 @@ let debug =
         | "build_artifacts" -> { d with build_artifacts = true }
         | "ocamlformat" -> { d with ocamlformat = true }
         | "extra_migrations" -> { d with extra_migrations = true }
+        | "preserve_format_parens" -> { d with preserve_format_parens = true }
         | s ->
             eprintf "OCAMLMIG_DEBUG: unknown field %S (see OCAMLMIG_DEBUG=help)\n" s;
             d)

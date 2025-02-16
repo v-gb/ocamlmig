@@ -484,7 +484,227 @@ let tokens_would_fuse ~ocaml_version str1 str2 =
       not
         (List.is_prefix ~prefix:tokens1 tokens12 ~equal:(Poly.equal : Parser.token -> _))
 
-let stitch_code_together ~ocaml_version ~debug_diff orig f =
+let rec equal_menhir_env env1 env2 =
+  phys_equal env1 env2
+  || Option.equal
+       (fun (Parser.MenhirInterpreter.Element (state1, _, _, _))
+            (Element (state2, _, _, _)) ->
+         Int.equal
+           (Parser.MenhirInterpreter.number state1)
+           (Parser.MenhirInterpreter.number state2)
+         && Option.equal equal_menhir_env
+              (Parser.MenhirInterpreter.pop env1)
+              (Parser.MenhirInterpreter.pop env2))
+       (Parser.MenhirInterpreter.top env1)
+       (Parser.MenhirInterpreter.top env2)
+
+let sexp_of_menhir_env =
+  let menhir_stack env =
+    let env = ref env in
+    let r = ref [] in
+    while
+      match Parser.MenhirInterpreter.top !env with
+      | None -> false
+      | Some (Element (lr1state, _a, _pos1, _pos2)) -> (
+          r := Parser.MenhirInterpreter.number lr1state :: !r;
+          match Parser.MenhirInterpreter.pop !env with
+          | None -> assert false
+          | Some env' ->
+              env := env';
+              true)
+    do
+      ()
+    done;
+    List.rev !r
+  in
+  fun env -> [%sexp (menhir_stack env : int list)]
+
+let parse (type a) (file_type : a Transform_common.File_type.t) menhir_stack tokens =
+  (* Not entirely sure what's going here, but this is taken from
+     Ocamlformat_parser_extended.Parse and adapted slightly. The main difference is we
+     want to start from a given parse stack (so we can resume parsing from the same
+     place multiple times with different upcoming text), and feed in tokens rather than
+     strings (so we don't have to consider problems that tokens_would_fuse will handle in
+     a following pass. *)
+  let tokens = ref tokens in
+  let token _ =
+    match !tokens with
+    | [] -> None
+    | tok :: rest ->
+        tokens := rest;
+        Some tok
+  in
+  let open Parser.MenhirInterpreter in
+  let rec fix_resume = function
+    | (InputNeeded _ | Accepted _ | Rejected | HandlingError _) as cp -> cp
+    | (Shifting (_, _, _) | AboutToReduce (_, _)) as cp ->
+        fix_resume (resume ~strategy:`Simplified cp)
+  in
+  let rec offer_input lexbuf cp (tok : Parser.token) =
+    let ptok = Lexing.(tok, lexbuf.lex_start_p, lexbuf.lex_curr_p) in
+    match fix_resume (offer cp ptok) with
+    | InputNeeded env as cp -> (
+        match token lexbuf with
+        | Some tok -> offer_input lexbuf cp tok
+        | None -> Ok (env, cp))
+    | Accepted _ -> assert false
+    | Rejected -> Error (Failure "parser reject")
+    | Shifting (_, _, _) | AboutToReduce (_, _) -> assert false
+    | HandlingError _ as cp' -> (
+        match Lexer.try_disambiguate lexbuf tok with
+        | Some tok' -> offer_input lexbuf cp tok'
+        | None -> main_loop lexbuf cp')
+  and main_loop lexbuf = function
+    | InputNeeded env as cp -> (
+        match token lexbuf with
+        | Some tok -> offer_input lexbuf cp tok
+        | None -> Ok (env, cp))
+    | Accepted _ -> assert false
+    | Rejected -> Error (Failure "parser reject")
+    | (Shifting (_, _, _) | AboutToReduce (_, _) | HandlingError _) as cp ->
+        main_loop lexbuf (resume ~strategy:`Simplified cp)
+  in
+  let lexbuf = Lexing.from_string "" in
+  try
+    main_loop lexbuf
+      (match menhir_stack with
+      | Some st -> st
+      | None ->
+          (match file_type with
+           | Impl ->
+               Ocamlformat_parser_extended.Parser.Incremental.implementation
+                 lexbuf.lex_curr_p
+           | Intf ->
+               Ocamlformat_parser_extended.Parser.Incremental.interface lexbuf.lex_curr_p
+            : a checkpoint))
+  with Ocamlformat_ocaml_common.Syntaxerr.Error _ as exn ->
+    (* In case the program is syntactically invalid, but instead of a Rejected state, a
+       production matched on the error and raised from the semantic action, as happens
+       for mismatched parens. *)
+    Error exn
+
+type repl_text =
+  { unambiguous : string
+  ; ambiguous : string option
+  }
+(* New text to insert into the file. [unambiguous] is a string that should work in all
+   contexts, so normally a parenthesized string. [ambiguous] is the unparenthesized
+   string, which may or may not work depending on the context, or None if the unambiguous
+   version is required.
+
+   It might seem like ocamlformat should handle whether parens are necessary or not,
+   and it does when it handles all the printing, but not when we only ask to print a
+   specific sub-expression.  For instance, given:
+
+     let f () =
+       try ()
+       with
+       | Exn1 ->
+         1 + g @@ (match () with () -> ())
+       | Exn2 -> ()
+
+    the match needs to be parenthesized, to avoid its cases fusing into the outer
+    try-with. But there are three places where the parens could go: around the +,
+    around the @@, and around the match. ocamlformat would choose the first option,
+    so if we ask it to reprint the match, it will drop the parens in the initial
+    program. That's why we need to add extra parens. Any paren choice made by considering
+    more ancestors than just the immediate parent of the node is subject to this.
+
+    Inversely, it may seem like we don't need to compute the context for ocamlformat,
+    and could rely on this code to add parens. That may be true, the main aspect that
+    might be worse (but it's untested) is that this code adds parens that are necessary,
+    whereas ocamlformat adds parens when they are necessary or merely desirable for
+    readability.
+ *)
+
+let rec array_find_map_from array i f =
+  if i >= Array.length array
+  then (None, i)
+  else
+    match f array.(i) with
+    | Some _ as opt -> (opt, i)
+    | None -> array_find_map_from array (i + 1) f
+
+let choose_repl_text file_type repl_texts ~ocaml_version =
+  (* Choose between the ambiguous text and the unambiguous text, by parsing the program
+     with both, and seeing if it seems to make a difference. We can't parse the full
+     program, as that'd lead to quadratic complexity, so we check that we have the same
+     parser stack (ignoring semantic values) after parsing either version, meaning the
+     parser would accept and reject the same program from that point.  *)
+  let tokens s = Result.ok_exn (tokens ~ocaml_version s) in
+  let dummy_token =
+    (* I initially uses EOF, but INCLUDE is simpler because it similarly ensures the
+       previous structure item is over, but it also prevents us from reaching the
+       Accepted states in the parser, which means less cases to handle. *)
+    Parser.INCLUDE
+  in
+  let menhir_stack = ref None in
+  let update_menhir_stack tokens =
+    menhir_stack := Some (snd (Result.ok_exn (parse file_type !menhir_stack tokens)))
+  in
+  let next_token_lower_bound = ref (None, -1) in
+  Array.filter_mapi repl_texts ~f:(fun i -> function
+    | `Preserve s ->
+        update_menhir_stack (tokens s);
+        None
+    | `Repl_text (loc, { unambiguous; ambiguous }) ->
+        Some
+          ( loc
+          , match ambiguous with
+            | None ->
+                update_menhir_stack (tokens unambiguous);
+                unambiguous
+            | Some ambiguous -> (
+                let next_token =
+                  (* !next_token_lower_bound is there to avoid N^2 complexity if we
+                   had N chunks with no tokens in a row. *)
+                  (match !next_token_lower_bound with
+                  | _, j when j >= i + 1 -> ()
+                  | _ ->
+                      next_token_lower_bound :=
+                        array_find_map_from repl_texts (i + 1)
+                          (fun (`Preserve s | `Repl_text (_, { unambiguous = s; _ })) ->
+                            List.hd (tokens s)));
+                  Option.value (fst !next_token_lower_bound) ~default:dummy_token
+                in
+                let res1 =
+                  parse file_type !menhir_stack (tokens unambiguous @ [ next_token ])
+                  |> Result.ok_exn (* should parse, since it's the unambiguous one *)
+                in
+                let res2 =
+                  parse file_type !menhir_stack (tokens ambiguous @ [ next_token ])
+                in
+                let unupdated_stack = !menhir_stack in
+                update_menhir_stack (tokens unambiguous);
+                match (res1, res2) with
+                | (env1, _), Ok (env2, _) when equal_menhir_env env1 env2 -> ambiguous
+                | _ ->
+                    if debug.preserve_format_parens
+                    then
+                      print_s
+                        [%sexp
+                          `initial
+                            (Option.map unupdated_stack ~f:(function
+                               | InputNeeded env -> [%sexp (env : menhir_env)]
+                               | _ -> [%sexp "other"])
+                              : Sexp.t option)
+                        , ~~(unambiguous : string)
+                        , ~~(res1 : menhir_env * _)
+                        , ~~(res2 : (menhir_env * _, exn) Result.t)];
+                    unambiguous) ))
+
+let stitch_code_together ~file_type ~ocaml_version ~debug_diff orig f =
+  let repl_texts =
+    let q = Queue.create () in
+    let pos = ref 0 in
+    f (fun (loc : Location.t) repl_text ->
+        Queue.enqueue q
+          (`Preserve (string_sub orig ~pos1:!pos ~pos2:loc.loc_start.pos_cnum));
+        pos := loc.loc_end.pos_cnum;
+        Queue.enqueue q (`Repl_text (loc, repl_text)));
+    Queue.enqueue q (`Preserve (string_sub orig ~pos1:!pos ~pos2:(String.length orig)));
+    choose_repl_text file_type (Queue.to_array q) ~ocaml_version
+  in
   let buf = Buffer.create (String.length orig) in
   let add_string =
     let last_chunk_of_data = ref "" in
@@ -504,7 +724,7 @@ let stitch_code_together ~ocaml_version ~debug_diff orig f =
     add_string ~parsed (string_sub orig ~pos1:!pos ~pos2:to_);
     pos := to_
   in
-  f (fun (loc : Location.t) str ->
+  Array.iter repl_texts ~f:(fun (loc, str) ->
       copy_orig loc.loc_start.pos_cnum ~parsed:true;
       if debug_diff
       then (
@@ -556,8 +776,11 @@ let print ~ocaml_version ~debug_diff ~source_contents file_type ast1 ast2 =
           prev := Some x);
       (* ideally, we'd pass the context into the printing function, so ocamlformat can
      print parens nicely, instead of this hack *)
-      let parens_if b str = if b then "(" ^ str ^ ")" else str in
-      stitch_code_together ~ocaml_version ~debug_diff source_contents (fun f ->
+      let parens_if b str =
+        let unambiguous = "(" ^ str ^ ")" in
+        { unambiguous; ambiguous = (if b then None else Some str) }
+      in
+      stitch_code_together ~file_type ~ocaml_version ~debug_diff source_contents (fun f ->
           List.iter l ~f:(function
             | `Expr (e1, e2) ->
                 f e1.pexp_loc
@@ -568,34 +791,76 @@ let print ~ocaml_version ~debug_diff ~source_contents file_type ast1 ast2 =
                   (parens_if (Ast.parenze_pat p2)
                      (printed_ast add_comments p1.ppat_loc Pattern p2.ast))
             | `Stri (s1, s2) ->
-                f s1.pstr_loc (printed_ast add_comments s1.pstr_loc Structure [ s2.ast ])
+                (* This is technically ambiguous, and similarly in `Rem and `Add_stri,
+                  for two reasons:
+                  - if you have [struct let x = 1; include X let z = 3 end], and try to
+                    replace [include X] by [let y = 2], you get a parse error. Similarly,
+                    if you remove [include X], you get a parse error
+                  - when adding Pstr_eval nodes, we'd need to make sure they are prefixed
+                    by ";;" when following a structure item that is not already followed
+                    by ";;"
+                  Both could be handled by looking at the previous token and deciding to
+                  tweak the string a bit depending on the presence of ";" or ";;". But
+                  these seem like really unlikely problems to have (you'd need to have
+                  either trailing ";", which is undesirable as manual edits will run
+                  into the same parsing errors, or using Pstr_eval nodes, which doesn't
+                  happen much, and that's assuming you modify whole structure items).
+                  I thought initially we could handle this by comparing the parser stacks
+                  in the ambiguous vs unambiguous case, but the presence of ";;" modifies
+                  the stack regardless of whether the ";;" is required for parsing
+                  correctly. For instance, both "let x = 1 ;; let x = 1 in x" and
+                  "let x = 1 ;; let x = 1" are accepted, which isn't the case without
+                  ";;".
+                *)
+                f s1.pstr_loc
+                  { unambiguous =
+                      printed_ast add_comments s1.pstr_loc Structure [ s2.ast ]
+                  ; ambiguous = None
+                  }
             | `Sigi (s1, s2) ->
-                f s1.psig_loc (printed_ast add_comments s1.psig_loc Signature [ s2.ast ])
+                f s1.psig_loc
+                  (let str = printed_ast add_comments s1.psig_loc Signature [ s2.ast ] in
+                   { unambiguous = str; ambiguous = None })
             | `Me (v1, v2) ->
                 f v1.pmod_loc
-                  (String.lstrip
-                     (printed_ast add_comments v1.pmod_loc Module_expr v2.ast))
+                  { unambiguous =
+                      String.lstrip
+                        (printed_ast add_comments v1.pmod_loc Module_expr v2.ast)
+                  ; ambiguous = None
+                  }
             | `Typ (t1, t2) ->
                 f t1.ptyp_loc
                   (parens_if (Ast.parenze_typ t2)
                      (printed_ast add_comments t1.ptyp_loc Core_type t2.ast))
             | `Cf (v1, v2) ->
-                f v1.pcf_loc (printed_ast add_comments v1.pcf_loc Class_field v2.ast)
+                f v1.pcf_loc
+                  { unambiguous = printed_ast add_comments v1.pcf_loc Class_field v2.ast
+                  ; ambiguous = None
+                  }
             | `Cty (v1, v2) ->
                 f v1.pcty_loc
                   (parens_if (Ast.parenze_cty v2)
                      (printed_ast add_comments v1.pcty_loc Class_type v2.ast))
-            | `Rem loc -> f loc ""
+            | `Rem loc ->
+                (* see `Stri about ambiguity *)
+                f loc { unambiguous = ""; ambiguous = None }
             | `Add_stri (loc, (indent, s2)) ->
+                (* see `Stri about ambiguity *)
                 f loc
-                  (String.make indent ' '
-                  ^ printed_ast add_comments loc Structure [ s2 ]
-                  ^ "\n")
+                  { unambiguous =
+                      String.make indent ' '
+                      ^ printed_ast add_comments loc Structure [ s2 ]
+                      ^ "\n"
+                  ; ambiguous = None
+                  }
             | `Add_sigi (loc, (indent, s2)) ->
                 f loc
-                  (String.make indent ' '
-                  ^ printed_ast add_comments loc Signature [ s2 ]
-                  ^ "\n")))
+                  { unambiguous =
+                      String.make indent ' '
+                      ^ printed_ast add_comments loc Signature [ s2 ]
+                      ^ "\n"
+                  ; ambiguous = None
+                  }))
 
 let print ~ocaml_version ~debug_diff ~source_contents file_type ast1 ast2 =
   Profile.record "diff_print" (fun () ->

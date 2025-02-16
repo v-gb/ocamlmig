@@ -40,7 +40,7 @@ let () =
   let ( .!{} ) _ _ = () in
   (fun _ _ _ _ -> ()) 1. 1 1(None).!{0};
   (fun _ _ _ _ _ -> ()) 1. e 1 None e;
-  ignore (match 1 with 1 -> 1 + match () with () -> 2 | _ -> 3);
+  ignore (match 1 with 1 -> 1 + (match () with () -> 2) | _ -> 3);
   ignore (1 + match () with () -> 2);
   ()
 
