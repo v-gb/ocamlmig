@@ -6,7 +6,8 @@ open Base
 open Common
 
 val run :
-     (string * string) list
+     listing:Build.Listing.t
+  -> (string * string) list
   -> unit
   -> fmconf:Ocamlformat_lib.Conf_t.t
   -> type_index:Build.Type_index.t option Lazy.t

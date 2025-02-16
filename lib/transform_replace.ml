@@ -188,6 +188,37 @@ let rec match_ ~need_type_index (motif : Uast.Parsetree.expression) : stage2 =
                      , ~~(does_match : bool)];
                  does_match)
                 && stage1 expr ~env ~ctx))
+  | Pexp_extension
+      ( { txt = "id"; loc = _ }
+      , PStr [ { pstr_desc = Pstr_eval (({ pexp_desc = Pexp_ident _; _ } as e), _); _ } ]
+      ) -> (
+      let uid =
+        (* How to name identifiers not visible from outside a library though? This
+           doesn't allow naming Ocamlmig.Building.Listing.create for instance, since
+           only the main function is exposed out of the ocamlmig library. Well, actually
+           you can use Ocamlmig__.Build.Listing.create... Not the most stable though. *)
+        match Typecore.type_expression (Compmisc.initial_env ()) e with
+        | { exp_desc = Texp_ident (_, _, vd); _ } -> vd.val_uid
+        | _ -> assert false
+      in
+      need_type_index := true;
+      fun expr ~env:_ ~ctx ->
+        match expr.pexp_desc with
+        | Pexp_ident _ -> (
+            match Lazy.force ctx.type_index with
+            | None ->
+                if !log then print_s [%sexp "missing type index"];
+                false
+            | Some index -> (
+                match Build.Type_index.exp index (Conv.location' expr.pexp_loc) with
+                | [] ->
+                    if !log then print_s [%sexp "no type"];
+                    false
+                | texpr :: _ -> (
+                    match texpr.exp_desc with
+                    | Texp_ident (_, _, vd) -> Shape.Uid.equal uid vd.val_uid
+                    | _ -> false)))
+        | _ -> false)
   | Pexp_ident id_motif -> (
       fun expr ~env:_ ~ctx:_ ->
         match expr.pexp_desc with
@@ -722,7 +753,15 @@ let parse_template ~fmconf stage2 repl =
           | _ -> unsupported_motif (Conv.location' repl.pexp_loc))
       | _ -> unsupported_motif (Conv.location' repl.pexp_loc))
 
-let run motif_and_repls () =
+let run ~(listing : Build.Listing.t) motif_and_repls () =
+  ((* set up load paths to be able to type the motifs *)
+   let load_path_dirs =
+     Hashtbl.to_alist listing.all_load_paths
+     |> List.sort ~compare:(fun (d1, _) (d2, _) -> Cwdpath.compare d1 d2)
+     |> List.map ~f:(fun (_, (lazy load_path)) -> load_path)
+   in
+   Load_path.init ~auto_include:Load_path.no_auto_include ~visible:[] ~hidden:[];
+   List.iter load_path_dirs ~f:Load_path.append_dir);
   let may_need_type_index_ref = ref false in
   let stage2_and_repls =
     List.map motif_and_repls ~f:(fun (motif, repl) ->

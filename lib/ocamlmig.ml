@@ -725,7 +725,9 @@ Syntax of the motifs:
               let dune_root = find_dune_root () |> Result.ok_or_failwith in
               let listing = Build.Listing.create ~dune_root ~source_paths in
               let _artifacts_cache = Build.Artifacts.create_cache () in
-              let transform_replace = Transform_replace.run patterns_and_repls () in
+              let transform_replace =
+                Transform_replace.run ~listing patterns_and_repls ()
+              in
               List.iter source_paths ~f:(fun source_path ->
                   transient_line
                     (Printf.sprintf "processing %s" (Cwdpath.to_string source_path));
