@@ -520,14 +520,20 @@ let transform =
                           (str, !conservative)
                     in
                     choose_one_non_optional ~if_nothing_chosen:Raise
-                      [ flag "-unopen" (required module_name)
-                          ~doc:
-                            "Mod remove [open Mod] from the code, turning x into Mod.x \
-                             where necessary to preserve behavior. Currently [Mod] must \
-                             be a root module (i.e. a compilation unit)."
-                        |> map ~f:(fun v ->
-                               let name, conservative = root_and_conservative v in
-                               Transform_scope.Unopen { name; conservative })
+                      [ (let%map_open.Command v =
+                           flag "-unopen" (required module_name)
+                             ~doc:
+                               "Mod remove [open Mod] from the code, turning x into \
+                                Mod.x where necessary to preserve behavior. Currently \
+                                [Mod] must be a root module (i.e. a compilation unit)."
+                         and only_in_structure =
+                           flag "-unopen-only-in-structure" no_arg
+                             ~doc:
+                               "remove [open Mod] but not [let open Mod in ...] or \
+                                [Mod.(...)]"
+                         in
+                         let name, conservative = root_and_conservative v in
+                         Transform_scope.Unopen { name; conservative; only_in_structure })
                       ; flag "-open" (required module_name)
                           ~doc:
                             "Mod|Mod! add either [open Mod] or [open! Mod] as the first \

@@ -166,6 +166,7 @@ type t =
   | Unopen of
       { name : string
       ; conservative : bool
+      ; only_in_structure : bool
       }
   | Open of
       { name : string
@@ -175,7 +176,7 @@ type t =
   | Unqualify of string list
 
 let qualify_for_unopen ~changed_something ~artifacts ~type_index
-    ~(cmt_infos : Cmt_format.cmt_infos) structure root ~conservative =
+    ~(cmt_infos : Cmt_format.cmt_infos) structure root ~conservative ~only_in_structure =
   (* It would be more accurate to check if the root name is unbound at every call site,
      and if not, introduce a name like Root_unshadowed to be used instead. *)
   let comp_unit = cmt_infos.cmt_modname in
@@ -437,10 +438,21 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
           | _ -> v)
     ; expr =
         with_log (fun self expr ->
-            let expr = super.expr self expr in
             if in_test && not !should_act_in_test
-            then expr
+            then super.expr self expr
             else
+              let expr =
+                match expr.pexp_desc with
+                | Pexp_open (id, e)
+                | Pexp_letopen ({ popen_expr = { pmod_desc = Pmod_ident id; _ }; _ }, e)
+                  when is_root id.txt ->
+                    if only_in_structure
+                    then expr (* don't recurse down *)
+                    else (
+                      changed_something := true;
+                      self.expr self e)
+                | _ -> super.expr self expr
+              in
               match expr.pexp_desc with
               | Pexp_ident id -> (
                   match type_index_find_first Exp expr id with
@@ -484,11 +496,6 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
                                     Sattr.touched.build ~loc:!Ast_helper.default_loc ()
                                     :: expr.pexp_attributes
                                 }))))
-              | Pexp_open (id, e)
-              | Pexp_letopen ({ popen_expr = { pmod_desc = Pmod_ident id; _ }; _ }, e)
-                when is_root id.txt ->
-                  changed_something := true;
-                  e
               | Pexp_construct (id, arg_opt) ->
                   update_label (Exp, expr) (Constructor, id)
                     (function
@@ -832,9 +839,9 @@ let run ~fmconf ~artifacts ~type_index ~cmt_infos transform ~source_path
   process_file ~fmconf ~source_path ~input_name_matching_compilation_command
     (fun changed_something structure ->
       match transform with
-      | Unopen { name; conservative } ->
+      | Unopen { name; conservative; only_in_structure } ->
           qualify_for_unopen ~changed_something structure ~artifacts ~type_index
-            ~cmt_infos name ~conservative
+            ~cmt_infos name ~conservative ~only_in_structure
       | Open { name; bang; conservative } ->
           qualify_for_open ~changed_something structure ~artifacts ~type_index ~cmt_infos
             name ~bang ~conservative

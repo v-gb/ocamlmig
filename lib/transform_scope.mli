@@ -13,6 +13,7 @@ type t =
   | Unopen of
       { name : string
       ; conservative : bool
+      ; only_in_structure : bool
       }
   | Open of
       { name : string
