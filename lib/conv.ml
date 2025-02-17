@@ -1,3 +1,8 @@
+module Fmast = struct
+  include Ocamlformat_ocaml_common
+  include Ocamlformat_parser_extended
+end
+
 let location : Location.t -> Ocamlformat_ocaml_common.Location.t =
  fun loc ->
   { loc_start = loc.loc_start; loc_end = loc.loc_end; loc_ghost = loc.loc_ghost }
