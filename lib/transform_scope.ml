@@ -226,21 +226,17 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
      of int). *)
   let should_act_in_test = ref false in
   let type_index_find_first vnode v (id : Longident.t Location.loc) =
-    match
-      Build.Type_index.find type_index (Fmast.Node.index vnode)
-        (Conv.location' (Fmast.Node.loc vnode v))
-    with
+    match Build.Type_index.find type_index vnode v with
     | [] ->
         if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
         None
     | ttyp :: _ -> Some ttyp
   in
   let update_gen (srcnode, src) (idns, id) build =
-    let srcindex = Fmast.Node.index srcnode in
     match type_index_find_first srcnode src id with
     | None -> src
     | Some ttyp -> (
-        let env = Envaux.env_of_only_summary (Build.Type_index.env srcindex ttyp) in
+        let env = Envaux.env_of_only_summary (Build.Type_index.env srcnode ttyp) in
         match Uast.find_by_name idns env (Conv.longident' id.txt) with
         | exception Stdlib.Not_found -> src
         | path, _td -> (
@@ -285,7 +281,6 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
         | cd_new_env -> not (Shape.Uid.equal (Uast.uid ns cd_new_env) (Uast.uid ns cd)))
   in
   let update_label (srcnode, src) (ns, id) cd build =
-    let index = Fmast.Node.index srcnode in
     match type_index_find_first srcnode src id with
     | None -> src
     | Some texpr -> (
@@ -294,7 +289,7 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
         | Some cd ->
             if
               label_may_have_been_provided_by_open (ns, id) cd
-                (Build.Type_index.env index texpr)
+                (Build.Type_index.env srcnode texpr)
             then (
               let new_id = maybe_reroot' root id.txt in
               changed_something := true;
@@ -310,7 +305,6 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
     let fields =
       let has_seen_qualified_field = ref false in
       let update_field ((label, type_constr, value) as field) =
-        let srcindex = Fmast.Node.index srcnode in
         match type_index_find_first srcnode src label with
         | None -> field
         | Some texpr -> (
@@ -319,7 +313,7 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
               when label_may_have_been_provided_by_open (Label, label)
                      (find_exn_fields ~f:(fun (lbl : Types.label_description) ->
                           lbl.lbl_name =: Longident.last label.txt))
-                     (Build.Type_index.env srcindex texpr) ->
+                     (Build.Type_index.env srcnode texpr) ->
                 let new_label = maybe_reroot' root label.txt in
                 changed_field := true;
                 changed_something := true;

@@ -461,3 +461,5 @@ let uid (type a) (ns : a ns) (v : a) =
   | Class_type -> (snd v).clty_uid
   | Constructor -> v.cstr_uid
   | Label -> v.lbl_uid
+
+type any_pattern = T : _ Typedtree.general_pattern -> any_pattern

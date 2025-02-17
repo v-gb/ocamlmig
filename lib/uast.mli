@@ -203,3 +203,5 @@ type 'a ns =
 
 val find_by_name : 'a ns -> env -> Longident.t -> 'a
 val uid : 'a ns -> 'a -> Shape.Uid.t
+
+type any_pattern = T : _ Typedtree.general_pattern -> any_pattern

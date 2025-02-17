@@ -295,7 +295,7 @@ let value_constraint_of_type_constraint : P.type_constraint -> P.value_constrain
 module Node = struct
   type ('w, 'node, 'desc, 'env) t =
     | Exp : ([> `Exp ], expression, Parsetree.expression_desc, Typedtree.expression) t
-    | Pat : ([> `Pat ], pattern, Parsetree.pattern_desc, Build.Type_index.any_pattern) t
+    | Pat : ([> `Pat ], pattern, Parsetree.pattern_desc, Uast.any_pattern) t
     | Typ : ([> `Typ ], core_type, Parsetree.core_type_desc, Typedtree.core_type) t
     | Mexp :
         ([> `Mexp ], module_expr, Parsetree.module_expr_desc, Typedtree.module_expr) t
@@ -377,16 +377,4 @@ module Node = struct
           pcty_desc = Option.value desc ~default:v.pcty_desc
         ; pcty_attributes = Option.value attributes ~default:v.pcty_attributes
         }
-
-  let index (type w a b e)
-      (t : ([ `Exp | `Pat | `Typ | `Cexp | `Ctyp | `Mexp | `Mtyp ], a, b, e) t) :
-      e Build.Type_index.index =
-    match t with
-    | Exp -> Exp
-    | Pat -> Pat
-    | Typ -> Typ
-    | Cexp -> Cexp
-    | Ctyp -> Ctyp
-    | Mexp -> Mexp
-    | Mtyp -> Mtyp
 end

@@ -663,11 +663,9 @@ module Artifacts = struct
 end
 
 module Type_index = struct
-  type any_pattern = T : _ Typedtree.general_pattern -> any_pattern
-
   type t =
     { exp : (Typedtree.expression[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
-    ; pat : (any_pattern[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
+    ; pat : (Uast.any_pattern[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
     ; typ : (Typedtree.core_type[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
     ; cexp : (Typedtree.class_expr[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
     ; ctyp : (Typedtree.class_type[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
@@ -696,7 +694,7 @@ module Type_index = struct
           ; pat =
               (fun self v ->
                 super.pat self v;
-                Hashtbl.add_multi pat ~key:v.pat_loc ~data:(T v))
+                Hashtbl.add_multi pat ~key:v.pat_loc ~data:(T v : Uast.any_pattern))
           ; typ =
               (fun self v ->
                 super.typ self v;
@@ -734,31 +732,26 @@ module Type_index = struct
   let exp t loc = Hashtbl.find_multi t.exp loc
   let pat t loc = Hashtbl.find_multi t.pat loc
   let typ t loc = Hashtbl.find_multi t.typ loc
-  let cexp t loc = Hashtbl.find_multi t.cexp loc
-  let ctyp t loc = Hashtbl.find_multi t.ctyp loc
-  let mexp t loc = Hashtbl.find_multi t.mexp loc
-  let mtyp t loc = Hashtbl.find_multi t.mtyp loc
 
-  type _ index =
-    | Exp : Typedtree.expression index
-    | Typ : Typedtree.core_type index
-    | Pat : any_pattern index
-    | Cexp : Typedtree.class_expr index
-    | Ctyp : Typedtree.class_type index
-    | Mexp : Typedtree.module_expr index
-    | Mtyp : Typedtree.module_type index
+  type ('node, 'desc, 'env) index =
+    ( [ `Exp | `Pat | `Typ | `Cexp | `Ctyp | `Mexp | `Mtyp ]
+    , 'node
+    , 'desc
+    , 'env )
+    Fmast.Node.t
 
-  let find (type a) t (i : a index) loc : a list =
+  let find (type node d env) t (i : (node, d, env) index) node : env list =
+    let loc = Conv.location' (Fmast.Node.loc i node) in
     match i with
     | Exp -> exp t loc
     | Typ -> typ t loc
     | Pat -> pat t loc
-    | Cexp -> cexp t loc
-    | Ctyp -> ctyp t loc
-    | Mexp -> mexp t loc
-    | Mtyp -> mtyp t loc
+    | Cexp -> Hashtbl.find_multi t.cexp loc
+    | Ctyp -> Hashtbl.find_multi t.ctyp loc
+    | Mexp -> Hashtbl.find_multi t.mexp loc
+    | Mtyp -> Hashtbl.find_multi t.mtyp loc
 
-  let env (type a) (i : a index) (v : a) : Env.t =
+  let env (type node d env) (i : (node, d, env) index) (v : env) : Env.t =
     match i with
     | Exp -> v.exp_env
     | Pat ->

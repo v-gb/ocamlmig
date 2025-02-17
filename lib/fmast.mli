@@ -172,7 +172,7 @@ end
 module Node : sig
   type ('w, 'node, 'desc, 'env) t =
     | Exp : ([> `Exp ], expression, Parsetree.expression_desc, Typedtree.expression) t
-    | Pat : ([> `Pat ], pattern, Parsetree.pattern_desc, Build.Type_index.any_pattern) t
+    | Pat : ([> `Pat ], pattern, Parsetree.pattern_desc, Uast.any_pattern) t
     | Typ : ([> `Typ ], core_type, Parsetree.core_type_desc, Typedtree.core_type) t
     | Mexp :
         ([> `Mexp ], module_expr, Parsetree.module_expr_desc, Typedtree.module_expr) t
@@ -192,8 +192,4 @@ module Node : sig
 
   val update :
     ?desc:'desc -> ?attributes:Parsetree.attributes -> (_, 'a, 'desc, _) t -> 'a -> 'a
-
-  val index :
-       ([ `Exp | `Pat | `Typ | `Cexp | `Ctyp | `Mexp | `Mtyp ], _, _, 'e) t
-    -> 'e Build.Type_index.index
 end
