@@ -50,4 +50,4 @@ type decoded =
   ; suffix: string  (** Just before the closing. *)
   ; kind: decoded_kind }
 
-val decode : parse_comments_as_doc:bool -> t -> decoded
+val decode : t -> decoded
