@@ -41,3 +41,10 @@ module Migrate_on_val : sig
 end = struct
   let x = 3
 end
+
+module Module = struct
+  let b = 1
+  let a1 = b
+  let a2 = b [@@migrate { repl = Rel.b }]
+  let a3 = b [@@migrate { repl = Z.Module.b }]
+end

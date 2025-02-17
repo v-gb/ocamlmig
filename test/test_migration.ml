@@ -772,6 +772,65 @@ let () =
     end)
 
 let () =
+  test "requalification in replacement expressions"
+    (module struct
+      let _ = [ Z.Module.a1; Z.Module.b ] [@migrate]
+      (* *)
+
+      (* Requalification with absolute paths *)
+      let _ = (Z.Module.a1, Z.Module.(a1))
+      [@@migrate_test let _ = (Z.Module.b, Z.Module.(Z.Module.b))]
+
+      let _ =
+        (* testing shadowing *)
+        let open Z.Module in
+        let b = 3 in
+        let _ = b in
+        a1
+      [@@migrate_test
+        let _ =
+          let open Z.Module in
+          let b = 3 in
+          let _ = b in
+          Z.Module.b]
+
+      (* Requalification with relative paths *)
+      let _ = (Z.Module.a2, Z.Module.(a2))
+      [@@migrate_test let _ = (Z.Module.b, Z.Module.(b))]
+
+      let _ =
+        (* This is buggy *)
+        (* testing shadowing *)
+        let open Z.Module in
+        let b = 3 in
+        let _ = b in
+        a2
+      [@@migrate_test
+        let _ =
+          let open Z.Module in
+          let b = 3 in
+          let _ = b in
+          b]
+
+      (* Requalification with absolute paths, untyped *)
+      let _ = (Z.Module.a3, Z.Module.(a3))
+      [@@migrate_test let _ = (Z.Module.b, Z.Module.(Z.Module.b))]
+
+      let _ =
+        (* testing shadowing *)
+        let open Z.Module in
+        let b = 3 in
+        let _ = b in
+        a3
+      [@@migrate_test
+        let _ =
+          let open Z.Module in
+          let b = 3 in
+          let _ = b in
+          Z.Module.b]
+    end)
+
+let () =
   test "comment positions"
     (module struct
       let f x y = x + y [@@migrate_manual { repl = (fun x y -> f2 y x) }]
