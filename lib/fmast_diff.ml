@@ -533,6 +533,4 @@ let print ~ocaml_version ~debug_diff ~source_contents ~structure ~structure' =
 
 (* problems:
    - record fields should be special cased like variants
-   - let foo : type = function causes diff because we fix up the new ast, but not the
-     old one.
  *)

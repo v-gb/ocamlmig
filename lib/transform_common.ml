@@ -238,55 +238,18 @@ let drop_concrete_syntax_constructs method_ v =
           match (binding.pvb_args, binding.pvb_body) with
           | [], Pfunction_body _ -> binding
           | (_ :: _ as params), body | params, (Pfunction_cases _ as body) ->
-              (* The ocamlformat ast is confusing/confused here.
-
-                In principle, anytime you have a [fun .. -> ..], a type annotation
-                before the arrow and a [function ..] in the body all get combined
-                to make a single Pexp_function node, whose most general syntax is
-                [fun .. : int -> function .. -> ..]. With two invariants:
-                - the function must take at least one argument (so either a param, or
-                  Pfunction_cases)
-                - there can't be a type annotation if the param list is empty
-
-                Separately, ocamlformat wants to distinguish, in the ast, between
-                [let f x = ...] and [let f = fun x -> ..].
-
-                By combining these two things, it parses [let f : int = function ..]
-                into pvb_params = [];
-                     pvb_constraint = Some "int"
-                     pvb_body = Pfunction_case ...
-
-                which is neither a simple let-binding (because of Pfunction_cases)
-                and is not an "inlined" pexp_function either (because it breaks the
-                second invariant).
-                
-                The correct ast would be:
-                     pvb_params = [];
-                     pvb_constraint = Some "int"
-                     pvb_body = Pfunction_body (Pexp_function ([], None, Pfunction_cases ...))
-
-                which is what happens if you add parens around the (function ..) above.
-
-                The bad case happens when the params list is empty here. So in that
-                case, we separate the type annotation (if any) from the function cases.
-               *)
-              let leave_type_constraint_alone = List.is_empty params in
               let body =
                 let loc = binding.pvb_loc in
                 Ast_helper.Exp.function_ ~loc params
-                  (if leave_type_constraint_alone
-                   then None
-                   else
-                     Option.map binding.pvb_constraint
-                       ~f:Fmast.type_constraint_of_value_constraint)
+                  (Option.map binding.pvb_constraint
+                     ~f:Fmast.type_constraint_of_value_constraint)
                   body
                   ~attrs:[ Sattr.pun.build ~loc:!Ast_helper.default_loc () ]
               in
               { binding with
                 pvb_args = []
               ; pvb_body = Pfunction_body body
-              ; pvb_constraint =
-                  (if leave_type_constraint_alone then binding.pvb_constraint else None)
+              ; pvb_constraint = None
               })
     }
   in
