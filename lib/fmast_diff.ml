@@ -294,7 +294,38 @@ and diff_structure ~source l1 l2 f =
   if
     List.exists diff ~f:(function
       | `Rem stri ->
-          f (`Rem stri.pstr_loc);
+          (* If the structure item is alone on its line, delete the whole line
+            rather than leaving an empty line. *)
+          let line_loc : Location.t =
+            { loc_start =
+                { stri.pstr_loc.loc_start with
+                  pos_cnum =
+                    Option.value ~default:0
+                      (String.rindex_from source stri.pstr_loc.loc_start.pos_cnum '\n')
+                }
+            ; loc_end =
+                { stri.pstr_loc.loc_end with
+                  pos_cnum =
+                    Option.value ~default:(String.length source)
+                      (String.index_from source stri.pstr_loc.loc_end.pos_cnum '\n')
+                }
+            ; loc_ghost = false
+            }
+          in
+          let loc_to_delete =
+            if
+              String.is_empty
+                (String.strip
+                   (string_sub source ~pos1:line_loc.loc_start.pos_cnum
+                      ~pos2:stri.pstr_loc.loc_start.pos_cnum))
+              && String.is_empty
+                   (String.strip
+                      (string_sub source ~pos1:stri.pstr_loc.loc_end.pos_cnum
+                         ~pos2:line_loc.loc_end.pos_cnum))
+            then line_loc
+            else stri.pstr_loc
+          in
+          f (`Rem loc_to_delete);
           false
       | `Add (_prev, stri, next) -> (
           match next with
