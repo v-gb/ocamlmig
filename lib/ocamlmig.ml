@@ -508,12 +508,16 @@ let transform =
                   let transform =
                     let root_and_conservative str =
                       match String.split str ~on:' ' with
-                      | [ str ] -> (str, false)
-                      | [ str; "conservative" ] -> (str, true)
-                      | _ ->
-                          failwith
-                            (Printf.sprintf "don't understand command line argument %s"
-                               str)
+                      | [] -> assert false
+                      | str :: rest ->
+                          let conservative = ref false in
+                          List.iter rest ~f:(function
+                            | "conservative" -> conservative := true
+                            | _ ->
+                                failwith
+                                  (Printf.sprintf
+                                     "don't understand command line argument %s" str));
+                          (str, !conservative)
                     in
                     choose_one_non_optional ~if_nothing_chosen:Raise
                       [ flag "-unopen" (required module_name)
