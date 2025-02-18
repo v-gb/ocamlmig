@@ -483,13 +483,43 @@ module Requalify = struct
     match Uast.find_by_name ns env1 (Conv.longident' lid1) with
     | exception Stdlib.Not_found ->
         if !log || debug.all
-        then print_s [%sexp `requalify_lident (lid1 : Longident.t), `Out_of_scope];
+        then
+          print_s
+            [%sexp
+              `same_resolution, `out_of_scope, (lid1 : Longident.t), (lid2 : Longident.t)];
         `Unknown
     | (path, _) as v -> (
-        if !log || debug.all then print_s [%sexp `requalify_lident (lid1 : Longident.t)];
         match Uast.find_by_name ns env2 (Conv.longident' lid2) with
-        | v' when Shape.Uid.equal (Uast.uid ns v) (Uast.uid ns v') -> `Yes
-        | (exception Stdlib.Not_found) | _ -> `No path)
+        | v' ->
+            if Shape.Uid.equal (Uast.uid ns v) (Uast.uid ns v')
+            then (
+              if !log || debug.all
+              then
+                print_s
+                  [%sexp
+                    `same_resolution, `same, (lid1 : Longident.t), (lid2 : Longident.t)];
+              `Yes)
+            else (
+              if !log || debug.all
+              then
+                print_s
+                  [%sexp
+                    `same_resolution
+                  , `differ
+                  , ((lid1, Uast.uid ns v) : Longident.t * Uast.Shape.Uid.t)
+                  , ((lid2, Uast.uid ns v') : Longident.t * Uast.Shape.Uid.t)];
+
+              `No path)
+        | exception Stdlib.Not_found ->
+            if !log || debug.all
+            then
+              print_s
+                [%sexp
+                  `same_resolution
+                , `differ
+                , ((lid1, Uast.uid ns v) : Longident.t * Uast.Shape.Uid.t)
+                , ((lid2, "Not_found") : Longident.t * string)];
+            `No path)
 
   let rec ident_of_path_exn : Path.t -> Longident.t = function
     | Pident ident -> Lident (Ident.name ident)
