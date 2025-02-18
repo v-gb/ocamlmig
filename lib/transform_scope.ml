@@ -85,29 +85,14 @@ let normal_form_of_path ~artifacts env (path : Uast.Path.t) (vd : Types.value_de
           |> normal_form_of_decl_result ~artifacts env)
       |> Option.value ~default:(`Uid vd.val_uid))
 
-let decl_is_deprecated ~artifacts ~comp_unit ~id_for_logging:id
-    (vd : Types.value_description) =
-  let uid = vd.val_uid in
-  match Build.comp_unit_of_uid uid with
-  | None ->
-      if !log then print_s [%sexp (id : Longident.t), "no compilation unit"];
-      false
-  | Some comp_unit' -> (
-      let source = if comp_unit' =: comp_unit then `impl else `intf in
-      match Build.Artifacts.sigitem_from_def_uid artifacts (uid, source) with
-      | None ->
-          if !log
-          then print_s [%sexp (id : Longident.t), "no decl", (source : [ `impl | `intf ])];
-          false
-      | Some sigitem ->
-          let attributes = Uast.decl_or_sigitem_attributes sigitem in
-          let b =
-            List.exists attributes ~f:(fun attr ->
-                attr.attr_name.txt =: "deprecated"
-                || attr.attr_name.txt =: "ocaml.deprecated")
-          in
-          if !log then print_s [%sexp (id : Longident.t), "has @deprecated", (b : bool)];
-          b)
+let decl_is_deprecated ~id_for_logging (vd : Types.value_description) =
+  let b =
+    List.exists vd.val_attributes ~f:(fun attr ->
+        attr.attr_name.txt =: "deprecated" || attr.attr_name.txt =: "ocaml.deprecated")
+  in
+  if !log
+  then print_s [%sexp (id_for_logging : Longident.t), "has @deprecated", (b : bool)];
+  b
 
 let merely_aliased ~artifacts
     ((path, vd, env) : Uast.Path.t * Types.value_description * Uast.env)
@@ -179,7 +164,6 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
     ~(cmt_infos : Cmt_format.cmt_infos) structure root ~conservative ~only_in_structure =
   (* It would be more accurate to check if the root name is unbound at every call site,
      and if not, introduce a name like Root_unshadowed to be used instead. *)
-  let comp_unit = cmt_infos.cmt_modname in
   let is_root' root (path : Uast.Path.t) =
     match path with
     | Pident root' -> Ident.global root' && Ident.name root' =: root
@@ -475,8 +459,7 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
                                 | path', vd' ->
                                     (not conservative)
                                     && (not
-                                          (decl_is_deprecated ~id_for_logging:id.txt
-                                             ~artifacts ~comp_unit vd'))
+                                          (decl_is_deprecated ~id_for_logging:id.txt vd'))
                                     && merely_aliased ~artifacts (path, vd, env)
                                          (path', vd', env)
                               in
@@ -662,8 +645,7 @@ let qualify_for_open ~changed_something ~artifacts ~type_index
                                 Shape.Uid.equal vd.val_uid vd'.val_uid
                                 || (not conservative)
                                    && (not
-                                         (decl_is_deprecated ~id_for_logging:id.txt
-                                            ~artifacts ~comp_unit vd'))
+                                         (decl_is_deprecated ~id_for_logging:id.txt vd'))
                                    && merely_aliased ~artifacts (path, vd, env)
                                         (path', vd', prepended_env)
                           in

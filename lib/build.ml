@@ -16,10 +16,6 @@ let read_cmt cmt_path =
       | Not_a_typedtree s ->
           raise_s [%sexp (cmt_path : Cwdpath.t), "not a typedtree", (s : string)])
 
-let read_cmi cmi_path =
-  try Cmi_format.read_cmi (Cwdpath.to_string cmi_path)
-  with Cmi_format.Error e -> failwith (Format.asprintf "%a" Cmi_format.report_error e)
-
 let comp_unit_of_uid (uid : Shape.Uid.t) =
   match uid with
   | Internal | Predef _ -> None
@@ -291,35 +287,22 @@ module Artifacts = struct
 
   let sexp_of_loaded_cmt loaded_cmt = [%sexp { path : Cwdpath.t = loaded_cmt.path }]
 
-  type loaded_cmi =
-    { infos : Cmi_format.cmi_infos
-    ; defs : Types.signature_item Shape.Uid.Tbl.t Lazy.t
-    }
-
-  let __ (x : loaded_cmi) = x.infos
-  let sexp_of_loaded_cmi _loaded_cmi = [%sexp ()]
-
   (* To cache the loading of cmts across despite possible variations in the load
      paths. Maybe we should optimize further for the case of the load path not
      changing? It depends how big libraries are, on average. *)
   type cache =
     { impls : loaded_cmt Hashtbl.M(String).t
     ; intfs : loaded_cmt Hashtbl.M(String).t
-    ; cmis : loaded_cmi Hashtbl.M(String).t
     }
   [@@deriving sexp_of]
 
   let create_cache () =
-    { impls = Hashtbl.create (module String)
-    ; intfs = Hashtbl.create (module String)
-    ; cmis = Hashtbl.create (module String)
-    }
+    { impls = Hashtbl.create (module String); intfs = Hashtbl.create (module String) }
 
   type t =
     { cache : cache option
     ; impls : (Cwdpath.t * loaded_cmt) option Hashtbl.M(String).t
     ; intfs : (Cwdpath.t * loaded_cmt) option Hashtbl.M(String).t
-    ; cmis : (Cwdpath.t * loaded_cmi) option Hashtbl.M(String).t
     ; load_path_dirs : (Load_path.Dir.t list[@sexp.opaque])
     }
   [@@deriving sexp_of]
@@ -334,7 +317,6 @@ module Artifacts = struct
     ; load_path_dirs
     ; impls = Hashtbl.create (module String)
     ; intfs = Hashtbl.create (module String)
-    ; cmis = Hashtbl.create (module String)
     }
 
   let approx_id = 1_000_000_000
@@ -471,64 +453,6 @@ module Artifacts = struct
             in
             Some (cmt_path, create_loaded_cmt t which ~comp_unit ~cmt_path))
 
-  let index_declarations (items : Types.signature_item list) =
-    let index : Types.signature_item Shape.Uid.Tbl.t = Types.Uid.Tbl.create 16 in
-    let super = Btype.type_iterators in
-    let self =
-      { super with
-        it_signature_item =
-          (fun self signature_item ->
-            Types.Uid.Tbl.add index
-              (match signature_item with
-              | Sig_value (_, d, _) -> d.val_uid
-              | Sig_type (_, d, _, _) -> d.type_uid
-              | Sig_typext (_, d, _, _) -> d.ext_uid
-              | Sig_module (_, _, d, _, _) -> d.md_uid
-              | Sig_modtype (_, d, _) -> d.mtd_uid
-              | Sig_class (_, d, _, _) -> d.cty_uid
-              | Sig_class_type (_, d, _, _) -> d.clty_uid)
-              signature_item;
-            super.it_signature_item self signature_item)
-      ; it_type_expr = (fun _ _ -> () (* maybe faster *))
-      }
-    in
-    List.iter items ~f:(self.it_signature_item self);
-    List.iter items ~f:(Btype.unmark_iterators.it_signature_item Btype.unmark_iterators);
-    index
-
-  let create_loaded_cmi_uncached ~comp_unit ~(cmi_path : Cwdpath.t) =
-    let cmi_infos = read_cmi cmi_path in
-    if comp_unit <>: cmi_infos.cmi_name
-    then
-      raise_s
-        [%sexp
-          "invariant failure"
-        , ~~(comp_unit : string)
-        , "<>"
-        , ~~(cmi_infos.cmi_name : string)];
-    { infos = cmi_infos; defs = lazy (index_declarations cmi_infos.cmi_sign) }
-
-  let create_loaded_cmi t ~comp_unit ~(cmi_path : Cwdpath.t) : loaded_cmi =
-    match t.cache with
-    | None -> create_loaded_cmi_uncached ~comp_unit ~cmi_path
-    | Some cache ->
-        Hashtbl.find_or_add cache.cmis comp_unit ~default:(fun () ->
-            create_loaded_cmi_uncached ~comp_unit ~cmi_path)
-
-  let loaded_cmi t ~comp_unit =
-    Hashtbl.find_or_add t.cmis comp_unit ~default:(fun () ->
-        match
-          List.find_map t.load_path_dirs ~f:(fun dir ->
-              Load_path.Dir.find_normalized dir (comp_unit ^ ".cmi"))
-        with
-        | None -> None
-        | Some cmi_path ->
-            let cmi_path =
-              (* This is a path relative to cmt_dirs, which is a cwdpath *)
-              Cwdpath.create cmi_path
-            in
-            Some (cmi_path, create_loaded_cmi t ~comp_unit ~cmi_path))
-
   let parse_library_name library_name =
     let library_dir = String.tr library_name ~target:'.' ~replacement:'/' in
     let base_library_name =
@@ -593,29 +517,6 @@ module Artifacts = struct
         | Some (_, loaded_cmt) ->
             if !log then print_s [%sexp `decl_from_def_uid (uid : Uast.Shape.Uid.t)];
             Shape.Uid.Tbl.find_opt loaded_cmt.infos.cmt_uid_to_decl uid)
-
-  let sigitem_from_def_uid t (uid, impl_or_intf) =
-    match decl_from_def_uid t (uid, impl_or_intf) with
-    | Some item_decl -> Some (`Decl item_decl)
-    | None -> (
-        (* Should revisit when rebasing onto ocaml 5.3, where uids will finally be
-         unique. Without this condition, when processing a .ml, we can end up reading
-         its .cmi, at which point we're suspectible to uid collision. Since `impl is only
-         passed it when a def comes from the same compilation unit as the use, this
-         relies on the fact that we rely on the cmt for the current compilation unit. *)
-        match impl_or_intf with
-        | `impl -> None
-        | `intf ->
-            Option.bind (comp_unit_of_uid uid) ~f:(fun comp_unit ->
-                (* If there's no cmt, try the .cmi instead. This might help in the case of
-                opam packages installed without .cmt. *)
-                match loaded_cmi t ~comp_unit with
-                | None -> None
-                | Some (_, loaded_cmi) ->
-                    if !log
-                    then print_s [%sexp `sig_item_from_def_uid (uid : Uast.Shape.Uid.t)];
-                    Types.Uid.Tbl.find_opt (force loaded_cmi.defs) uid)
-            |> Option.map ~f:(fun s -> `Sigitem s))
 
   type find_decl_result =
     (Shape.Uid.t * Typedtree.item_declaration option, string Lazy.t) Result.t

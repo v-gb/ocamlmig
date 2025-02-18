@@ -426,10 +426,6 @@ let sigitem_attributes (signature_item : Types.signature_item) =
   | Sig_class (_, d, _, _) -> d.cty_attributes
   | Sig_class_type (_, d, _, _) -> d.clty_attributes
 
-let decl_or_sigitem_attributes = function
-  | `Decl d -> decl_attributes d
-  | `Sigitem s -> sigitem_attributes s
-
 type 'a ns =
   | Value : (Path.t * Types.value_description) ns
   | Type : (Path.t * Types.type_declaration) ns

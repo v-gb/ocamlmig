@@ -1753,37 +1753,18 @@ module Decl_id = struct
           , Longident.last id )
 end
 
-let payload_from_val_fmast ~fmconf ~type_index ~artifacts (comp_unit, id, ident_loc) =
+let payload_from_val_fmast ~fmconf ~type_index (id, ident_loc) =
   match Build.Type_index.exp type_index (Conv.location' ident_loc) with
   | { exp_desc = Texp_ident (_, _, vd); _ } :: _ -> (
-      let uid = vd.val_uid in
-      match Build.comp_unit_of_uid uid with
+      match find_attribute_payload_uast ~fmconf vd.val_attributes with
       | None ->
-          if !log then print_s [%sexp (id : Longident.t), "no compilation unit"];
+          if !log || debug.all
+          then print_s [%sexp (id : Longident.t), "no side migration, no attr on val"];
           None
-      | Some comp_unit' -> (
-          let source = if comp_unit' =: comp_unit then `impl else `intf in
-          match Build.Artifacts.sigitem_from_def_uid artifacts (uid, source) with
-          | None ->
-              if !log
-              then
-                print_s [%sexp (id : Longident.t), "no val", (source : [ `impl | `intf ])];
-              None
-          | Some sigitem -> (
-              match
-                find_attribute_payload_uast ~fmconf
-                  (Uast.decl_or_sigitem_attributes sigitem)
-              with
-              | None ->
-                  if !log || debug.all
-                  then
-                    print_s
-                      [%sexp (id : Longident.t), "no side migration, no attr on val"];
-                  None
-              | Some _ as opt ->
-                  if !log || debug.all
-                  then print_s [%sexp (id : Longident.t), "found attribute on val"];
-                  opt)))
+      | Some _ as opt ->
+          if !log || debug.all
+          then print_s [%sexp (id : Longident.t), "found attribute on val"];
+          opt)
   | _ -> None
 
 let payload_from_occurence_fmast ~fmconf ~context ~artifacts ~extra_migrations
@@ -2084,8 +2065,7 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
             | Pexp_ident id -> (
                 match
                   match
-                    payload_from_val_fmast ~fmconf ~type_index ~artifacts
-                      (comp_unit, id.txt, expr.pexp_loc)
+                    payload_from_val_fmast ~fmconf ~type_index (id.txt, expr.pexp_loc)
                   with
                   | Some _ as opt -> Option.map opt ~f:(fun x -> (x, None))
                   | None ->

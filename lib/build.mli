@@ -77,12 +77,6 @@ module Artifacts : sig
     (Shape.Uid.t * Typedtree.item_declaration option, string Lazy.t) Result.t
 
   val create : ?cache:cache -> Listing.t -> t
-
-  val sigitem_from_def_uid :
-       t
-    -> Uast.Shape.Uid.t * [ `impl | `intf ]
-    -> [ `Decl of Typedtree.item_declaration | `Sigitem of Types.signature_item ] option
-
   val decl_from_following_shape : t -> string * Shape.t -> find_decl_result
 
   val shape_from_occurrence :

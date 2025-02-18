@@ -187,10 +187,6 @@ val match_typ : env:Env.t -> Types.type_expr -> user_type:Types.type_expr -> boo
 val decl_attributes : Typedtree.item_declaration -> Typedtree.attributes
 val sigitem_attributes : Types.signature_item -> Parsetree.attributes
 
-val decl_or_sigitem_attributes :
-     [ `Decl of Typedtree.item_declaration | `Sigitem of Types.signature_item ]
-  -> Parsetree.attributes
-
 type 'a ns =
   | Value : (Path.t * Types.value_description) ns
   | Type : (Path.t * Types.type_declaration) ns
