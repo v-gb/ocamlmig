@@ -1753,60 +1753,6 @@ module Decl_id = struct
           , Longident.last id )
 end
 
-let payload_from_val_fmast ~fmconf ~type_index (id, ident_loc) =
-  match Build.Type_index.exp type_index (Conv.location' ident_loc) with
-  | { exp_desc = Texp_ident (_, _, vd); _ } :: _ -> (
-      match find_attribute_payload_uast ~fmconf vd.val_attributes with
-      | None ->
-          if !log || debug.all
-          then print_s [%sexp (id : Longident.t), "no side migration, no attr on val"];
-          None
-      | Some _ as opt ->
-          if !log || debug.all
-          then print_s [%sexp (id : Longident.t), "found attribute on val"];
-          opt)
-  | _ -> None
-
-let payload_from_occurence_fmast ~fmconf ~context ~artifacts ~extra_migrations
-    (comp_unit, id) =
-  match decl_from_id_fmast ~context ~artifacts (comp_unit, id) with
-  | None -> None
-  | Some vb -> (
-      let decl_id =
-        match id.txt with Lapply _ -> None | _ -> Some (Decl_id.create id.txt vb)
-      in
-      match Option.bind decl_id ~f:(Hashtbl.find extra_migrations) with
-      | Some _ as opt ->
-          if !log || debug.all
-          then
-            print_s
-              [%sexp
-                (id.txt : Longident.t)
-              , "found side migration"
-              , (opt : (migrate_payload * _ option) option)];
-          opt
-      | None -> (
-          match
-            find_attribute_payload_uast ~fmconf
-              (match vb with
-              | `Nf _ -> []
-              | `Prim prim -> prim.val_attributes
-              | `Let vb -> vb.vb_attributes)
-          with
-          | None ->
-              if !log || debug.all
-              then
-                print_s
-                  [%sexp
-                    (id.txt : Longident.t)
-                  , "no side migration, no attr on def"
-                  , (decl_id : Decl_id.t option)];
-              None
-          | Some _ as opt ->
-              if !log || debug.all
-              then print_s [%sexp (id.txt : Longident.t), "found attribute on def"];
-              Option.map opt ~f:(fun x -> (x, None))))
-
 (* A.B.C.d -> Ldot (Ldot (Ldot (Ldot (Lident A), B), C), d)
    F(M).t -> Ldot (Lapply (F, M)) t
 *)
@@ -1882,6 +1828,60 @@ let relativize ~resolved_modpath path e =
     }
   in
   self.expr self e
+
+let payload_from_val_fmast ~fmconf ~type_index (id, ident_loc) =
+  match Build.Type_index.exp type_index (Conv.location' ident_loc) with
+  | { exp_desc = Texp_ident (_, _, vd); _ } :: _ -> (
+      match find_attribute_payload_uast ~fmconf vd.val_attributes with
+      | None ->
+          if !log || debug.all
+          then print_s [%sexp (id : Longident.t), "no side migration, no attr on val"];
+          None
+      | Some _ as opt ->
+          if !log || debug.all
+          then print_s [%sexp (id : Longident.t), "found attribute on val"];
+          opt)
+  | _ -> None
+
+let payload_from_occurence_fmast ~fmconf ~context ~artifacts ~extra_migrations
+    (comp_unit, id) =
+  match decl_from_id_fmast ~context ~artifacts (comp_unit, id) with
+  | None -> None
+  | Some vb -> (
+      let decl_id =
+        match id.txt with Lapply _ -> None | _ -> Some (Decl_id.create id.txt vb)
+      in
+      match Option.bind decl_id ~f:(Hashtbl.find extra_migrations) with
+      | Some _ as opt ->
+          if !log || debug.all
+          then
+            print_s
+              [%sexp
+                (id.txt : Longident.t)
+              , "found side migration"
+              , (opt : (migrate_payload * _ option) option)];
+          opt
+      | None -> (
+          match
+            find_attribute_payload_uast ~fmconf
+              (match vb with
+              | `Nf _ -> []
+              | `Prim prim -> prim.val_attributes
+              | `Let vb -> vb.vb_attributes)
+          with
+          | None ->
+              if !log || debug.all
+              then
+                print_s
+                  [%sexp
+                    (id.txt : Longident.t)
+                  , "no side migration, no attr on def"
+                  , (decl_id : Decl_id.t option)];
+              None
+          | Some _ as opt ->
+              if !log || debug.all
+              then print_s [%sexp (id.txt : Longident.t), "found attribute on def"];
+              Option.map opt ~f:(fun x -> (x, None))))
 
 let load_extra_migrations ~cmts ~artifacts ~fmconf =
   let extra_migrations = Hashtbl.create (module Decl_id) in
