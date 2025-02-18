@@ -1985,15 +1985,6 @@ let requalify ((expr : P.expression), expr_type_index) new_base_env =
               Envaux.env_from_summary sum subst)
             env
       in
-      let rec req : type a. (Path.t * a) Uast.ns -> _ -> _ -> Longident.t -> Longident.t =
-       fun ns env1 env2 -> function
-         | Lident s -> (
-             match Requalify.same_resolution ns (Lident s, env1) (Lident s, env2) with
-             | `Unknown | `Yes -> Lident s
-             | `No path -> Requalify.ident_of_path_exn path)
-         | Ldot (lid, s) -> Ldot (req Module env1 env2 lid, s)
-         | Lapply (lid1, lid2) -> Lapply (req Module env1 env2 lid1, req ns env1 env2 lid2)
-      in
       let self =
         let super = Ast_mapper.default_mapper in
         { super with
@@ -2011,7 +2002,7 @@ let requalify ((expr : P.expression), expr_type_index) new_base_env =
                       let rebased_env = rebased_env texp.exp_env in
                       let var' =
                         var
-                        |> req Value orig_env rebased_env __
+                        |> Requalify.requalify Value orig_env rebased_env __
                         |> Requalify.try_unqualifying_ident (Env.summary new_base_env) __
                              ~same_resolution_as_initially:(fun new_var ->
                                match

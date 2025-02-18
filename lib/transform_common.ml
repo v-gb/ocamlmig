@@ -549,6 +549,17 @@ module Requalify = struct
 
   let idents_of_path path = List.filter_opt (idents_of_path path)
 
+  let rec requalify : type a. (Path.t * a) Uast.ns -> _ -> _ -> Longident.t -> Longident.t
+      =
+   fun ns env1 env2 -> function
+    | Lident s -> (
+        match same_resolution ns (Lident s, env1) (Lident s, env2) with
+        | `Unknown | `Yes -> Lident s
+        | `No path -> ident_of_path_exn path)
+    | Ldot (lid, s) -> Ldot (requalify Module env1 env2 lid, s)
+    | Lapply (lid1, lid2) ->
+        Lapply (requalify Module env1 env2 lid1, requalify ns env1 env2 lid2)
+
   let rec try_unqualifying_ident ~same_resolution_as_initially (env : Env.summary) var =
     let var =
       match env with

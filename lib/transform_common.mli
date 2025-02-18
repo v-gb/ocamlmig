@@ -118,9 +118,27 @@ module Requalify : sig
   val ident_of_path_exn : Uast.Path.t -> Fmast.Longident.t
   val idents_of_path : Uast.Path.t -> Fmast.Longident.t list
 
+  val requalify :
+       (Uast.Path.t * 'a) Uast.ns
+    -> Uast.env
+    -> Uast.env
+    -> Fmast.Longident.t
+    -> Fmast.Longident.t
+  (** If the given identifier has a different meaning in env1 vs env2 (meaning different
+      shape uids), provide a different identifier than should have the same meaning in
+      env2 as the initial identifier has in env1. Concretely, the identifier might be
+      "Int.to_string", env1 might be somewhere in Ocamlmig.stdlib_to_stdlib, and env2
+      would be a call site of Int.to_string. If Int.to_string in env2 doesn't point to the
+      Int.to_string from the stdlib (because Int has been shadowed, say), then we'd return
+      Stdlib.Int.to_string. *)
+
   val try_unqualifying_ident :
        same_resolution_as_initially:(Fmast.Longident.t -> bool)
     -> Uast.Env_summary.t
     -> Fmast.Longident.t
     -> Fmast.Longident.t
+  (** Given an identifier, like Stdlib.Int.to_string, try to provide a shorter version of
+      that identifier that points to the same value. Concretely, this consults any open in
+      the environment, and tries to chop any opened module from the identifier. We could
+      also consult aliases like [module H = Hashtbl], but we don't. *)
 end
