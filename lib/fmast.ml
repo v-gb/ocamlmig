@@ -378,3 +378,38 @@ module Node = struct
         ; pcty_attributes = Option.value attributes ~default:v.pcty_attributes
         }
 end
+
+module Flat_longident = struct
+  type t = string * cont list
+
+  and cont =
+    | Dot of string
+    | Apply_to of t
+  [@@deriving sexp_of, equal, compare, hash]
+
+  let rec from_longident conts : Longident.t -> t = function
+    | Lident s -> (s, conts)
+    | Ldot (t, s) -> from_longident (Dot s :: conts) t
+    | Lapply (t1, t2) -> from_longident (Apply_to (from_longident [] t2) :: conts) t1
+
+  let from_longident id = from_longident [] id
+
+  let rec to_longident (s, conts) =
+    List.fold_left conts ~init:(Longident.Lident s) ~f:(fun acc cont ->
+        match cont with
+        | Dot s -> Ldot (acc, s)
+        | Apply_to arg -> Lapply (acc, to_longident arg))
+
+  let to_list (s, conts) = Dot s :: conts
+
+  let is_prefix t1 ~prefix:t2 =
+    List.is_prefix (to_list t1) ~prefix:(to_list t2) ~equal:equal_cont
+
+  let chop_prefix t1 ~prefix =
+    if is_prefix t1 ~prefix
+    then
+      match List.drop (to_list t1) (List.length (to_list prefix)) with
+      | Dot s :: conts -> Some (s, conts)
+      | _ -> None
+    else None
+end

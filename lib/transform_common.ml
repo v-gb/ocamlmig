@@ -477,3 +477,45 @@ let process_file ~fmconf ~source_path ~input_name_matching_compilation_command f
   process_file' ~fmconf ~source_path ~input_name_matching_compilation_command (fun a b ->
       (f a b, ()))
   |> Option.map ~f:(fun (a, ()) -> a)
+
+module Requalify = struct
+  let same_resolution ns (lid1, env1) (lid2, env2) =
+    match Uast.find_by_name ns env1 (Conv.longident' lid1) with
+    | exception Stdlib.Not_found ->
+        if !log || debug.all
+        then print_s [%sexp `requalify_lident (lid1 : Longident.t), `Out_of_scope];
+        `Unknown
+    | (path, _) as v -> (
+        if !log || debug.all then print_s [%sexp `requalify_lident (lid1 : Longident.t)];
+        match Uast.find_by_name ns env2 (Conv.longident' lid2) with
+        | v' when Shape.Uid.equal (Uast.uid ns v) (Uast.uid ns v') -> `Yes
+        | (exception Stdlib.Not_found) | _ -> `No path)
+
+  let rec ident_of_path_exn : Path.t -> Longident.t = function
+    | Pident ident -> Lident (Ident.name ident)
+    | Pdot (p, s) -> Ldot (ident_of_path_exn p, s)
+    | Papply (p1, p2) -> Lapply (ident_of_path_exn p1, ident_of_path_exn p2)
+    | Pextra_ty _ -> raise Stdlib.Not_found
+
+  let rec idents_of_path : Path.t -> Fmast.Longident.t option list = function
+    | Pident ident ->
+        (* The file Foo might have a path Libname.Foo or Foo, depending on library
+          wrapping, so we try to strip both Libname.Foo and Foo. *)
+        if Ident.global ident
+        then [ None; Some (Lident (Ident.name ident)) ]
+        else [ Some (Lident (Ident.name ident)) ]
+    | Pdot (p, s) ->
+        List.map (idents_of_path p) ~f:(function
+          | None -> Some (Fmast.Longident.Lident s)
+          | Some lid -> Some (Ldot (lid, s)))
+    | Papply (p1, p2) ->
+        List.concat_map (idents_of_path p1) ~f:(function
+          | None -> []
+          | Some lid1 ->
+              List.concat_map (idents_of_path p2) ~f:(function
+                | None -> []
+                | Some lid2 -> [ Some (Fmast.Longident.Lapply (lid1, lid2)) ]))
+    | Pextra_ty _ -> []
+
+  let idents_of_path path = List.filter_opt (idents_of_path path)
+end

@@ -31,7 +31,3 @@ val run :
   -> source_path:Cwdpath.t
   -> input_name_matching_compilation_command:string option
   -> Transform_common.result option
-
-(**/**)
-
-val ident_of_path : Uast.Path.t -> Fmast.Longident.t

@@ -107,3 +107,14 @@ val process_file :
   -> input_name_matching_compilation_command:string option
   -> (bool ref -> P.structure -> P.structure)
   -> result option
+
+module Requalify : sig
+  val same_resolution :
+       ('a * _) Uast.ns
+    -> Fmast.Longident.t * Uast.env
+    -> Fmast.Longident.t * Uast.env
+    -> [> `No of 'a | `Unknown | `Yes ]
+
+  val ident_of_path_exn : Uast.Path.t -> Fmast.Longident.t
+  val idents_of_path : Uast.Path.t -> Fmast.Longident.t list
+end

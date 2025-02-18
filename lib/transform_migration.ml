@@ -1984,20 +1984,31 @@ let requalify ((expr : P.expression), expr_type_index) new_base_env =
       let rec req : type a. (Path.t * a) Uast.ns -> _ -> _ -> Longident.t -> Longident.t =
        fun ns env1 env2 -> function
          | Lident s -> (
-             (* Ideally, we'd share something with transform_scope.ml *)
-             match Uast.find_by_name ns env1 (Lident s) with
-             | exception Stdlib.Not_found ->
-                 if !log || debug.all
-                 then print_s [%sexp `requalify_lident (s : string), `Out_of_scope];
-                 Lident s
-             | (path, _) as v -> (
-                 if !log || debug.all then print_s [%sexp `requalify_lident (s : string)];
-                 match Uast.find_by_name ns env2 (Lident s) with
-                 | v' when Shape.Uid.equal (Uast.uid ns v) (Uast.uid ns v') -> Lident s
-                 | (exception Stdlib.Not_found) | _ -> Transform_scope.ident_of_path path)
-             )
+             match Requalify.same_resolution ns (Lident s, env1) (Lident s, env2) with
+             | `Unknown | `Yes -> Lident s
+             | `No path -> Requalify.ident_of_path_exn path)
          | Ldot (lid, s) -> Ldot (req Module env1 env2 lid, s)
          | Lapply (lid1, lid2) -> Lapply (req Module env1 env2 lid1, req ns env1 env2 lid2)
+      in
+      let rec try_unqualifying_ident ~same_resolution_as_initially (env : Env.summary) var
+          =
+        let var =
+          match env with
+          | Env_open (_, path) -> (
+              match
+                List.find_map (Requalify.idents_of_path path) ~f:(fun prefix ->
+                    let var = Flat_longident.from_longident var in
+                    let prefix = Flat_longident.from_longident prefix in
+                    Flat_longident.chop_prefix var ~prefix
+                    |> Option.map ~f:Flat_longident.to_longident)
+              with
+              | Some var' when same_resolution_as_initially var' -> var'
+              | _ -> var)
+          | _ -> var
+        in
+        match Uast.Env_summary.next env with
+        | None -> var
+        | Some env -> try_unqualifying_ident ~same_resolution_as_initially env var
       in
       let self =
         let super = Ast_mapper.default_mapper in
@@ -2012,10 +2023,19 @@ let requalify ((expr : P.expression), expr_type_index) new_base_env =
                   with
                   | [] -> expr
                   | texp :: _ ->
+                      let orig_env = Envaux.env_of_only_summary texp.exp_env in
+                      let rebased_env = rebased_env texp.exp_env in
                       let var' =
-                        req Value
-                          (Envaux.env_of_only_summary texp.exp_env)
-                          (rebased_env texp.exp_env) var
+                        var
+                        |> req Value orig_env rebased_env __
+                        |> try_unqualifying_ident (Env.summary new_base_env) __
+                             ~same_resolution_as_initially:(fun new_var ->
+                               match
+                                 Requalify.same_resolution Value (var, orig_env)
+                                   (new_var, rebased_env)
+                               with
+                               | `Yes -> true
+                               | `No _ | `Unknown -> false)
                       in
                       { expr with pexp_desc = Pexp_ident { txt = var'; loc } })
               | _ -> expr)

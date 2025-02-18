@@ -779,7 +779,7 @@ let () =
 
       (* Requalification with absolute paths *)
       let _ = (Z.Module.a1, Z.Module.(a1))
-      [@@migrate_test let _ = (Z.Module.b, Z.Module.(Z.Module.b))]
+      [@@migrate_test let _ = (Z.Module.b, Z.Module.(b))]
 
       let _ =
         (* testing shadowing *)

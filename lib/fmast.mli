@@ -193,3 +193,17 @@ module Node : sig
   val update :
     ?desc:'desc -> ?attributes:Parsetree.attributes -> (_, 'a, 'desc, _) t -> 'a -> 'a
 end
+
+module Flat_longident : sig
+  type t = string * cont list
+
+  and cont =
+    | Dot of string
+    | Apply_to of t
+  [@@deriving equal, compare, hash, sexp_of]
+
+  val from_longident : Longident.t -> t
+  val to_longident : t -> Longident.t
+  val is_prefix : t -> prefix:t -> bool
+  val chop_prefix : t -> prefix:t -> t option
+end

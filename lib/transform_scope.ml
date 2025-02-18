@@ -530,12 +530,6 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
   in
   self.structure self structure
 
-let rec ident_of_path : Path.t -> Longident.t = function
-  | Pident ident -> Lident (Ident.name ident)
-  | Pdot (p, s) -> Ldot (ident_of_path p, s)
-  | Papply (p1, p2) -> Lapply (ident_of_path p1, ident_of_path p2)
-  | Pextra_ty _ -> raise Stdlib.Not_found
-
 let qualify_for_open ~changed_something ~artifacts ~type_index
     ~(cmt_infos : Cmt_format.cmt_infos) structure root ~bang ~conservative =
   let comp_unit = cmt_infos.cmt_modname in
@@ -676,7 +670,7 @@ let qualify_for_open ~changed_something ~artifacts ~type_index
                           if merely_aliased
                           then expr
                           else
-                            match ident_of_path path with
+                            match Requalify.ident_of_path_exn path with
                             | exception Stdlib.Not_found -> expr
                             | new_id ->
                                 changed_something := true;
