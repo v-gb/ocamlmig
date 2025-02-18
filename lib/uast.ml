@@ -462,4 +462,19 @@ let uid (type a) (ns : a ns) (v : a) =
   | Constructor -> v.cstr_uid
   | Label -> v.lbl_uid
 
+type 'a without_type_based_disambiguation =
+  | T : ('a, Path.t * _) Type_equal.t -> 'a without_type_based_disambiguation
+
+let without_type_based_disambiguation (type a) (ns : a ns) :
+    a without_type_based_disambiguation option =
+  match ns with
+  | Value -> Some (T T)
+  | Type -> Some (T T)
+  | Module -> Some (T T)
+  | Module_type -> Some (T T)
+  | Class -> Some (T T)
+  | Class_type -> Some (T T)
+  | Constructor -> None
+  | Label -> None
+
 type any_pattern = T : _ Typedtree.general_pattern -> any_pattern

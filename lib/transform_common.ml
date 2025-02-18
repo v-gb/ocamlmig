@@ -548,4 +548,23 @@ module Requalify = struct
     | Pextra_ty _ -> []
 
   let idents_of_path path = List.filter_opt (idents_of_path path)
+
+  let rec try_unqualifying_ident ~same_resolution_as_initially (env : Env.summary) var =
+    let var =
+      match env with
+      | Env_open (_, path) -> (
+          match
+            List.find_map (idents_of_path path) ~f:(fun prefix ->
+                let var = Flat_longident.from_longident var in
+                let prefix = Flat_longident.from_longident prefix in
+                Flat_longident.chop_prefix var ~prefix
+                |> Option.map ~f:Flat_longident.to_longident)
+          with
+          | Some var' when same_resolution_as_initially var' -> var'
+          | _ -> var)
+      | _ -> var
+    in
+    match Uast.Env_summary.next env with
+    | None -> var
+    | Some env -> try_unqualifying_ident ~same_resolution_as_initially env var
 end

@@ -104,6 +104,11 @@ module Longident = struct
   let sexp_of_t t = [%sexp (String.concat ~sep:"." (flatten t) : string)]
 
   include (val Comparator.make ~compare ~sexp_of_t)
+
+  let map_modpath t f =
+    match t with
+    | Lident _ | Lapply _ -> t
+    | Ldot (ident_path, field) -> Ldot (f ident_path, field)
 end
 
 module Location = struct

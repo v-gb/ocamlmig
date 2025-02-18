@@ -84,6 +84,8 @@ module Longident : sig
     with type t := t
 
   include Comparator.S with type t := t
+
+  val map_modpath : t -> (t -> t) -> t
 end
 
 module Ast_helper : sig

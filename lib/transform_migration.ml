@@ -1829,7 +1829,8 @@ let payload_from_occurence_fmast ~fmconf ~context ~artifacts ~extra_migrations
 (* A.B.C.d -> Ldot (Ldot (Ldot (Ldot (Lident A), B), C), d)
    F(M).t -> Ldot (Lapply (F, M)) t
 *)
-let rec rel_opt (l1 : Longident.t) (l2 : Longident.t) : Longident.t option =
+let rec rel_opt : type a. a Uast.ns -> _ =
+ fun ns ~resolved_modpath (l1 : Longident.t) (l2 : Longident.t) : Longident.t option ->
   match l2 with
   | Lident s ->
       if s =: "Rel"
@@ -1840,12 +1841,34 @@ let rec rel_opt (l1 : Longident.t) (l2 : Longident.t) : Longident.t option =
         | Lapply _ -> assert false
       else Some l2
   | Ldot (l2, s) ->
-      Some (match rel_opt l1 l2 with None -> Lident s | Some l2' -> Ldot (l2', s))
-  | Lapply (f, arg) -> Some (Lapply (rel l1 f, arg))
+      Some
+        (match rel_opt ns ~resolved_modpath l1 l2 with
+        | None -> Lident s
+        | Some l2' -> Ldot (l2', s))
+  | Lapply (f, arg) ->
+      Some
+        (Lapply (rel Module ~resolved_modpath l1 f, rel Module ~resolved_modpath l1 arg))
 
-and rel l1 l2 = match rel_opt l1 l2 with Some l -> l | None -> Lident "Nomodulename"
+and rel : type a. a Uast.ns -> _ =
+ fun ns ~resolved_modpath l1 l2 ->
+  match rel_opt ns ~resolved_modpath l1 l2 with
+  | Some l -> (
+      match resolved_modpath with
+      | None -> l
+      | Some (lazy (modlid, env)) -> (
+          (* Prevent shadowing of all components of l2, except the first one *)
+          match rel_opt ns ~resolved_modpath modlid l2 with
+          | None -> assert false
+          | Some l' -> (
+              match Uast.without_type_based_disambiguation ns with
+              | None -> l
+              | Some (T T) -> (
+                  match Requalify.same_resolution ns (l', env) (l, env) with
+                  | `Unknown | `Yes -> l
+                  | `No _ -> l'))))
+  | None -> Lident "Nomodulename"
 
-let relativize path e =
+let relativize ~resolved_modpath path e =
   let super = Ast_mapper.default_mapper in
   let self =
     { super with
@@ -1854,7 +1877,7 @@ let relativize path e =
           let mexpr = super.module_expr self mexpr in
           match mexpr.pmod_desc with
           | Pmod_ident { txt = var; loc } ->
-              let var' = rel path var in
+              let var' = rel Module ~resolved_modpath path var in
               { mexpr with pmod_desc = Pmod_ident { txt = var'; loc } }
           | _ -> mexpr)
     ; expr =
@@ -1862,15 +1885,15 @@ let relativize path e =
           let expr = super.expr self expr in
           match expr with
           | { pexp_desc = Pexp_ident { txt = var; loc }; _ } ->
-              let var' = rel path var in
+              let var' = rel Value ~resolved_modpath path var in
               { expr with pexp_desc = Pexp_ident { txt = var'; loc } }
           | { pexp_desc = Pexp_construct ({ txt = var; loc }, arg); _ } ->
-              let var' = rel path var in
+              let var' = rel Constructor ~resolved_modpath path var in
               { expr with pexp_desc = Pexp_construct ({ txt = var'; loc }, arg) }
           | { pexp_desc = Pexp_record (fields, arg); _ } ->
               let fields' =
                 List.map fields ~f:(fun ({ txt = var; loc }, a, b) ->
-                    let var' = rel path var in
+                    let var' = rel Label ~resolved_modpath path var in
                     (({ txt = var'; loc } : _ Location.loc), a, b))
               in
               { expr with pexp_desc = Pexp_record (fields', arg) }
@@ -1990,26 +2013,6 @@ let requalify ((expr : P.expression), expr_type_index) new_base_env =
          | Ldot (lid, s) -> Ldot (req Module env1 env2 lid, s)
          | Lapply (lid1, lid2) -> Lapply (req Module env1 env2 lid1, req ns env1 env2 lid2)
       in
-      let rec try_unqualifying_ident ~same_resolution_as_initially (env : Env.summary) var
-          =
-        let var =
-          match env with
-          | Env_open (_, path) -> (
-              match
-                List.find_map (Requalify.idents_of_path path) ~f:(fun prefix ->
-                    let var = Flat_longident.from_longident var in
-                    let prefix = Flat_longident.from_longident prefix in
-                    Flat_longident.chop_prefix var ~prefix
-                    |> Option.map ~f:Flat_longident.to_longident)
-              with
-              | Some var' when same_resolution_as_initially var' -> var'
-              | _ -> var)
-          | _ -> var
-        in
-        match Uast.Env_summary.next env with
-        | None -> var
-        | Some env -> try_unqualifying_ident ~same_resolution_as_initially env var
-      in
       let self =
         let super = Ast_mapper.default_mapper in
         { super with
@@ -2028,7 +2031,7 @@ let requalify ((expr : P.expression), expr_type_index) new_base_env =
                       let var' =
                         var
                         |> req Value orig_env rebased_env __
-                        |> try_unqualifying_ident (Env.summary new_base_env) __
+                        |> Requalify.try_unqualifying_ident (Env.summary new_base_env) __
                              ~same_resolution_as_initially:(fun new_var ->
                                match
                                  Requalify.same_resolution Value (var, orig_env)
@@ -2109,7 +2112,32 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                           | texp :: _ -> requalify (to_expr, repl_type_index) texp.exp_env
                           | [] -> to_expr)
                     in
-                    let to_expr = relativize id.txt to_expr in
+                    let to_expr =
+                      let resolved_modpath =
+                        match Build.Type_index.find type_index Exp expr with
+                        | { exp_desc = Texp_ident (path, _, _); exp_env; _ } :: _ ->
+                            Some
+                              (lazy
+                                (let env = Envaux.env_of_only_summary exp_env in
+                                 let ident =
+                                   path
+                                   |> Requalify.ident_of_path_exn __
+                                   |> Longident.map_modpath __ (fun modpath ->
+                                          Requalify.try_unqualifying_ident
+                                            ~same_resolution_as_initially:(fun new_var ->
+                                              match
+                                                Requalify.same_resolution Module
+                                                  (modpath, env) (new_var, env)
+                                              with
+                                              | `Yes -> true
+                                              | `No _ | `Unknown -> false)
+                                            (Env.summary exp_env) modpath)
+                                 in
+                                 (ident, env)))
+                        | _ -> None
+                      in
+                      relativize ~resolved_modpath id.txt to_expr
+                    in
                     let to_expr =
                       preserve_loc_to_preserve_comment_pos_expr ~from:expr to_expr
                     in

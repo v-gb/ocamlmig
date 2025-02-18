@@ -799,7 +799,6 @@ let () =
       [@@migrate_test let _ = (Z.Module.b, Z.Module.(b))]
 
       let _ =
-        (* This is buggy *)
         (* testing shadowing *)
         let open Z.Module in
         let b = 3 in
@@ -810,7 +809,7 @@ let () =
           let open Z.Module in
           let b = 3 in
           let _ = b in
-          b]
+          Z.Module.b]
 
       (* Requalification with absolute paths, untyped *)
       let _ = (Z.Module.a3, Z.Module.(a3))

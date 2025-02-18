@@ -117,4 +117,10 @@ module Requalify : sig
 
   val ident_of_path_exn : Uast.Path.t -> Fmast.Longident.t
   val idents_of_path : Uast.Path.t -> Fmast.Longident.t list
+
+  val try_unqualifying_ident :
+       same_resolution_as_initially:(Fmast.Longident.t -> bool)
+    -> Uast.Env_summary.t
+    -> Fmast.Longident.t
+    -> Fmast.Longident.t
 end

@@ -204,4 +204,10 @@ type 'a ns =
 val find_by_name : 'a ns -> env -> Longident.t -> 'a
 val uid : 'a ns -> 'a -> Shape.Uid.t
 
+type 'a without_type_based_disambiguation =
+  | T : ('a, Path.t * _) Type_equal.t -> 'a without_type_based_disambiguation
+
+val without_type_based_disambiguation :
+  'a ns -> 'a without_type_based_disambiguation option
+
 type any_pattern = T : _ Typedtree.general_pattern -> any_pattern
