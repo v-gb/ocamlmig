@@ -9,13 +9,14 @@ let dummy_lid : Longident.t = Lident ""
 let dummy_loc = Location.none
 let dummy_stringloc : _ Location.loc = { txt = ""; loc = dummy_loc }
 let dummy_lidloc : _ Location.loc = { txt = dummy_lid; loc = dummy_loc }
+let dummy_payload : P.payload = PStr []
+let dummy_ext : P.extension = (dummy_stringloc, dummy_payload)
 let dummy_expr = Ast_helper.Exp.hole ()
 let dummy_pat = Ast_helper.Pat.any ()
 let dummy_stri = Ast_helper.Str.eval dummy_expr
+let dummy_sigi = Ast_helper.Sig.extension dummy_ext
 let dummy_me = Ast_helper.Mod.ident dummy_lidloc
 let dummy_typ = Ast_helper.Typ.any ()
-let dummy_payload : P.payload = PStr []
-let dummy_ext : P.extension = (dummy_stringloc, dummy_payload)
 let dummy_class_field = Ast_helper.Cf.extension dummy_ext
 let dummy_class_type = Ast_helper.Cty.extension dummy_ext
 
@@ -47,6 +48,7 @@ let shallow_equality =
     ; expr = (fun _ _ -> dummy_expr)
     ; pat = (fun _ _ -> dummy_pat)
     ; structure_item = (fun _ _ -> dummy_stri)
+    ; signature_item = (fun _ _ -> dummy_sigi)
     ; module_expr = (fun _ _ -> dummy_me)
     ; typ = (fun _ _ -> dummy_typ)
     ; class_field = (fun _ _ -> dummy_class_field)
@@ -125,7 +127,7 @@ let children (ctx : Ocamlformat_lib.Ast.t) meth v =
     | Cl _ -> `Ref
     | Mty _ -> `Ref
     | Mod _ -> `Child
-    | Sig _ -> `Ref
+    | Sig _ -> `Child
     | Str _ -> `Child
     | Clf _ -> `Child
     | Ctf _ -> `Ref
@@ -147,6 +149,10 @@ let children (ctx : Ocamlformat_lib.Ast.t) meth v =
     ; structure_item =
         (fun _ v ->
           children := (!ctx, `Stri v) :: !children;
+          v)
+    ; signature_item =
+        (fun _ v ->
+          children := (!ctx, `Sigi v) :: !children;
           v)
     ; module_expr =
         (fun _ v ->
@@ -205,9 +211,6 @@ let children (ctx : Ocamlformat_lib.Ast.t) meth v =
     ; module_type =
         (fun self v ->
           Ref.set_temporarily ctx (Mty v) ~f:(fun () -> super.module_type self v))
-    ; signature_item =
-        (fun self v ->
-          Ref.set_temporarily ctx (Sig v) ~f:(fun () -> super.signature_item self v))
     ; class_type_field =
         (fun self v ->
           Ref.set_temporarily ctx (Ctf v) ~f:(fun () -> super.class_type_field self v))
@@ -227,6 +230,7 @@ type diff =
   | `Pat of pattern * pattern xt
   | `Me of module_expr * module_expr xt
   | `Stri of structure_item * structure_item xt
+  | `Sigi of signature_item * signature_item xt
   | `Typ of core_type * core_type xt
   | `Cf of class_field * class_field xt
   | `Cty of class_type * class_type xt
@@ -236,7 +240,8 @@ type diff =
 type diff_out =
   [ diff
   | `Rem of Location.t
-  | `Add of Location.t * (int * structure_item)
+  | `Add_stri of Location.t * (int * structure_item)
+  | `Add_sigi of Location.t * (int * signature_item)
   ]
 [@@deriving sexp_of]
 
@@ -273,10 +278,11 @@ let rec diff2 ~source (vs : diff) (f : diff_out -> unit) =
   | `Expr (v1, v2) -> diff2_meth ~source __.expr vs v1 v2.ast (Exp v2.ast) f
   | `Pat (v1, v2) -> diff2_meth ~source __.pat vs v1 v2.ast (Pat v2.ast) f
   | `Stri (v1, v2) -> diff2_meth ~source __.structure_item vs v1 v2.ast (Str v2.ast) f
+  | `Sigi (v1, v2) -> diff2_meth ~source __.signature_item vs v1 v2.ast (Sig v2.ast) f
   | `Me (v1, v2) -> (
       match (v1.pmod_desc, v2.ast.pmod_desc) with
       | Pmod_structure l1, Pmod_structure l2 when List.length l1 <> List.length l2 -> (
-          match diff_structure ~source l1 l2 f with
+          match diff_str_sig ~file_type:Impl T ~source l1 l2 f with
           | `Ok -> ()
           | `Whole_structure ->
               diff2_meth ~source __.module_expr vs v1 v2.ast (Mod v2.ast) f)
@@ -285,11 +291,22 @@ let rec diff2 ~source (vs : diff) (f : diff_out -> unit) =
   | `Cf (v1, v2) -> diff2_meth ~source __.class_field vs v1 v2.ast (Clf v2.ast) f
   | `Cty (v1, v2) -> diff2_meth ~source __.class_type vs v1 v2.ast (Cty v2.ast) f
 
-and diff_structure ~source l1 l2 f =
+and diff_str_sig : type a elt.
+       file_type:a Transform_common.File_type.t
+    -> (a, elt list) Type_equal.t
+    -> source:string
+    -> a
+    -> a
+    -> (diff_out -> unit)
+    -> _ =
+ fun ~file_type T ~source l1 l2 f ->
+  let loc : elt -> Location.t =
+    match file_type with Impl -> __.pstr_loc | Intf -> __.psig_loc
+  in
   let diff, common =
     match List.zip l1 l2 with
     | Ok common -> ([], common)
-    | Unequal_lengths -> list_diff l1 l2 __.pstr_loc
+    | Unequal_lengths -> list_diff l1 l2 loc
   in
   if
     List.exists diff ~f:(function
@@ -298,16 +315,16 @@ and diff_structure ~source l1 l2 f =
             rather than leaving an empty line. *)
           let line_loc : Location.t =
             { loc_start =
-                { stri.pstr_loc.loc_start with
+                { (loc stri).loc_start with
                   pos_cnum =
                     Option.value ~default:0
-                      (String.rindex_from source stri.pstr_loc.loc_start.pos_cnum '\n')
+                      (String.rindex_from source (loc stri).loc_start.pos_cnum '\n')
                 }
             ; loc_end =
-                { stri.pstr_loc.loc_end with
+                { (loc stri).loc_end with
                   pos_cnum =
                     Option.value ~default:(String.length source)
-                      (String.index_from source stri.pstr_loc.loc_end.pos_cnum '\n')
+                      (String.index_from source (loc stri).loc_end.pos_cnum '\n')
                 }
             ; loc_ghost = false
             }
@@ -317,13 +334,13 @@ and diff_structure ~source l1 l2 f =
               String.is_empty
                 (String.strip
                    (string_sub source ~pos1:line_loc.loc_start.pos_cnum
-                      ~pos2:stri.pstr_loc.loc_start.pos_cnum))
+                      ~pos2:(loc stri).loc_start.pos_cnum))
               && String.is_empty
                    (String.strip
-                      (string_sub source ~pos1:stri.pstr_loc.loc_end.pos_cnum
+                      (string_sub source ~pos1:(loc stri).loc_end.pos_cnum
                          ~pos2:line_loc.loc_end.pos_cnum))
             then line_loc
-            else stri.pstr_loc
+            else loc stri
           in
           f (`Rem loc_to_delete);
           false
@@ -334,21 +351,19 @@ and diff_structure ~source l1 l2 f =
               (not
                  (String.is_empty
                     (String.strip
-                       (string_sub source ~pos1:item.pstr_loc.loc_start.pos_bol
-                          ~pos2:item.pstr_loc.loc_start.pos_cnum))))
+                       (string_sub source ~pos1:(loc item).loc_start.pos_bol
+                          ~pos2:(loc item).loc_start.pos_cnum))))
               ||
-              let indent =
-                item.pstr_loc.loc_start.pos_cnum - item.pstr_loc.loc_start.pos_bol
-              in
+              let indent = (loc item).loc_start.pos_cnum - (loc item).loc_start.pos_bol in
               let pos =
-                { item.pstr_loc.loc_start with
-                  pos_cnum = item.pstr_loc.loc_start.pos_bol
-                }
+                { (loc item).loc_start with pos_cnum = (loc item).loc_start.pos_bol }
               in
               let loc : Location.t =
                 { loc_start = pos; loc_end = pos; loc_ghost = false }
               in
-              f (`Add (loc, (indent, stri)));
+              (match file_type with
+              | Impl -> f (`Add_stri (loc, (indent, stri)))
+              | Intf -> f (`Add_sigi (loc, (indent, stri))));
               false))
   then
     (* The problem here is: what position to use for the new structure item? We'd
@@ -356,7 +371,9 @@ and diff_structure ~source l1 l2 f =
     `Whole_structure
   else (
     List.iter common ~f:(fun (stri1, stri2) ->
-        diff2 ~source (`Stri (stri1, Ast.sub_str ~ctx:Top stri2)) f);
+        match file_type with
+        | Impl -> diff2 ~source (`Stri (stri1, Ast.sub_str ~ctx:Top stri2)) f
+        | Intf -> diff2 ~source (`Sigi (stri1, Ast.sub_sig ~ctx:Top stri2)) f);
     `Ok)
 
 and diff2_meth : type a.
@@ -376,11 +393,12 @@ and diff2_meth : type a.
         | `Expr v1, `Expr v2 -> diff2 ~source (`Expr (v1, Ast.sub_exp ~ctx v2)) f
         | `Pat v1, `Pat v2 -> diff2 ~source (`Pat (v1, Ast.sub_pat ~ctx v2)) f
         | `Stri v1, `Stri v2 -> diff2 ~source (`Stri (v1, Ast.sub_str ~ctx v2)) f
+        | `Sigi v1, `Sigi v2 -> diff2 ~source (`Sigi (v1, Ast.sub_sig ~ctx v2)) f
         | `Me v1, `Me v2 -> diff2 ~source (`Me (v1, Ast.sub_mod ~ctx v2)) f
         | `Typ v1, `Typ v2 -> diff2 ~source (`Typ (v1, Ast.sub_typ ~ctx v2)) f
         | `Cf v1, `Cf v2 -> diff2 ~source (`Cf (v1, Ast.sub_cf ~ctx v2)) f
         | `Cty v1, `Cty v2 -> diff2 ~source (`Cty (v1, Ast.sub_cty ~ctx v2)) f
-        | (`Expr _ | `Pat _ | `Stri _ | `Me _ | `Typ _ | `Cf _ | `Cty _), _ ->
+        | (`Expr _ | `Pat _ | `Stri _ | `Sigi _ | `Me _ | `Typ _ | `Cf _ | `Cty _), _ ->
             assert false)
   else f (vs : diff :> diff_out)
 
@@ -388,17 +406,20 @@ and diff2_meth : type a.
    ast, so we'd need to do something smarter like Fmt_ast does. In fact, if we needed
    to diff more types, maybe we should write a function that creates a context for any
    extended ast, and use it in Fmt_ast, and potentially here. *)
-let diff2 (type a) (ftype : a Transform_common.File_type.t)
+let diff2 (type a) (file_type : a Transform_common.File_type.t)
     (str1 : a Ocamlformat_lib.Parse_with_comments.with_comments) (str2 : a) =
   let source : string = fst (Stdlib.Obj.magic str1.source) in
   assert (Stdlib.Obj.tag (Stdlib.Obj.repr source) = Stdlib.Obj.string_tag);
   let r = ref [] in
-  match ftype with
-  | Intf -> failwith "fmast_diff unimplemented for signatures"
-  | Impl -> (
-      match diff_structure ~source str1.ast str2 (fun diff -> r := diff :: !r) with
-      | `Ok -> `Ok (List.rev !r)
-      | `Whole_structure -> `Whole_structure)
+  match
+    match file_type with
+    | Impl ->
+        diff_str_sig ~file_type T ~source str1.ast str2 (fun diff -> r := diff :: !r)
+    | Intf ->
+        diff_str_sig ~file_type T ~source str1.ast str2 (fun diff -> r := diff :: !r)
+  with
+  | `Ok -> `Ok (List.rev !r)
+  | `Whole_structure -> `Whole_structure
 
 type add_comments =
   { add_comments :
@@ -502,12 +523,14 @@ let print ~ocaml_version ~debug_diff ~source_contents ftype ast1 ast2 =
     | `Expr (e, _) -> e.pexp_loc
     | `Pat (p, _) -> p.ppat_loc
     | `Stri (si, _) -> si.pstr_loc
+    | `Sigi (si, _) -> si.psig_loc
     | `Me (me, _) -> me.pmod_loc
     | `Typ (t, _) -> t.ptyp_loc
     | `Cf (v, _) -> v.pcf_loc
     | `Cty (v, _) -> v.pcty_loc
     | `Rem loc -> loc
-    | `Add (loc, _) -> loc
+    | `Add_stri (loc, _) -> loc
+    | `Add_sigi (loc, _) -> loc
   in
   match diff2 ftype ast1 ast2 with
   | `Whole_structure ->
@@ -546,6 +569,8 @@ let print ~ocaml_version ~debug_diff ~source_contents ftype ast1 ast2 =
                      (printed_ast add_comments p1.ppat_loc Pattern p2.ast))
             | `Stri (s1, s2) ->
                 f s1.pstr_loc (printed_ast add_comments s1.pstr_loc Structure [ s2.ast ])
+            | `Sigi (s1, s2) ->
+                f s1.psig_loc (printed_ast add_comments s1.psig_loc Signature [ s2.ast ])
             | `Me (v1, v2) ->
                 f v1.pmod_loc
                   (String.lstrip
@@ -561,10 +586,15 @@ let print ~ocaml_version ~debug_diff ~source_contents ftype ast1 ast2 =
                   (parens_if (Ast.parenze_cty v2)
                      (printed_ast add_comments v1.pcty_loc Class_type v2.ast))
             | `Rem loc -> f loc ""
-            | `Add (loc, (indent, s2)) ->
+            | `Add_stri (loc, (indent, s2)) ->
                 f loc
                   (String.make indent ' '
                   ^ printed_ast add_comments loc Structure [ s2 ]
+                  ^ "\n")
+            | `Add_sigi (loc, (indent, s2)) ->
+                f loc
+                  (String.make indent ' '
+                  ^ printed_ast add_comments loc Signature [ s2 ]
                   ^ "\n")))
 
 (* problems:
