@@ -494,13 +494,7 @@ let process_ast file_type structure (f : _ f') =
 let process_file' ~fmconf:conf ~source_path ~input_name_matching_compilation_command
     (f : _ f') =
   let (T file_type) : File_type.packed =
-    if
-      false
-      (* not yet ready, need to fix exception in fmast_diff and the fact that nothing
-         works (reading .cmt instead of .cmti I think) *)
-      && Build.is_mli source_path
-    then T Intf
-    else T Impl
+    if Build.is_mli source_path then T Intf else T Impl
   in
   let source_contents = In_channel.read_all (Cwdpath.to_string source_path) in
   let structure =

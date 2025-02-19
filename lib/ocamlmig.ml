@@ -140,8 +140,8 @@ let source_param =
       flag "--"
         (map_flag escape ~f:(Option.map ~f:Cwdpath.create_list))
         ~doc:
-          "SOURCE_PATH same as anonymous arguments. If no .ml files are specified, all \
-           .ml files under version control are chosen."
+          "SOURCE_PATH same as anonymous arguments. If no .ml or .mli files are \
+           specified, all .ml files under version control are chosen."
     in
     match args @ Option.value more_args ~default:[] with
     | [] -> `All
