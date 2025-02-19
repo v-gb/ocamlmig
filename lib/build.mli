@@ -4,6 +4,7 @@
 open Base
 open Common
 
+val is_mli : Cwdpath.t -> bool
 val read_cmt : Cwdpath.t -> Cmt_format.cmt_infos
 val comp_unit_of_uid : Shape.Uid.t -> string option
 val input_name_matching_compilation_command : Cmt_format.cmt_infos -> string option

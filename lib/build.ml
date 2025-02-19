@@ -6,6 +6,8 @@ module Printf = Stdlib.Printf
 module Format = Stdlib.Format
 open Common
 
+let is_mli path = String.is_suffix (Cwdpath.to_string path) ~suffix:".mli"
+
 let read_cmt cmt_path =
   try Cmt_format.read_cmt (Cwdpath.to_string cmt_path) with
   | Cmi_format.Error e ->
@@ -246,7 +248,8 @@ module Listing = struct
     | Some a -> (
         match
           List.find_map a.cmt_load_paths ~f:(fun (lazy dir) ->
-              Load_path.Dir.find_normalized dir (a.compilation_unit ^ ".cmt"))
+              Load_path.Dir.find_normalized dir
+                (a.compilation_unit ^ if is_mli source_path then ".cmti" else ".cmt"))
         with
         | Some cmt_path ->
             let cmt_path =
@@ -576,53 +579,55 @@ module Type_index = struct
   [@@deriving sexp_of]
 
   let create_without_setting_up_loadpath (cmt_infos : Cmt_format.cmt_infos) =
-    match cmt_infos.cmt_annots with
-    | Implementation structure ->
-        let exp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
-        let pat = Hashtbl.create (module Uast.Location.Ignoring_filename) in
-        let typ = Hashtbl.create (module Uast.Location.Ignoring_filename) in
-        let cexp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
-        let ctyp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
-        let mexp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
-        let mtyp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
-        let super = Tast_iterator.default_iterator in
-        let self =
-          { super with
-            expr =
-              (fun self v ->
-                super.expr self v;
-                Hashtbl.add_multi exp ~key:v.exp_loc ~data:v)
-          ; pat =
-              (fun self v ->
-                super.pat self v;
-                Hashtbl.add_multi pat ~key:v.pat_loc ~data:(T v : Uast.any_pattern))
-          ; typ =
-              (fun self v ->
-                super.typ self v;
-                Hashtbl.add_multi typ ~key:v.ctyp_loc ~data:v)
-          ; class_expr =
-              (fun self v ->
-                super.class_expr self v;
-                Hashtbl.add_multi cexp ~key:v.cl_loc ~data:v)
-          ; class_type =
-              (fun self v ->
-                super.class_type self v;
-                Hashtbl.add_multi ctyp ~key:v.cltyp_loc ~data:v)
-          ; module_expr =
-              (fun self v ->
-                super.module_expr self v;
-                Hashtbl.add_multi mexp ~key:v.mod_loc ~data:v)
-          ; module_type =
-              (fun self v ->
-                super.module_type self v;
-                Hashtbl.add_multi mtyp ~key:v.mty_loc ~data:v)
-          }
-        in
-        self.structure self structure;
-        { exp; pat; typ; cexp; ctyp; mexp; mtyp }
+    let exp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+    let pat = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+    let typ = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+    let cexp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+    let ctyp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+    let mexp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+    let mtyp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+    let super = Tast_iterator.default_iterator in
+    let self =
+      { super with
+        expr =
+          (fun self v ->
+            super.expr self v;
+            Hashtbl.add_multi exp ~key:v.exp_loc ~data:v)
+      ; pat =
+          (fun self v ->
+            super.pat self v;
+            Hashtbl.add_multi pat ~key:v.pat_loc ~data:(T v : Uast.any_pattern))
+      ; typ =
+          (fun self v ->
+            super.typ self v;
+            Hashtbl.add_multi typ ~key:v.ctyp_loc ~data:v)
+      ; class_expr =
+          (fun self v ->
+            super.class_expr self v;
+            Hashtbl.add_multi cexp ~key:v.cl_loc ~data:v)
+      ; class_type =
+          (fun self v ->
+            super.class_type self v;
+            Hashtbl.add_multi ctyp ~key:v.cltyp_loc ~data:v)
+      ; module_expr =
+          (fun self v ->
+            super.module_expr self v;
+            Hashtbl.add_multi mexp ~key:v.mod_loc ~data:v)
+      ; module_type =
+          (fun self v ->
+            super.module_type self v;
+            Hashtbl.add_multi mtyp ~key:v.mty_loc ~data:v)
+      }
+    in
+    (match cmt_infos.cmt_annots with
+    | Implementation structure -> self.structure self structure
+    | Interface signature -> self.signature self signature
     | Partial_implementation _ ->
         failwith "unexpected content of cmt (file doesn't fully type?)"
-    | _ -> failwith "unexpected content of cmt"
+    | Partial_interface _ ->
+        failwith "unexpected content of cmti (file doesn't fully type?)"
+    | _ -> failwith "unexpected content of cmt");
+    { exp; pat; typ; cexp; ctyp; mexp; mtyp }
 
   let create_from_cmt_infos cmt_infos (listing1 : Listing.one) =
     Load_path.init ~auto_include:Load_path.no_auto_include ~visible:[] ~hidden:[];

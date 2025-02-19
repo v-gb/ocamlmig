@@ -498,7 +498,7 @@ let process_file' ~fmconf:conf ~source_path ~input_name_matching_compilation_com
       false
       (* not yet ready, need to fix exception in fmast_diff and the fact that nothing
          works (reading .cmt instead of .cmti I think) *)
-      && String.is_suffix (Cwdpath.to_string source_path) ~suffix:".mli"
+      && Build.is_mli source_path
     then T Intf
     else T Impl
   in
