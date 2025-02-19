@@ -778,8 +778,8 @@ let () =
       (* *)
 
       (* Requalification with absolute paths *)
-      let _ = (Z.Module.a1, Z.Module.(a1))
-      [@@migrate_test let _ = (Z.Module.b, Z.Module.(b))]
+      let _ = (Z.Module.a1, Z.Module.(a1), Z.(Module.(a1)))
+      [@@migrate_test let _ = (Z.Module.b, Z.Module.(b), Z.(Module.(b)))]
 
       let _ =
         (* testing shadowing *)
@@ -795,8 +795,8 @@ let () =
           Z.Module.b]
 
       (* Requalification with relative paths *)
-      let _ = (Z.Module.a2, Z.Module.(a2))
-      [@@migrate_test let _ = (Z.Module.b, Z.Module.(b))]
+      let _ = (Z.Module.a2, Z.Module.(a2), Z.(Module.(a2)))
+      [@@migrate_test let _ = (Z.Module.b, Z.Module.(b), Z.(Module.(b)))]
 
       let _ =
         (* testing shadowing *)
@@ -812,8 +812,9 @@ let () =
           Z.Module.b]
 
       (* Requalification with absolute paths, untyped *)
-      let _ = (Z.Module.a3, Z.Module.(a3))
-      [@@migrate_test let _ = (Z.Module.b, Z.Module.(Z.Module.b))]
+      let _ = (Z.Module.a3, Z.Module.(a3), Z.(Module.(a3)))
+      [@@migrate_test
+        let _ = (Z.Module.b, Z.Module.(Z.Module.b), Z.(Module.(Z.Module.b)))]
 
       let _ =
         (* testing shadowing *)
