@@ -3,6 +3,26 @@
 open! Base
 open! Common
 
+module File_type : sig
+  type _ t =
+    | Intf : Ocamlformat_parser_extended.Parsetree.signature t
+    | Impl : Ocamlformat_parser_extended.Parsetree.structure t
+
+  type packed = T : _ t -> packed
+
+  val to_extended_ast : 'a t -> 'a Ocamlformat_lib.Extended_ast.t
+  val map : 'a t -> Ocamlformat_parser_extended.Ast_mapper.mapper -> 'a -> 'a
+
+  val method_ :
+       'a t
+    -> Ocamlformat_parser_extended.Ast_mapper.mapper
+    -> Ocamlformat_parser_extended.Ast_mapper.mapper
+    -> 'a
+    -> 'a
+
+  val structure : 'a t -> 'a -> Ocamlformat_parser_extended.Parsetree.structure option
+end
+
 (** We try to use this filename on every node we insert into the tree, so we can
     distinguish our our nodes. *)
 
@@ -60,9 +80,7 @@ val update_migrate_test_payload :
   -> P.structure_item
   -> P.structure_item
 
-val drop_concrete_syntax_constructs :
-  (Ast_mapper.mapper -> Ast_mapper.mapper -> 'v -> 'v) -> 'v -> 'v
-
+val drop_concrete_syntax_constructs : Ast_mapper.mapper
 val remove_attributes : Ast_mapper.mapper
 
 val update_loc :
@@ -77,35 +95,32 @@ val preserve_loc_to_preserve_comment_pos :
 val preserve_loc_to_preserve_comment_pos_expr :
   from:P.expression -> P.expression -> P.expression
 
-val call : Ast_mapper.mapper -> P.structure -> P.structure
+type ast_result =
+  | T :
+      ('ast File_type.t
+      * 'ast Ocamlformat_lib.Parse_with_comments.with_comments
+      * 'ast Ocamlformat_lib.Parse_with_comments.with_comments
+      * Ocamlformat_lib.Conf_t.t)
+      -> ast_result
 
-val process_ast :
-     P.structure
-  -> (bool ref -> P.structure -> P.structure * 'other)
-  -> (P.structure * 'other) option
+type result = string * string * ast_result option
+type 'other f' = { f : 'ast. bool ref -> 'ast File_type.t -> 'ast -> 'ast * 'other }
+type f = { f : 'ast. bool ref -> 'ast File_type.t -> 'ast -> 'ast }
 
-type result =
-  string
-  * string
-  * (Ocamlformat_lib.Extended_ast.structure
-     Ocamlformat_lib.Parse_with_comments.with_comments
-    * Ocamlformat_lib.Extended_ast.structure
-      Ocamlformat_lib.Parse_with_comments.with_comments
-    * Ocamlformat_lib.Conf_t.t)
-    option
+val process_ast : 'ast File_type.t -> 'ast -> 'other f' -> ('ast * 'other) option
 
 val process_file' :
      fmconf:Ocamlformat_lib.Conf_t.t
   -> source_path:Cwdpath.t
   -> input_name_matching_compilation_command:string option
-  -> (bool ref -> P.structure -> P.structure * 'other)
+  -> 'other f'
   -> (result * 'other) option
 
 val process_file :
      fmconf:Ocamlformat_lib.Conf_t.t
   -> source_path:Cwdpath.t
   -> input_name_matching_compilation_command:string option
-  -> (bool ref -> P.structure -> P.structure)
+  -> f
   -> result option
 
 module Requalify : sig

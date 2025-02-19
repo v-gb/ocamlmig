@@ -388,13 +388,17 @@ and diff2_meth : type a.
    ast, so we'd need to do something smarter like Fmt_ast does. In fact, if we needed
    to diff more types, maybe we should write a function that creates a context for any
    extended ast, and use it in Fmt_ast, and potentially here. *)
-let diff2 (str1 : _ Ocamlformat_lib.Parse_with_comments.with_comments) str2 =
+let diff2 (type a) (ftype : a Transform_common.File_type.t)
+    (str1 : a Ocamlformat_lib.Parse_with_comments.with_comments) (str2 : a) =
   let source : string = fst (Stdlib.Obj.magic str1.source) in
   assert (Stdlib.Obj.tag (Stdlib.Obj.repr source) = Stdlib.Obj.string_tag);
   let r = ref [] in
-  match diff_structure ~source str1.ast str2 (fun diff -> r := diff :: !r) with
-  | `Ok -> `Ok (List.rev !r)
-  | `Whole_structure -> `Whole_structure
+  match ftype with
+  | Intf -> failwith "fmast_diff unimplemented for signatures"
+  | Impl -> (
+      match diff_structure ~source str1.ast str2 (fun diff -> r := diff :: !r) with
+      | `Ok -> `Ok (List.rev !r)
+      | `Whole_structure -> `Whole_structure)
 
 type add_comments =
   { add_comments :
@@ -492,8 +496,8 @@ let cobble_code_together ~ocaml_version ~debug_diff orig f =
   copy_orig (String.length orig) ~parsed:true;
   Buffer.contents buf
 
-let print ~ocaml_version ~debug_diff ~source_contents ~structure ~structure' =
-  let add_comments = indexed_comments structure in
+let print ~ocaml_version ~debug_diff ~source_contents ftype ast1 ast2 =
+  let add_comments = indexed_comments ast1 in
   let loc_of_diff : diff_out -> _ = function
     | `Expr (e, _) -> e.pexp_loc
     | `Pat (p, _) -> p.ppat_loc
@@ -505,10 +509,11 @@ let print ~ocaml_version ~debug_diff ~source_contents ~structure ~structure' =
     | `Rem loc -> loc
     | `Add (loc, _) -> loc
   in
-  match diff2 structure structure' with
+  match diff2 ftype ast1 ast2 with
   | `Whole_structure ->
-      ocamlformat_print ~conf:Ocamlformat_lib.Conf.default Structure
-        { structure with ast = structure' }
+      ocamlformat_print ~conf:Ocamlformat_lib.Conf.default
+        (Transform_common.File_type.to_extended_ast ftype)
+        { ast1 with ast = ast2 }
   | `Ok l ->
       let l =
         List.sort l ~compare:(fun a b -> Location.compare (loc_of_diff a) (loc_of_diff b))

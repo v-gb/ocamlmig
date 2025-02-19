@@ -134,7 +134,7 @@ and inverse_pat (p : P.pattern) : P.expression =
       Ast_helper.Exp.construct ~loc:p.ppat_loc ~attrs:p.ppat_attributes id e_opt
   | _ -> Location.raise_errorf ~loc:p.ppat_loc "unsupported pattern"
 
-let run_structure structure =
+let run_structure file_type structure =
   let changed_something = ref false in
   (* this code doesn't care, but make a dummy value to hand out to other functions *)
   let super = Ast_mapper.default_mapper in
@@ -171,9 +171,12 @@ let run_structure structure =
           super ~changed_something
     }
   in
-  self.structure self structure |> call remove_attributes
+  structure |> File_type.map file_type self |> File_type.map file_type remove_attributes
 
 let run ~fmconf ~source_path =
-  process_file ~fmconf ~source_path (fun changed_something structure ->
-      changed_something := true;
-      run_structure structure)
+  process_file ~fmconf ~source_path
+    { f =
+        (fun changed_something file_type structure ->
+          changed_something := true;
+          run_structure file_type structure)
+    }

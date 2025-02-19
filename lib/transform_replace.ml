@@ -56,7 +56,7 @@ let locate_def ~index structure uid =
       ignore (self.structure self structure);
       None)
 
-let drop_defs ~type_index structure uids =
+let drop_defs ~type_index file_type structure uids =
   let uids = Shape.Uid.Set.of_seq (Stdlib.List.to_seq uids) in
   if Shape.Uid.Set.is_empty uids
   then structure
@@ -77,7 +77,7 @@ let drop_defs ~type_index structure uids =
             })
       }
     in
-    self.structure self structure
+    File_type.map file_type self structure
 
 type value =
   | Expr of P.expression
@@ -90,7 +90,7 @@ type value =
 
 type ctx =
   { type_index : Build.Type_index.t option Lazy.t
-  ; whole_ast : Parsetree.structure
+  ; whole_ast : Parsetree.structure option
   }
 
 type env =
@@ -301,31 +301,38 @@ let rec match_ ~need_type_index (motif : Uast.Parsetree.expression) : stage2 =
       match motif_name.txt with
       | "move_def" -> (
           fun expr ~env ~ctx ->
-            match expr.pexp_desc with
-            | Pexp_ident { txt = Lident _; _ } -> (
-                match Lazy.force ctx.type_index with
-                | None ->
-                    if !log then print_s [%sexp "missing type index"];
-                    false
-                | Some index -> (
-                    match Build.Type_index.exp index (Conv.location' expr.pexp_loc) with
-                    | [] ->
-                        if !log then print_s [%sexp "no type"];
+            match ctx.whole_ast with
+            | None -> false
+            | Some whole_ast -> (
+                match expr.pexp_desc with
+                | Pexp_ident { txt = Lident _; _ } -> (
+                    match Lazy.force ctx.type_index with
+                    | None ->
+                        if !log then print_s [%sexp "missing type index"];
                         false
-                    | texpr :: _ -> (
-                        match texpr.exp_desc with
-                        | Texp_ident (_, _, vd) -> (
-                            let uid = vd.val_uid in
-                            match locate_def ~index ctx.whole_ast uid with
-                            | None -> false
-                            | Some def ->
-                                env :=
-                                  { !env with
-                                    nodes_to_remove = uid :: !env.nodes_to_remove
-                                  };
-                                s_payload (P.PStr [ Ast_helper.Str.eval def ]) ~env ~ctx)
-                        | _ -> assert false)))
-            | _ -> false)
+                    | Some index -> (
+                        match
+                          Build.Type_index.exp index (Conv.location' expr.pexp_loc)
+                        with
+                        | [] ->
+                            if !log then print_s [%sexp "no type"];
+                            false
+                        | texpr :: _ -> (
+                            match texpr.exp_desc with
+                            | Texp_ident (_, _, vd) -> (
+                                let uid = vd.val_uid in
+                                match locate_def ~index whole_ast uid with
+                                | None -> false
+                                | Some def ->
+                                    env :=
+                                      { !env with
+                                        nodes_to_remove = uid :: !env.nodes_to_remove
+                                      };
+                                    s_payload
+                                      (P.PStr [ Ast_helper.Str.eval def ])
+                                      ~env ~ctx)
+                            | _ -> assert false)))
+                | _ -> false))
       | _ -> (
           fun expr ~env ~ctx ->
             match expr.pexp_desc with
@@ -783,95 +790,99 @@ let run ~(listing : Build.Listing.t) motif_and_repls () =
     in
     let all_nodes_to_remove = Queue.create () in
     process_file ~fmconf ~source_path ~input_name_matching_compilation_command
-      (fun changed_something structure ->
-        let super = Ast_mapper.default_mapper in
-        let self =
-          { super with
-            typ =
-              (fun self ty ->
-                let ty = super.typ self ty in
-                match
-                  List.find_map stage2_and_repls ~f:(function
-                    | `Type (stage2, repl) ->
-                        replace
-                          ( __.typ
-                          , preserve_loc_to_preserve_comment_pos __.typ ~from:ty.ptyp_loc
-                          )
-                          ty ~whole_ast:structure ~type_index ~stage2 ~repl
-                    | _ -> None)
-                with
-                | None -> ty
-                | Some (ty, nodes_to_remove) ->
-                    Queue.enqueue_all all_nodes_to_remove nodes_to_remove;
-                    changed_something := true;
-                    ty)
-          ; value_binding =
-              (fun self vb ->
-                let vb = super.value_binding self vb in
-                match
-                  List.find_map stage2_and_repls ~f:(function
-                    | `Binding (stage2, repl) ->
-                        replace
-                          ( __.value_binding
-                          , preserve_loc_to_preserve_comment_pos __.value_binding
-                              ~from:vb.pvb_loc )
-                          vb ~whole_ast:structure ~type_index ~stage2 ~repl
-                    | _ -> None)
-                with
-                | None -> vb
-                | Some (vb, nodes_to_remove) ->
-                    Queue.enqueue_all all_nodes_to_remove nodes_to_remove;
-                    changed_something := true;
-                    vb)
-          ; binding_op =
-              (fun self bop ->
-                let bop = super.binding_op self bop in
-                match
-                  List.find_map stage2_and_repls ~f:(function
-                    | `Binding_op (stage2, repl) ->
-                        let repl =
-                          { repl with
-                            pbop_op =
-                              { txt =
-                                  fst (split_bop bop.pbop_op.txt)
-                                  ^ snd (split_bop repl.pbop_op.txt)
-                              ; loc = repl.pbop_op.loc
+      { f =
+          (fun changed_something file_type structure ->
+            let whole_ast = File_type.structure file_type structure in
+            let super = Ast_mapper.default_mapper in
+            let self =
+              { super with
+                typ =
+                  (fun self ty ->
+                    let ty = super.typ self ty in
+                    match
+                      List.find_map stage2_and_repls ~f:(function
+                        | `Type (stage2, repl) ->
+                            replace
+                              ( __.typ
+                              , preserve_loc_to_preserve_comment_pos __.typ
+                                  ~from:ty.ptyp_loc )
+                              ty ~whole_ast ~type_index ~stage2 ~repl
+                        | _ -> None)
+                    with
+                    | None -> ty
+                    | Some (ty, nodes_to_remove) ->
+                        Queue.enqueue_all all_nodes_to_remove nodes_to_remove;
+                        changed_something := true;
+                        ty)
+              ; value_binding =
+                  (fun self vb ->
+                    let vb = super.value_binding self vb in
+                    match
+                      List.find_map stage2_and_repls ~f:(function
+                        | `Binding (stage2, repl) ->
+                            replace
+                              ( __.value_binding
+                              , preserve_loc_to_preserve_comment_pos __.value_binding
+                                  ~from:vb.pvb_loc )
+                              vb ~whole_ast ~type_index ~stage2 ~repl
+                        | _ -> None)
+                    with
+                    | None -> vb
+                    | Some (vb, nodes_to_remove) ->
+                        Queue.enqueue_all all_nodes_to_remove nodes_to_remove;
+                        changed_something := true;
+                        vb)
+              ; binding_op =
+                  (fun self bop ->
+                    let bop = super.binding_op self bop in
+                    match
+                      List.find_map stage2_and_repls ~f:(function
+                        | `Binding_op (stage2, repl) ->
+                            let repl =
+                              { repl with
+                                pbop_op =
+                                  { txt =
+                                      fst (split_bop bop.pbop_op.txt)
+                                      ^ snd (split_bop repl.pbop_op.txt)
+                                  ; loc = repl.pbop_op.loc
+                                  }
                               }
-                          }
-                        in
-                        replace
-                          ( __.binding_op
-                          , preserve_loc_to_preserve_comment_pos __.binding_op
-                              ~from:bop.pbop_loc )
-                          bop ~whole_ast:structure ~type_index ~stage2 ~repl
-                    | _ -> None)
-                with
-                | None -> bop
-                | Some (bop, nodes_to_remove) ->
-                    Queue.enqueue_all all_nodes_to_remove nodes_to_remove;
-                    changed_something := true;
-                    bop)
-          ; expr =
-              (fun self expr ->
-                let expr = super.expr self expr in
-                match
-                  List.find_map stage2_and_repls ~f:(function
-                    | `Expr (stage2, repl) ->
-                        replace
-                          (__.expr, preserve_loc_to_preserve_comment_pos_expr ~from:expr)
-                          expr ~whole_ast:structure ~type_index ~stage2 ~repl
-                    | _ -> None)
-                with
-                | None -> expr
-                | Some (expr, nodes_to_remove) ->
-                    Queue.enqueue_all all_nodes_to_remove nodes_to_remove;
-                    changed_something := true;
-                    expr)
-          ; structure_item =
-              update_migrate_test_payload
-                ~match_attr:(__ =: "migrate_test.replace")
-                super ~changed_something
-          }
-        in
-        let structure = self.structure self structure in
-        drop_defs ~type_index structure (Queue.to_list all_nodes_to_remove))
+                            in
+                            replace
+                              ( __.binding_op
+                              , preserve_loc_to_preserve_comment_pos __.binding_op
+                                  ~from:bop.pbop_loc )
+                              bop ~whole_ast ~type_index ~stage2 ~repl
+                        | _ -> None)
+                    with
+                    | None -> bop
+                    | Some (bop, nodes_to_remove) ->
+                        Queue.enqueue_all all_nodes_to_remove nodes_to_remove;
+                        changed_something := true;
+                        bop)
+              ; expr =
+                  (fun self expr ->
+                    let expr = super.expr self expr in
+                    match
+                      List.find_map stage2_and_repls ~f:(function
+                        | `Expr (stage2, repl) ->
+                            replace
+                              ( __.expr
+                              , preserve_loc_to_preserve_comment_pos_expr ~from:expr )
+                              expr ~whole_ast ~type_index ~stage2 ~repl
+                        | _ -> None)
+                    with
+                    | None -> expr
+                    | Some (expr, nodes_to_remove) ->
+                        Queue.enqueue_all all_nodes_to_remove nodes_to_remove;
+                        changed_something := true;
+                        expr)
+              ; structure_item =
+                  update_migrate_test_payload
+                    ~match_attr:(__ =: "migrate_test.replace")
+                    super ~changed_something
+              }
+            in
+            let structure = File_type.map file_type self structure in
+            drop_defs file_type ~type_index structure (Queue.to_list all_nodes_to_remove))
+      }

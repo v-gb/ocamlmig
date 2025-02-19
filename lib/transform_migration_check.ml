@@ -20,7 +20,7 @@ let exprs_and_repls e repl =
     | _ -> assert false
   else [ (e, repl) ]
 
-let run_structure changed_something structure =
+let run_structure changed_something file_type structure =
   let super = Ast_mapper.default_mapper in
   let self =
     { super with
@@ -52,6 +52,6 @@ let run_structure changed_something structure =
     ; structure_item = update_migrate_test_payload super ~changed_something
     }
   in
-  self.structure self structure |> call remove_attributes
+  structure |> File_type.map file_type self |> File_type.map file_type remove_attributes
 
-let run ~fmconf ~source_path = process_file ~fmconf ~source_path run_structure
+let run ~fmconf ~source_path = process_file ~fmconf ~source_path { f = run_structure }

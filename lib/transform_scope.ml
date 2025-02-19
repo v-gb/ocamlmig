@@ -160,7 +160,7 @@ type t =
       }
   | Unqualify of string list
 
-let qualify_for_unopen ~changed_something ~artifacts ~type_index
+let qualify_for_unopen file_type ~changed_something ~artifacts ~type_index
     ~(cmt_infos : Cmt_format.cmt_infos) structure root ~conservative ~only_in_structure =
   (* It would be more accurate to check if the root name is unbound at every call site,
      and if not, introduce a name like Root_unshadowed to be used instead. *)
@@ -511,10 +511,11 @@ let qualify_for_unopen ~changed_something ~artifacts ~type_index
           |> super.structure self)
     }
   in
-  self.structure self structure
+  File_type.map file_type self structure
 
-let qualify_for_open ~changed_something ~artifacts ~type_index
-    ~(cmt_infos : Cmt_format.cmt_infos) structure root ~bang ~conservative =
+let qualify_for_open (type a) (file_type : a File_type.t) ~changed_something ~artifacts
+    ~type_index ~(cmt_infos : Cmt_format.cmt_infos) (structure : a) root ~bang
+    ~conservative =
   let comp_unit = cmt_infos.cmt_modname in
   let initial_env = Envaux.env_of_only_summary cmt_infos.cmt_initial_env in
   let sum_prepend_root =
@@ -684,42 +685,47 @@ let qualify_for_open ~changed_something ~artifacts ~type_index
           ~state:should_act_in_test ~changed_something super
     }
   in
-  let structure' = self.structure self structure in
-  if
-    in_test
-    ||
-    (* not strictly necessary, but seems nice to be idempotent *)
-    match structure' with
-    | { pstr_desc =
-          Pstr_open
-            { popen_expr = { pmod_desc = Pmod_ident { txt = Lident mod_; _ }; _ }; _ }
-      ; _
-      }
-      :: _ ->
-        mod_ =: root
-    | _ -> false
-  then structure'
-  else
-    (changed_something := true;
-     let loc =
-       (* Tried to set a position that would make the "open" follow the copyright
+  match file_type with
+  | Intf -> structure
+  | Impl ->
+      let structure' = self.structure self structure in
+      if
+        in_test
+        ||
+        (* not strictly necessary, but seems nice to be idempotent *)
+        match structure' with
+        | { pstr_desc =
+              Pstr_open
+                { popen_expr = { pmod_desc = Pmod_ident { txt = Lident mod_; _ }; _ }; _ }
+          ; _
+          }
+          :: _ ->
+            mod_ =: root
+        | _ -> false
+      then structure'
+      else
+        (changed_something := true;
+         let loc =
+           (* Tried to set a position that would make the "open" follow the copyright
           comments at the top of files, but that doesn't work for unknown reasons. *)
-       match List.hd structure' with
-       | None -> migrate_loc `Gen
-       | Some stri ->
-           let pos = { stri.pstr_loc.loc_start with pos_fname = migrate_filename `Gen } in
-           { loc_start = pos; loc_end = pos; loc_ghost = false }
-     in
-     Ast_helper.Str.open_ ~loc
-       { popen_expr = Ast_helper.Mod.ident ~loc { txt = Lident root; loc }
-       ; popen_override = (if bang then Override else Fresh)
-       ; popen_loc = loc
-       ; popen_attributes =
-           { attrs_extension = None; attrs_before = []; attrs_after = [] }
-       })
-    :: structure'
+           match List.hd structure' with
+           | None -> migrate_loc `Gen
+           | Some stri ->
+               let pos =
+                 { stri.pstr_loc.loc_start with pos_fname = migrate_filename `Gen }
+               in
+               { loc_start = pos; loc_end = pos; loc_ghost = false }
+         in
+         Ast_helper.Str.open_ ~loc
+           { popen_expr = Ast_helper.Mod.ident ~loc { txt = Lident root; loc }
+           ; popen_override = (if bang then Override else Fresh)
+           ; popen_loc = loc
+           ; popen_attributes =
+               { attrs_extension = None; attrs_before = []; attrs_after = [] }
+           })
+        :: structure'
 
-let unqualify ~changed_something structure ~artifacts ~type_index
+let unqualify file_type ~changed_something structure ~artifacts ~type_index
     ~(cmt_infos : Cmt_format.cmt_infos) roots =
   let _ = cmt_infos in
   let roots = Set.of_list (module String) roots in
@@ -802,18 +808,21 @@ let unqualify ~changed_something structure ~artifacts ~type_index
     ; structure_item = update_migrate_test_payload ~changed_something super
     }
   in
-  self.structure self structure
+  File_type.map file_type self structure
 
 let run ~fmconf ~artifacts ~type_index ~cmt_infos transform ~source_path
     ~input_name_matching_compilation_command =
   process_file ~fmconf ~source_path ~input_name_matching_compilation_command
-    (fun changed_something structure ->
-      match transform with
-      | Unopen { name; conservative; only_in_structure } ->
-          qualify_for_unopen ~changed_something structure ~artifacts ~type_index
-            ~cmt_infos name ~conservative ~only_in_structure
-      | Open { name; bang; conservative } ->
-          qualify_for_open ~changed_something structure ~artifacts ~type_index ~cmt_infos
-            name ~bang ~conservative
-      | Unqualify names ->
-          unqualify ~changed_something structure ~artifacts ~type_index ~cmt_infos names)
+    { f =
+        (fun changed_something file_type structure ->
+          match transform with
+          | Unopen { name; conservative; only_in_structure } ->
+              qualify_for_unopen file_type ~changed_something structure ~artifacts
+                ~type_index ~cmt_infos name ~conservative ~only_in_structure
+          | Open { name; bang; conservative } ->
+              qualify_for_open file_type ~changed_something structure ~artifacts
+                ~type_index ~cmt_infos name ~bang ~conservative
+          | Unqualify names ->
+              unqualify file_type ~changed_something structure ~artifacts ~type_index
+                ~cmt_infos names)
+    }

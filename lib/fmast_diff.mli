@@ -24,6 +24,7 @@ val print :
      ocaml_version:(int * int) option
   -> debug_diff:bool
   -> source_contents:string
-  -> structure:Fmast.structure Ocamlformat_lib.Parse_with_comments.with_comments
-  -> structure':Fmast.structure
+  -> 'ast Transform_common.File_type.t
+  -> 'ast Ocamlformat_lib.Parse_with_comments.with_comments
+  -> 'ast
   -> string

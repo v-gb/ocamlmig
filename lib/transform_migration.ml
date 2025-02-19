@@ -135,7 +135,9 @@ let fmexpr_of_uexpr ~fmconf source e =
       expr = (fun self expr -> super.expr self (internalize_reorder_attribute expr))
     }
   in
-  drop_concrete_syntax_constructs __.expr (self.expr self expr)
+  expr
+  |> Ocamlformat_lib.Extended_ast.map Expression self
+  |> Ocamlformat_lib.Extended_ast.map Expression drop_concrete_syntax_constructs
 
 let fmexpr_of_fmexpr source e =
   let pos_fname = migrate_filename source in
@@ -146,7 +148,9 @@ let fmexpr_of_fmexpr source e =
     ; expr = (fun self expr -> super.expr self (internalize_reorder_attribute expr))
     }
   in
-  drop_concrete_syntax_constructs __.expr (self.expr self e)
+  e
+  |> Ocamlformat_lib.Extended_ast.map Expression self
+  |> Ocamlformat_lib.Extended_ast.map Expression drop_concrete_syntax_constructs
 
 let fmtype_of_typedtree ~fmconf source env typ =
   let printed_typ =
@@ -2217,10 +2221,10 @@ let resolve_idents () =
     }
   , info_by_id )
 
-let use_preferred_names structure =
-  let _, _, body_ambiguous_refs = var_names __.structure structure in
+let use_preferred_names (type a) (file_type : a File_type.t) structure =
+  let _, _, body_ambiguous_refs = var_names (File_type.method_ file_type) structure in
   let annotate, info_by_id = resolve_idents () in
-  let structure = annotate.structure annotate structure in
+  let structure = File_type.map file_type annotate structure in
   let super = Ast_mapper.default_mapper in
   let find_id attrs =
     match Sattr.find Sattr.id attrs with
@@ -2261,22 +2265,30 @@ let use_preferred_names structure =
           super.expr self expr)
     }
   in
-  self.structure self structure
+  File_type.map file_type self structure
 
 let run ~artifacts ~type_index ~extra_migrations_cmts ~fmconf ~source_path
     ~input_name_matching_compilation_command =
   process_file' ~fmconf ~source_path ~input_name_matching_compilation_command
-    (fun changed_something structure ->
-      let has_ppx_partial =
-        List.mem ~equal:( =: ) (Dune_files.ppx ~path:source_path) "ppx_partial"
-      in
-      let depends = Queue.create () in
-      let inline =
-        inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts ~changed_something
-          ~add_depends:(Queue.enqueue_all depends)
-      in
-      let simplify =
-        simplify ~ctx:{ has_ppx_partial; fmconf } ~type_index (process_call ~type_index)
-      in
-      let structure = structure |> call inline |> call simplify |> use_preferred_names in
-      (structure, { libraries = Queue.to_list depends }))
+    { f =
+        (fun changed_something file_type structure ->
+          let has_ppx_partial =
+            List.mem ~equal:( =: ) (Dune_files.ppx ~path:source_path) "ppx_partial"
+          in
+          let depends = Queue.create () in
+          let inline =
+            inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts
+              ~changed_something ~add_depends:(Queue.enqueue_all depends)
+          in
+          let simplify =
+            simplify ~ctx:{ has_ppx_partial; fmconf } ~type_index
+              (process_call ~type_index)
+          in
+          let structure =
+            structure
+            |> File_type.map file_type inline
+            |> File_type.map file_type simplify
+            |> use_preferred_names file_type
+          in
+          (structure, { libraries = Queue.to_list depends }))
+    }

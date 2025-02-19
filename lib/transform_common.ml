@@ -2,6 +2,33 @@ open! Base
 open! Stdio
 open! Common
 
+module File_type = struct
+  type _ t =
+    | Intf : Ocamlformat_parser_extended.Parsetree.signature t
+    | Impl : Ocamlformat_parser_extended.Parsetree.structure t
+
+  type packed = T : _ t -> packed
+
+  let to_extended_ast (type a) : a t -> a Ocamlformat_lib.Extended_ast.t = function
+    | Intf -> Ocamlformat_lib.Extended_ast.Signature
+    | Impl -> Ocamlformat_lib.Extended_ast.Structure
+
+  let map (type a) (typed : a t) (mapper : Ocamlformat_parser_extended.Ast_mapper.mapper)
+      (v : a) : a =
+    match typed with
+    | Intf -> mapper.signature mapper v
+    | Impl -> mapper.structure mapper v
+
+  let method_ (type a) (typed : a t)
+      (mapper : Ocamlformat_parser_extended.Ast_mapper.mapper) :
+      Ocamlformat_parser_extended.Ast_mapper.mapper -> a -> a =
+    match typed with Intf -> mapper.signature | Impl -> mapper.structure
+
+  let structure (type a) (t : a t) (a : a) :
+      Ocamlformat_parser_extended.Parsetree.structure option =
+    match t with Intf -> None | Impl -> Some a
+end
+
 let migrate_filename_import = "_migrate_import"
 let migrate_filename_gen = "_migrate_gen"
 
@@ -168,192 +195,184 @@ let update_migrate_test_payload =
                       ]
                 }))
 
-let drop_concrete_syntax_constructs method_ v =
+let drop_concrete_syntax_constructs =
   let super = Ast_mapper.default_mapper in
-  let self =
-    { super with
-      pat =
-        (fun self pat ->
-          let pat = super.pat self pat in
-          match pat with
-          | { ppat_desc = Ppat_record (labels, z); _ } ->
-              let labels =
-                List.map labels ~f:(fun ((field_name, typ, pat_opt) as field_up) ->
-                    if Option.is_none pat_opt
-                    then
-                      let loc = field_name.loc in
-                      let by =
-                        Ast_helper.Pat.var ~loc
-                          { txt = Longident.last field_name.txt; loc }
-                          ~attrs:[ Sattr.pun.build ~loc:!Ast_helper.default_loc () ]
-                      in
-                      (field_name, typ, Some by)
-                    else field_up)
-              in
-              { pat with ppat_desc = Ppat_record (labels, z) }
-          | _ -> pat)
-    ; expr =
-        (fun self expr ->
-          let expr = super.expr self expr in
-          match expr.pexp_desc with
-          | Pexp_record (fields, orig) ->
-              let changed_something = ref false in
-              let fields =
-                List.map fields ~f:(fun ((field_name, typ, expr_opt) as field_up) ->
-                    if Option.is_none expr_opt
-                    then (
-                      let loc = field_name.loc in
-                      let by =
-                        Ast_helper.Exp.ident ~loc
-                          { txt = Lident (Longident.last field_name.txt); loc }
-                          ~attrs:[ Sattr.pun.build ~loc:!Ast_helper.default_loc () ]
-                      in
-                      changed_something := true;
-                      (field_name, typ, Some by))
-                    else field_up)
-              in
-              if !changed_something
-              then { expr with pexp_desc = Pexp_record (fields, orig) }
-              else expr
-          | Pexp_prefix (op, e1) ->
-              let fun_ =
-                let loc = op.loc in
-                Ast_helper.Exp.ident ~loc { txt = Lident op.txt; loc }
-                  ~attrs:[ Sattr.pun.build ~loc:!Ast_helper.default_loc () ]
-              in
-              { expr with pexp_desc = Pexp_apply (fun_, [ (Nolabel, e1) ]) }
-          | Pexp_infix (op, e1, e2) ->
-              let fun_ =
-                let loc = op.loc in
-                Ast_helper.Exp.ident ~loc { txt = Lident op.txt; loc }
-                  ~attrs:[ Sattr.pun.build ~loc:!Ast_helper.default_loc () ]
-              in
-              { expr with
-                pexp_desc = Pexp_apply (fun_, [ (Nolabel, e1); (Nolabel, e2) ])
-              }
-          | Pexp_open (modname, e) ->
-              (* print_s [%sexp ~~(modname.txt : Longident.t), ~~(modname.loc : Location.t)]; *)
-              { expr with
-                pexp_desc =
-                  Pexp_letopen
-                    ( Ast_helper.Opn.mk ~loc:expr.pexp_loc
-                        (Ast_helper.Mod.ident ~loc:modname.loc modname)
-                    , e )
-              ; pexp_attributes =
-                  Sattr.pun.build ~loc:!Ast_helper.default_loc () :: expr.pexp_attributes
-              }
-          | _ -> expr)
-    ; value_binding =
-        (fun self binding ->
-          let binding = super.value_binding self binding in
-          match (binding.pvb_args, binding.pvb_body) with
-          | [], Pfunction_body _ -> binding
-          | (_ :: _ as params), body | params, (Pfunction_cases _ as body) ->
-              let body =
-                let loc = binding.pvb_loc in
-                Ast_helper.Exp.function_ ~loc params
-                  (Option.map binding.pvb_constraint
-                     ~f:Fmast.type_constraint_of_value_constraint)
-                  body
-                  ~attrs:[ Sattr.pun.build ~loc:!Ast_helper.default_loc () ]
-              in
-              { binding with
-                pvb_args = []
-              ; pvb_body = Pfunction_body body
-              ; pvb_constraint = None
-              })
-    }
-  in
-  (method_ self) self v
+  { super with
+    pat =
+      (fun self pat ->
+        let pat = super.pat self pat in
+        match pat with
+        | { ppat_desc = Ppat_record (labels, z); _ } ->
+            let labels =
+              List.map labels ~f:(fun ((field_name, typ, pat_opt) as field_up) ->
+                  if Option.is_none pat_opt
+                  then
+                    let loc = field_name.loc in
+                    let by =
+                      Ast_helper.Pat.var ~loc
+                        { txt = Longident.last field_name.txt; loc }
+                        ~attrs:[ Sattr.pun.build ~loc:!Ast_helper.default_loc () ]
+                    in
+                    (field_name, typ, Some by)
+                  else field_up)
+            in
+            { pat with ppat_desc = Ppat_record (labels, z) }
+        | _ -> pat)
+  ; expr =
+      (fun self expr ->
+        let expr = super.expr self expr in
+        match expr.pexp_desc with
+        | Pexp_record (fields, orig) ->
+            let changed_something = ref false in
+            let fields =
+              List.map fields ~f:(fun ((field_name, typ, expr_opt) as field_up) ->
+                  if Option.is_none expr_opt
+                  then (
+                    let loc = field_name.loc in
+                    let by =
+                      Ast_helper.Exp.ident ~loc
+                        { txt = Lident (Longident.last field_name.txt); loc }
+                        ~attrs:[ Sattr.pun.build ~loc:!Ast_helper.default_loc () ]
+                    in
+                    changed_something := true;
+                    (field_name, typ, Some by))
+                  else field_up)
+            in
+            if !changed_something
+            then { expr with pexp_desc = Pexp_record (fields, orig) }
+            else expr
+        | Pexp_prefix (op, e1) ->
+            let fun_ =
+              let loc = op.loc in
+              Ast_helper.Exp.ident ~loc { txt = Lident op.txt; loc }
+                ~attrs:[ Sattr.pun.build ~loc:!Ast_helper.default_loc () ]
+            in
+            { expr with pexp_desc = Pexp_apply (fun_, [ (Nolabel, e1) ]) }
+        | Pexp_infix (op, e1, e2) ->
+            let fun_ =
+              let loc = op.loc in
+              Ast_helper.Exp.ident ~loc { txt = Lident op.txt; loc }
+                ~attrs:[ Sattr.pun.build ~loc:!Ast_helper.default_loc () ]
+            in
+            { expr with pexp_desc = Pexp_apply (fun_, [ (Nolabel, e1); (Nolabel, e2) ]) }
+        | Pexp_open (modname, e) ->
+            (* print_s [%sexp ~~(modname.txt : Longident.t), ~~(modname.loc : Location.t)]; *)
+            { expr with
+              pexp_desc =
+                Pexp_letopen
+                  ( Ast_helper.Opn.mk ~loc:expr.pexp_loc
+                      (Ast_helper.Mod.ident ~loc:modname.loc modname)
+                  , e )
+            ; pexp_attributes =
+                Sattr.pun.build ~loc:!Ast_helper.default_loc () :: expr.pexp_attributes
+            }
+        | _ -> expr)
+  ; value_binding =
+      (fun self binding ->
+        let binding = super.value_binding self binding in
+        match (binding.pvb_args, binding.pvb_body) with
+        | [], Pfunction_body _ -> binding
+        | (_ :: _ as params), body | params, (Pfunction_cases _ as body) ->
+            let body =
+              let loc = binding.pvb_loc in
+              Ast_helper.Exp.function_ ~loc params
+                (Option.map binding.pvb_constraint
+                   ~f:Fmast.type_constraint_of_value_constraint)
+                body
+                ~attrs:[ Sattr.pun.build ~loc:!Ast_helper.default_loc () ]
+            in
+            { binding with
+              pvb_args = []
+            ; pvb_body = Pfunction_body body
+            ; pvb_constraint = None
+            })
+  }
 
-let undrop_concrete_syntax_constructs method_ v =
+let undrop_concrete_syntax_constructs =
   let super = Ast_mapper.default_mapper in
-  let self =
-    { super with
-      pat =
-        (fun self pat ->
-          let pat = super.pat self pat in
-          match pat with
-          | { ppat_desc = Ppat_record (labels, z); _ } ->
-              let labels =
-                List.map labels ~f:(fun ((field_name, typ, pat_opt) as field_up) ->
-                    match pat_opt with
-                    | Some { ppat_desc = Ppat_var var; ppat_attributes; _ }
-                      when var.txt =: Longident.last field_name.txt
-                           && (Sattr.exists Sattr.pun ppat_attributes
-                              || Sattr.exists Sattr.touched ppat_attributes) ->
-                        (field_name, typ, None)
-                    | _ -> field_up)
-              in
-              { pat with ppat_desc = Ppat_record (labels, z) }
-          | _ -> pat)
-    ; expr =
-        (fun self expr ->
-          let expr = super.expr self expr in
-          match expr.pexp_desc with
-          | Pexp_record (fields, orig) ->
-              let changed_something = ref false in
-              let fields =
-                List.map fields ~f:(fun ((field_name, typ, expr_opt) as field_up) ->
-                    match expr_opt with
-                    | Some
-                        { pexp_desc = Pexp_ident { txt = Lident var; _ }
-                        ; pexp_attributes
-                        ; _
-                        }
-                      when var =: Longident.last field_name.txt
-                           && (Sattr.exists Sattr.pun pexp_attributes
-                              || Sattr.exists Sattr.touched pexp_attributes) ->
-                        changed_something := true;
-                        (field_name, typ, None)
-                    | _ -> field_up)
-              in
-              if !changed_something
-              then { expr with pexp_desc = Pexp_record (fields, orig) }
-              else expr
-          | Pexp_apply
-              ( ({ pexp_desc = Pexp_ident { txt = Lident op; loc }; _ } as fun_)
-              , [ (Nolabel, e1); (Nolabel, e2) ] )
-            when (Sattr.exists Sattr.pun fun_.pexp_attributes
-                 || Sattr.exists Sattr.touched fun_.pexp_attributes
-                 || is_migrate_filename loc)
-                 && Ocamlformat_lib.Std_longident.String_id.is_infix op ->
-              { expr with pexp_desc = Pexp_infix ({ txt = op; loc }, e1, e2) }
-          | Pexp_apply
-              ( ({ pexp_desc = Pexp_ident { txt = Lident op; loc }; _ } as fun_)
-              , [ (Nolabel, e1) ] )
-            when (Sattr.exists Sattr.pun fun_.pexp_attributes
-                 || Sattr.exists Sattr.touched fun_.pexp_attributes
-                 || is_migrate_filename loc)
-                 && Ocamlformat_lib.Std_longident.String_id.is_prefix op ->
-              { expr with pexp_desc = Pexp_prefix ({ txt = op; loc }, e1) }
-          | Pexp_letopen ({ popen_expr = { pmod_desc = Pmod_ident modname; _ }; _ }, e)
-            when Sattr.exists Sattr.pun expr.pexp_attributes ->
-              { expr with pexp_desc = Pexp_open (modname, e) }
-          | _ -> expr)
-    ; value_binding =
-        (fun self binding ->
-          let binding = super.value_binding self binding in
-          match (binding.pvb_args, binding.pvb_body, binding.pvb_constraint) with
-          | ( []
-            , Pfunction_body
-                ({ pexp_desc = Pexp_function (params, constraint_, inner_body); _ } as
-                 outer_body)
-            , None )
-            when Sattr.exists Sattr.pun outer_body.pexp_attributes
-                 || Sattr.exists Sattr.touched outer_body.pexp_attributes
-                 || is_migrate_filename outer_body.pexp_loc
-                 || is_migrate_filename binding.pvb_loc ->
-              { binding with
-                pvb_args = params
-              ; pvb_constraint =
-                  Option.map constraint_ ~f:Fmast.value_constraint_of_type_constraint
-              ; pvb_body = inner_body
-              }
-          | _ -> binding)
-    }
-  in
-  (method_ self) self v
+  { super with
+    pat =
+      (fun self pat ->
+        let pat = super.pat self pat in
+        match pat with
+        | { ppat_desc = Ppat_record (labels, z); _ } ->
+            let labels =
+              List.map labels ~f:(fun ((field_name, typ, pat_opt) as field_up) ->
+                  match pat_opt with
+                  | Some { ppat_desc = Ppat_var var; ppat_attributes; _ }
+                    when var.txt =: Longident.last field_name.txt
+                         && (Sattr.exists Sattr.pun ppat_attributes
+                            || Sattr.exists Sattr.touched ppat_attributes) ->
+                      (field_name, typ, None)
+                  | _ -> field_up)
+            in
+            { pat with ppat_desc = Ppat_record (labels, z) }
+        | _ -> pat)
+  ; expr =
+      (fun self expr ->
+        let expr = super.expr self expr in
+        match expr.pexp_desc with
+        | Pexp_record (fields, orig) ->
+            let changed_something = ref false in
+            let fields =
+              List.map fields ~f:(fun ((field_name, typ, expr_opt) as field_up) ->
+                  match expr_opt with
+                  | Some
+                      { pexp_desc = Pexp_ident { txt = Lident var; _ }
+                      ; pexp_attributes
+                      ; _
+                      }
+                    when var =: Longident.last field_name.txt
+                         && (Sattr.exists Sattr.pun pexp_attributes
+                            || Sattr.exists Sattr.touched pexp_attributes) ->
+                      changed_something := true;
+                      (field_name, typ, None)
+                  | _ -> field_up)
+            in
+            if !changed_something
+            then { expr with pexp_desc = Pexp_record (fields, orig) }
+            else expr
+        | Pexp_apply
+            ( ({ pexp_desc = Pexp_ident { txt = Lident op; loc }; _ } as fun_)
+            , [ (Nolabel, e1); (Nolabel, e2) ] )
+          when (Sattr.exists Sattr.pun fun_.pexp_attributes
+               || Sattr.exists Sattr.touched fun_.pexp_attributes
+               || is_migrate_filename loc)
+               && Ocamlformat_lib.Std_longident.String_id.is_infix op ->
+            { expr with pexp_desc = Pexp_infix ({ txt = op; loc }, e1, e2) }
+        | Pexp_apply
+            ( ({ pexp_desc = Pexp_ident { txt = Lident op; loc }; _ } as fun_)
+            , [ (Nolabel, e1) ] )
+          when (Sattr.exists Sattr.pun fun_.pexp_attributes
+               || Sattr.exists Sattr.touched fun_.pexp_attributes
+               || is_migrate_filename loc)
+               && Ocamlformat_lib.Std_longident.String_id.is_prefix op ->
+            { expr with pexp_desc = Pexp_prefix ({ txt = op; loc }, e1) }
+        | Pexp_letopen ({ popen_expr = { pmod_desc = Pmod_ident modname; _ }; _ }, e)
+          when Sattr.exists Sattr.pun expr.pexp_attributes ->
+            { expr with pexp_desc = Pexp_open (modname, e) }
+        | _ -> expr)
+  ; value_binding =
+      (fun self binding ->
+        let binding = super.value_binding self binding in
+        match (binding.pvb_args, binding.pvb_body, binding.pvb_constraint) with
+        | ( []
+          , Pfunction_body
+              ({ pexp_desc = Pexp_function (params, constraint_, inner_body); _ } as
+               outer_body)
+          , None )
+          when Sattr.exists Sattr.pun outer_body.pexp_attributes
+               || Sattr.exists Sattr.touched outer_body.pexp_attributes
+               || is_migrate_filename outer_body.pexp_loc
+               || is_migrate_filename binding.pvb_loc ->
+            { binding with
+              pvb_args = params
+            ; pvb_constraint =
+                Option.map constraint_ ~f:Fmast.value_constraint_of_type_constraint
+            ; pvb_body = inner_body
+            }
+        | _ -> binding)
+  }
 
 let is_internal_attribute (attr : P.attribute) =
   String.is_prefix ~prefix:Attr.prefix attr.attr_name.txt
@@ -445,51 +464,66 @@ let preserve_loc_to_preserve_comment_pos_expr ~(from : P.expression) to_ =
    *)
   preserve_loc_to_preserve_comment_pos __.expr ~from:from.pexp_loc to_
 
-let call (class_ : Ast_mapper.mapper) v = class_.structure class_ v
+type ast_result =
+  | T :
+      ('ast File_type.t
+      * 'ast Ocamlformat_lib.Parse_with_comments.with_comments
+      * 'ast Ocamlformat_lib.Parse_with_comments.with_comments
+      * Ocamlformat_lib.Conf_t.t)
+      -> ast_result
 
-let process_ast structure f =
+type result = string * string * ast_result option
+type 'other f' = { f : 'ast. bool ref -> 'ast File_type.t -> 'ast -> 'ast * 'other }
+type f = { f : 'ast. bool ref -> 'ast File_type.t -> 'ast -> 'ast }
+
+let process_ast file_type structure (f : _ f') =
   let changed_something = ref false in
   let structure, res =
-    f changed_something (drop_concrete_syntax_constructs __.structure structure)
+    f.f changed_something file_type
+      (File_type.map file_type drop_concrete_syntax_constructs structure)
   in
   if !changed_something
   then
     Some
       ( structure
-        |> undrop_concrete_syntax_constructs __.structure
-        |> call remove_attributes
+        |> File_type.map file_type undrop_concrete_syntax_constructs
+        |> File_type.map file_type remove_attributes
       , res )
   else None
 
-type result =
-  string
-  * string
-  * (Ocamlformat_lib.Extended_ast.structure
-     Ocamlformat_lib.Parse_with_comments.with_comments
-    * Ocamlformat_lib.Extended_ast.structure
-      Ocamlformat_lib.Parse_with_comments.with_comments
-    * Ocamlformat_lib.Conf_t.t)
-    option
-
-let process_file' ~fmconf:conf ~source_path ~input_name_matching_compilation_command f =
+let process_file' ~fmconf:conf ~source_path ~input_name_matching_compilation_command
+    (f : _ f') =
+  let (T file_type) : File_type.packed =
+    if
+      false
+      (* not yet ready, need to fix exception in fmast_diff and the fact that nothing
+         works (reading .cmt instead of .cmti I think) *)
+      && String.is_suffix (Cwdpath.to_string source_path) ~suffix:".mli"
+    then T Intf
+    else T Impl
+  in
   let source_contents = In_channel.read_all (Cwdpath.to_string source_path) in
   let structure =
     Fmast.parse_with_ocamlformat ~conf
       ~input_name:
         (Option.value input_name_matching_compilation_command
            ~default:(Cwdpath.to_string source_path))
-      Structure source_contents
+      (File_type.to_extended_ast file_type)
+      source_contents
   in
-  Fmast.update_structure structure (process_ast __ f)
+  Fmast.update_structure structure (process_ast file_type __ f)
   |> Option.map ~f:(fun (structure', other) ->
-         let source_contents' = Fmast.ocamlformat_print Structure ~conf structure' in
-         ( ((source_contents, source_contents', Some (structure, structure', conf))
-             : result)
+         let source_contents' =
+           Fmast.ocamlformat_print (File_type.to_extended_ast file_type) ~conf structure'
+         in
+         ( ( source_contents
+           , source_contents'
+           , Some (T (file_type, structure, structure', conf)) )
          , other ))
 
-let process_file ~fmconf ~source_path ~input_name_matching_compilation_command f =
-  process_file' ~fmconf ~source_path ~input_name_matching_compilation_command (fun a b ->
-      (f a b, ()))
+let process_file ~fmconf ~source_path ~input_name_matching_compilation_command (f : f) =
+  process_file' ~fmconf ~source_path ~input_name_matching_compilation_command
+    { f = (fun a b c -> (f.f a b c, ())) }
   |> Option.map ~f:(fun (a, ()) -> a)
 
 module Requalify = struct
