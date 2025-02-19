@@ -120,9 +120,12 @@ let diff_or_write ~original_formatting file_path ~write
           | Some `Disabled ->
               Dyn_ocamlformat.format ~path:file_path ~contents:file_contents
           | Some (`Not_configured conf) ->
-              Fmast.parse_with_ocamlformat ~conf ~input_name:"wontmatter" Structure
-                file_contents
-              |> Fmast.ocamlformat_print Structure ~conf __
+              let roundtrip ast =
+                Fmast.parse_with_ocamlformat ~conf ~input_name:"wontmatter" ast
+                  file_contents
+                |> Fmast.ocamlformat_print ast ~conf __
+              in
+              if Build.is_mli file_path then roundtrip Signature else roundtrip Structure
           | None | Some `Enabled -> file_contents
       in
       diff ~label1:(Cwdpath.to_string file_path) ~label2:(Cwdpath.to_string file_path)
