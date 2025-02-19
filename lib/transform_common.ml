@@ -146,36 +146,45 @@ end
 let update_migrate_test_payload =
   let update_migrate_test ?(match_attr = ( =: ) "migrate_test") (si : P.structure_item) f
       ~default =
+    let update_test_attribute (attributes : P.ext_attrs) with_attributes =
+      let found = ref false in
+      let find_attr (attr : P.attribute) =
+        match attr with
+        | { attr_name = { txt; _ }; _ } when match_attr txt ->
+            found := true;
+            f attr
+        | _ -> Some attr
+      in
+      let attributes_attrs_before =
+        List.filter_map attributes.attrs_before ~f:find_attr
+      in
+      let attributes_attrs_after = List.filter_map attributes.attrs_after ~f:find_attr in
+      if not !found
+      then force default
+      else
+        with_attributes
+          { attributes with
+            attrs_after = attributes_attrs_after
+          ; attrs_before = attributes_attrs_before
+          }
+    in
     match si.pstr_desc with
-    | Pstr_value
-        { pvbs_bindings = [ ({ pvb_attributes; _ } as pvs_binding) ]
-        ; pvbs_rec = Nonrecursive
-        } ->
-        let found = ref false in
-        let find_attr (attr : P.attribute) =
-          match attr with
-          | { attr_name = { txt; _ }; _ } when match_attr txt ->
-              found := true;
-              f attr
-          | _ -> Some attr
-        in
-        let pvb_attributes_attrs_before =
-          List.filter_map pvb_attributes.attrs_before ~f:find_attr
-        in
-        let pvb_attributes_attrs_after =
-          List.filter_map pvb_attributes.attrs_after ~f:find_attr
-        in
-        if not !found
-        then force default
-        else
-          let pvb_attributes =
-            { pvb_attributes with
-              attrs_after = pvb_attributes_attrs_after
-            ; attrs_before = pvb_attributes_attrs_before
-            }
-          in
-          let pvbs_bindings = [ { pvs_binding with pvb_attributes } ] in
-          { si with pstr_desc = Pstr_value { pvbs_bindings; pvbs_rec = Nonrecursive } }
+    | Pstr_value { pvbs_bindings = [ pvs_binding ]; pvbs_rec = Nonrecursive } ->
+        update_test_attribute pvs_binding.pvb_attributes (fun attrs ->
+            let pvbs_bindings = [ { pvs_binding with pvb_attributes = attrs } ] in
+            { si with pstr_desc = Pstr_value { pvbs_bindings; pvbs_rec = Nonrecursive } })
+    | Pstr_module v ->
+        update_test_attribute v.pmb_ext_attrs (fun attrs ->
+            { si with pstr_desc = Pstr_module { v with pmb_ext_attrs = attrs } })
+    | Pstr_modtype v ->
+        update_test_attribute v.pmtd_ext_attrs (fun attrs ->
+            { si with pstr_desc = Pstr_modtype { v with pmtd_ext_attrs = attrs } })
+    | Pstr_class [ v ] ->
+        update_test_attribute v.pci_attributes (fun attrs ->
+            { si with pstr_desc = Pstr_class [ { v with pci_attributes = attrs } ] })
+    | Pstr_class_type [ v ] ->
+        update_test_attribute v.pci_attributes (fun attrs ->
+            { si with pstr_desc = Pstr_class_type [ { v with pci_attributes = attrs } ] })
     | _ -> force default
   in
   fun ?match_attr ?(state = ref false) ~changed_something (super : Ast_mapper.mapper) ->
