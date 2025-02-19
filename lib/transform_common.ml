@@ -231,6 +231,17 @@ let drop_concrete_syntax_constructs method_ v =
               { expr with
                 pexp_desc = Pexp_apply (fun_, [ (Nolabel, e1); (Nolabel, e2) ])
               }
+          | Pexp_open (modname, e) ->
+              (* print_s [%sexp ~~(modname.txt : Longident.t), ~~(modname.loc : Location.t)]; *)
+              { expr with
+                pexp_desc =
+                  Pexp_letopen
+                    ( Ast_helper.Opn.mk ~loc:expr.pexp_loc
+                        (Ast_helper.Mod.ident ~loc:modname.loc modname)
+                    , e )
+              ; pexp_attributes =
+                  Sattr.pun.build ~loc:!Ast_helper.default_loc () :: expr.pexp_attributes
+              }
           | _ -> expr)
     ; value_binding =
         (fun self binding ->
@@ -316,6 +327,9 @@ let undrop_concrete_syntax_constructs method_ v =
                  || is_migrate_filename loc)
                  && Ocamlformat_lib.Std_longident.String_id.is_prefix op ->
               { expr with pexp_desc = Pexp_prefix ({ txt = op; loc }, e1) }
+          | Pexp_letopen ({ popen_expr = { pmod_desc = Pmod_ident modname; _ }; _ }, e)
+            when Sattr.exists Sattr.pun expr.pexp_attributes ->
+              { expr with pexp_desc = Pexp_open (modname, e) }
           | _ -> expr)
     ; value_binding =
         (fun self binding ->
