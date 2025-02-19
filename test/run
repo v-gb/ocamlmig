@@ -6,6 +6,7 @@ function ocamlmig {
     ../_build/default/bin/main.exe "$@"
 }
 ocamlmig migrate test_migration.ml test_mli.mli "$@"
+ocamlmig migrate -module-migration test_migration_module.ml "$@"
 ocamlmig transform rescope -unqualify Z test_scope_unqualify.ml "$@"
 ocamlmig transform rescope -unopen Z test_scope_unopen.ml "$@"
 ocamlmig transform rescope -open Z test_scope_open.ml "$@"

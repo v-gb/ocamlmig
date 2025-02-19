@@ -216,6 +216,10 @@ In general, the `migrate` attribute is supported:
     and is checked to have a type that's unifiable with the original identifier. The
     downside is that the annotated code maybe need more dependencies to compile.
 
+- (experimental) on module declaration, `module M : ... [@@migrate { repl = Mnew }]`.
+  The replacement must be a path, not a general expression, and these migrations
+  attributes are only searched for with `ocamlmig mig -module-migration`.
+
 ### Attribute syntax
 
 The general form of the `migrate` attribute is:

@@ -10,6 +10,7 @@ open Transform_common
 type ctx =
   { has_ppx_partial : bool
   ; fmconf : Ocamlformat_lib.Conf.t
+  ; module_migrations : bool
   }
 
 type res = { libraries : string list }
@@ -1847,6 +1848,87 @@ let payload_from_val_fmast ~fmconf ~type_index (id, ident_loc) =
           opt)
   | _ -> None
 
+let rec find_map_lident_prefix (lid : Longident.t) f =
+  match lid with
+  | Lident _ | Lapply _ -> f lid
+  | Ldot (left, right) -> (
+      match find_map_lident_prefix left f with
+      | None -> f lid
+      | Some res -> Some (Longident.Ldot (res, right)))
+
+let find_map_lident_prefix ~start lid f =
+  match start with
+  | `Here -> find_map_lident_prefix lid f
+  | `Parent -> (
+      match lid with
+      | Lident _ | Lapply _ -> None
+      | Ldot (left, right) -> (
+          match find_map_lident_prefix left f with
+          | None -> None
+          | Some res -> Some (Longident.Ldot (res, right))))
+
+let find_module_decl_payload (type a b c) ~fmconf ~type_index ~module_migrations
+    ((nsv : (_, c, _, _) Fmast.Node.t), v)
+    ((lidns : (a * b) Uast.ns), (lid : Longident.t)) ~build ~changed_something =
+  (* A few points that might be worth improving:
+     - this being opt-in. Maybe this can be sped up, or ocamlmig in general be sped up,
+     so we don't care about speed.
+     - we should support `Rel.`, and maybe Requalify.requalify (although is this doing
+     something in cases other than shadowing the Stdlib?)
+     - this only supports 'module M : sig ... end [@@migrate]', not definitions on
+     implementations.
+     - not all namespaces are implemented.
+   *)
+  if not module_migrations
+  then None
+  else
+    let env =
+      lazy
+        (match Build.Type_index.find type_index nsv v with
+        | [] ->
+            if !log || debug.all
+            then print_s [%sexp (lid : Longident.t), "no type information"];
+            None
+        | res :: _ -> Some (Envaux.env_of_only_summary (Build.Type_index.env nsv res)))
+    in
+    find_map_lident_prefix
+      ~start:(match lidns with Module -> `Here | _ -> `Parent)
+      lid
+      (fun lid ->
+        match force env with
+        | None -> None
+        | Some env -> (
+            match Uast.find_by_name Module env (Conv.longident' lid) with
+            | exception Stdlib.Not_found ->
+                if !log || debug.all
+                then print_s [%sexp (lid : Longident.t), "module not in env"];
+                None
+            | _path, md -> (
+                match find_attribute_payload_uast ~fmconf md.md_attributes with
+                | None ->
+                    if !log || debug.all
+                    then print_s [%sexp (lid : Longident.t), "no attributes"];
+                    None
+                | Some payload -> (
+                    match payload.repl with
+                    | { pexp_desc = Pexp_construct (repl_lid, None); _ } ->
+                        Requalify.try_unqualifying_ident (Env.summary env) repl_lid.txt
+                          ~same_resolution_as_initially:(fun new_lid ->
+                            match
+                              Requalify.same_resolution Module (repl_lid.txt, env)
+                                (new_lid, env)
+                            with
+                            | `Yes -> true
+                            | `No _ | `Unknown -> false)
+                        |> Some __
+                    | _ ->
+                        if !log || debug.all
+                        then print_s [%sexp (lid : Longident.t), "repl is not a path"];
+                        None))))
+    |> Option.map ~f:(fun flid ->
+           changed_something := true;
+           Fmast.Node.update nsv v ~desc:(build flid))
+
 let payload_from_occurence_fmast ~fmconf ~context ~artifacts ~extra_migrations
     (comp_unit, id) =
   match decl_from_id_fmast ~context ~artifacts (comp_unit, id) with
@@ -2023,7 +2105,7 @@ let requalify ((expr : P.expression), expr_type_index) new_base_env =
       self.expr self expr
 
 let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, artifacts)
-    ~changed_something ~add_depends =
+    ~changed_something ~add_depends ~ctx =
   let extra_migrations, add_extra_migration_fmast =
     load_extra_migrations ~cmts:extra_migrations_cmts ~artifacts ~fmconf
   in
@@ -2067,7 +2149,16 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                       payload_from_occurence_fmast ~fmconf ~context:"lookup migration"
                         ~artifacts ~extra_migrations (comp_unit, id)
                 with
-                | None -> super.expr self expr
+                | None -> (
+                    match
+                      find_module_decl_payload ~fmconf ~type_index
+                        ~module_migrations:ctx.module_migrations (Exp, expr)
+                        (Value, id.txt)
+                        ~build:(fun newlid -> Pexp_ident { id with txt = newlid })
+                        ~changed_something
+                    with
+                    | None -> super.expr self expr
+                    | Some e -> e)
                 | Some ({ repl = to_expr; libraries }, repl_type_index) ->
                     if !log && !ocamlformat_disabled
                     then
@@ -2130,6 +2221,34 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
           (* After the lookup, so we don't replace the definition itself. *)
           add_extra_migration_fmast ~type_index:(Some type_index) ~comp_unit expr;
           expr')
+  ; module_expr =
+      (fun self v ->
+        let v = super.module_expr self v in
+        match v.pmod_desc with
+        | Pmod_ident id ->
+            find_module_decl_payload ~fmconf ~type_index
+              ~module_migrations:ctx.module_migrations (Mexp, v) (Module, id.txt)
+              ~build:(fun newlid -> Pmod_ident { id with txt = newlid })
+              ~changed_something
+            |> Option.value ~default:v
+        | _ -> v)
+  ; typ =
+      (fun self v ->
+        let v = super.typ self v in
+        match v.ptyp_desc with
+        | Ptyp_constr (id, args) ->
+            find_module_decl_payload ~fmconf ~type_index
+              ~module_migrations:ctx.module_migrations (Typ, v) (Type, id.txt)
+              ~build:(fun newid -> Ptyp_constr ({ id with txt = newid }, args))
+              ~changed_something
+            |> Option.value ~default:v
+        | Ptyp_class (id, args) ->
+            find_module_decl_payload ~fmconf ~type_index
+              ~module_migrations:ctx.module_migrations (Typ, v) (Class, id.txt)
+              ~build:(fun newid -> Ptyp_class ({ id with txt = newid }, args))
+              ~changed_something
+            |> Option.value ~default:v
+        | _ -> v)
   ; structure_item =
       record_if_ocamlformat_disabled
         (update_migrate_test_payload ~changed_something super)
@@ -2268,7 +2387,7 @@ let use_preferred_names (type a) (file_type : a File_type.t) structure =
   File_type.map file_type self structure
 
 let run ~artifacts ~type_index ~extra_migrations_cmts ~fmconf ~source_path
-    ~input_name_matching_compilation_command =
+    ~module_migrations ~input_name_matching_compilation_command =
   process_file' ~fmconf ~source_path ~input_name_matching_compilation_command
     { f =
         (fun changed_something file_type structure ->
@@ -2276,14 +2395,12 @@ let run ~artifacts ~type_index ~extra_migrations_cmts ~fmconf ~source_path
             List.mem ~equal:( =: ) (Dune_files.ppx ~path:source_path) "ppx_partial"
           in
           let depends = Queue.create () in
+          let ctx = { has_ppx_partial; fmconf; module_migrations } in
           let inline =
             inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts
-              ~changed_something ~add_depends:(Queue.enqueue_all depends)
+              ~changed_something ~add_depends:(Queue.enqueue_all depends) ~ctx
           in
-          let simplify =
-            simplify ~ctx:{ has_ppx_partial; fmconf } ~type_index
-              (process_call ~type_index)
-          in
+          let simplify = simplify ~ctx ~type_index (process_call ~type_index) in
           let structure =
             structure
             |> File_type.map file_type inline

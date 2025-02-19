@@ -12,6 +12,7 @@ val run :
   -> extra_migrations_cmts:(Cwdpath.t * Cmt_format.cmt_infos) option
   -> fmconf:Ocamlformat_lib.Conf_t.t
   -> source_path:Cwdpath.t
+  -> module_migrations:bool
   -> input_name_matching_compilation_command:string option
   -> (Transform_common.result * res) option
 

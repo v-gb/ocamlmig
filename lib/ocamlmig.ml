@@ -345,6 +345,11 @@ let migrate =
                attributes [let _ = source_function [@migrate ...]], e.g. \
                ocamlmig.stdlib_to_stdlib."
             (optional string)
+        and module_migrations =
+          flag "-module-migrations" no_arg
+            ~doc:
+              "look for migrations on modules, rather than only on values. This is \
+               opt-in for now, as it's a bit costly (+20% time it seems) and new."
         in
         fun () ->
           with_ocaml_exn (fun report_exn ->
@@ -388,7 +393,7 @@ let migrate =
                           in
                           with_reported_ocaml_exn report_exn None (fun () ->
                               Transform_migration.run ~fmconf ~artifacts ~source_path
-                                ~extra_migrations_cmts ~type_index
+                                ~extra_migrations_cmts ~type_index ~module_migrations
                                 ~input_name_matching_compilation_command:
                                   (Build.input_name_matching_compilation_command cmt_infos))
                           |> Option.iter ~f:(fun (contents, { libraries }) ->
