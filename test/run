@@ -43,7 +43,7 @@ ocamlmig replace \
         if [ "$write" ]; then
             echo "$new_contents" > "$file"
         else
-            diff --label "$file" --label "$file".corrected -u "$file" <(echo "$new_contents") 
+            diff --label "$file" --label "$file".corrected -u "$file" <(echo "$new_contents") || [ $? -eq 1 ]
         fi        
     }
     with_preserve_format test_preserve_format.ml \
