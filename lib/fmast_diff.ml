@@ -484,7 +484,7 @@ let tokens_would_fuse ~ocaml_version str1 str2 =
       not
         (List.is_prefix ~prefix:tokens1 tokens12 ~equal:(Poly.equal : Parser.token -> _))
 
-let cobble_code_together ~ocaml_version ~debug_diff orig f =
+let stitch_code_together ~ocaml_version ~debug_diff orig f =
   let buf = Buffer.create (String.length orig) in
   let add_string =
     let last_chunk_of_data = ref "" in
@@ -517,7 +517,7 @@ let cobble_code_together ~ocaml_version ~debug_diff orig f =
   copy_orig (String.length orig) ~parsed:true;
   Buffer.contents buf
 
-let print ~ocaml_version ~debug_diff ~source_contents ftype ast1 ast2 =
+let print ~ocaml_version ~debug_diff ~source_contents file_type ast1 ast2 =
   let add_comments = indexed_comments ast1 in
   let loc_of_diff : diff_out -> _ = function
     | `Expr (e, _) -> e.pexp_loc
@@ -532,10 +532,10 @@ let print ~ocaml_version ~debug_diff ~source_contents ftype ast1 ast2 =
     | `Add_stri (loc, _) -> loc
     | `Add_sigi (loc, _) -> loc
   in
-  match diff2 ftype ast1 ast2 with
+  match diff2 file_type ast1 ast2 with
   | `Whole_structure ->
       ocamlformat_print ~conf:Ocamlformat_lib.Conf.default
-        (Transform_common.File_type.to_extended_ast ftype)
+        (Transform_common.File_type.to_extended_ast file_type)
         { ast1 with ast = ast2 }
   | `Ok l ->
       let l =
@@ -557,7 +557,7 @@ let print ~ocaml_version ~debug_diff ~source_contents ftype ast1 ast2 =
       (* ideally, we'd pass the context into the printing function, so ocamlformat can
      print parens nicely, instead of this hack *)
       let parens_if b str = if b then "(" ^ str ^ ")" else str in
-      cobble_code_together ~ocaml_version ~debug_diff source_contents (fun f ->
+      stitch_code_together ~ocaml_version ~debug_diff source_contents (fun f ->
           List.iter l ~f:(function
             | `Expr (e1, e2) ->
                 f e1.pexp_loc
