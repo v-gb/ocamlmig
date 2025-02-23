@@ -17,6 +17,7 @@ let () =
   (fun _ _ _ _ -> ()) 1.(Fun.id 1)1(Fun.id None).!{0};
   (fun _ _ _ _ _ -> ()) 1.(Fun.id e)1(Fun.id None)(Fun.id e);
   ignore (match 1 with 1 -> 1 + Fun.id (match () with () -> 2) | _ -> 3);
+  ignore (1 + Fun.id (match () with () -> 2));
   ()
 
 (* Result:
@@ -40,6 +41,7 @@ let () =
   (fun _ _ _ _ -> ()) 1. 1 1(None).!{0};
   (fun _ _ _ _ _ -> ()) 1. e 1 None e;
   ignore (match 1 with 1 -> 1 + match () with () -> 2 | _ -> 3);
+  ignore (1 + match () with () -> 2);
   ()
 
 *)
