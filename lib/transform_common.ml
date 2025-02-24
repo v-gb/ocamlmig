@@ -486,19 +486,23 @@ type 'other f' = { f : 'ast. bool ref -> 'ast File_type.t -> 'ast -> 'ast * 'oth
 type f = { f : 'ast. bool ref -> 'ast File_type.t -> 'ast -> 'ast }
 
 let process_ast file_type structure (f : _ f') =
-  let changed_something = ref false in
-  let structure, res =
-    f.f changed_something file_type
-      (File_type.map file_type drop_concrete_syntax_constructs structure)
-  in
-  if !changed_something
-  then
-    Some
-      ( structure
-        |> File_type.map file_type undrop_concrete_syntax_constructs
-        |> File_type.map file_type remove_attributes
-      , res )
-  else None
+  Profile.record "process_ast" (fun () ->
+      let changed_something = ref false in
+      let structure, res =
+        let structure =
+          File_type.map file_type drop_concrete_syntax_constructs structure
+        in
+        Profile.record "process_ast'" (fun () ->
+            f.f changed_something file_type structure)
+      in
+      if !changed_something
+      then
+        Some
+          ( structure
+            |> File_type.map file_type undrop_concrete_syntax_constructs
+            |> File_type.map file_type remove_attributes
+          , res )
+      else None)
 
 let process_file' ~fmconf:conf ~source_path ~input_name_matching_compilation_command
     (f : _ f') =

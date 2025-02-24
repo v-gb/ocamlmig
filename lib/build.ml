@@ -9,14 +9,15 @@ open Common
 let is_mli path = String.is_suffix (Cwdpath.to_string path) ~suffix:".mli"
 
 let read_cmt cmt_path =
-  try Cmt_format.read_cmt (Cwdpath.to_string cmt_path) with
-  | Cmi_format.Error e ->
-      (* This function raises both Cmi_format.Error and Cmt_format.Error. *)
-      failwith (Format.asprintf "%a" Cmi_format.report_error e)
-  | Cmt_format.Error e -> (
-      match e with
-      | Not_a_typedtree s ->
-          raise_s [%sexp (cmt_path : Cwdpath.t), "not a typedtree", (s : string)])
+  Profile.record "read_cmt" (fun () ->
+      try Cmt_format.read_cmt (Cwdpath.to_string cmt_path) with
+      | Cmi_format.Error e ->
+          (* This function raises both Cmi_format.Error and Cmt_format.Error. *)
+          failwith (Format.asprintf "%a" Cmi_format.report_error e)
+      | Cmt_format.Error e -> (
+          match e with
+          | Not_a_typedtree s ->
+              raise_s [%sexp (cmt_path : Cwdpath.t), "not a typedtree", (s : string)]))
 
 let comp_unit_of_uid (uid : Shape.Uid.t) =
   match uid with
@@ -123,52 +124,54 @@ module Listing = struct
     |> List.map ~f:(Cwdpath.concat dir)
 
   let create ~dune_root ~source_paths =
-    let load_path_cache = Hashtbl.create (module Cwdpath) in
-    let module Csexp = Csexp.Make (Sexp) in
-    with_process_full
-      (dune_exe ~dune_root @ [ "ocaml"; "merlin"; "start-session" ])
-      (fun (stdout, stdin) ->
-        List.filter_map source_paths ~f:(fun source_path ->
-            (* Dune seems to take paths relative to wherever we started it *)
-            Csexp.to_channel stdin
-              (List [ Atom "File"; Atom (Cwdpath.to_string source_path) ]);
-            Out_channel.flush stdin;
-            match Csexp.input_opt stdout with
-            | Error err -> failwith err
-            | Ok None -> raise_s [%sexp "eof from dune"]
-            | Ok (Some (List [ List [ Atom "ERROR"; err ] ])) ->
-                eprint_s err;
-                None
-            | Ok (Some sexp) ->
-                Some (of_merlin_sexp ~dune_root ~load_path_cache source_path sexp)))
-    |> create_internal load_path_cache
+    Profile.record "Build.Listing.create" (fun () ->
+        let load_path_cache = Hashtbl.create (module Cwdpath) in
+        let module Csexp = Csexp.Make (Sexp) in
+        with_process_full
+          (dune_exe ~dune_root @ [ "ocaml"; "merlin"; "start-session" ])
+          (fun (stdout, stdin) ->
+            List.filter_map source_paths ~f:(fun source_path ->
+                (* Dune seems to take paths relative to wherever we started it *)
+                Csexp.to_channel stdin
+                  (List [ Atom "File"; Atom (Cwdpath.to_string source_path) ]);
+                Out_channel.flush stdin;
+                match Csexp.input_opt stdout with
+                | Error err -> failwith err
+                | Ok None -> raise_s [%sexp "eof from dune"]
+                | Ok (Some (List [ List [ Atom "ERROR"; err ] ])) ->
+                    eprint_s err;
+                    None
+                | Ok (Some sexp) ->
+                    Some (of_merlin_sexp ~dune_root ~load_path_cache source_path sexp)))
+        |> create_internal load_path_cache)
 
   let create_without_dune root =
-    let load_path_cache = Hashtbl.create (module Cwdpath) in
-    let cmt_paths = find_ignore_vcs (Abspath.to_cwdpath root) [ "-name"; "*.cmt" ] in
-    List.filter_map cmt_paths ~f:(fun cmt_path ->
-        let cmt_infos = read_cmt cmt_path in
-        match cmt_infos.cmt_sourcefile with
-        | None -> None
-        | Some source ->
-            let cmt_dirs =
-              if true
-              then [ Cwdpath.dirname cmt_path ]
-              else
-                (* Cwdpath.create_list is probably wrong, but it's deadcode, so
+    Profile.record "Build.Listing.create_without_dune" (fun () ->
+        let load_path_cache = Hashtbl.create (module Cwdpath) in
+        let cmt_paths = find_ignore_vcs (Abspath.to_cwdpath root) [ "-name"; "*.cmt" ] in
+        List.filter_map cmt_paths ~f:(fun cmt_path ->
+            let cmt_infos = read_cmt cmt_path in
+            match cmt_infos.cmt_sourcefile with
+            | None -> None
+            | Some source ->
+                let cmt_dirs =
+                  if true
+                  then [ Cwdpath.dirname cmt_path ]
+                  else
+                    (* Cwdpath.create_list is probably wrong, but it's deadcode, so
                    whatever .*)
-                Cwdpath.create_list
-                  (cmt_infos.cmt_loadpath.visible @ cmt_infos.cmt_loadpath.hidden)
-            in
-            Some
-              { root
-              ; source =
-                  Cwdpath.concat (Cwdpath.dirname cmt_path) (Filename.basename source)
-              ; compilation_unit = cmt_infos.cmt_modname
-              ; cmt_dirs
-              ; cmt_load_paths = cmt_load_paths_from_cmt_dirs load_path_cache cmt_dirs
-              })
-    |> create_internal load_path_cache
+                    Cwdpath.create_list
+                      (cmt_infos.cmt_loadpath.visible @ cmt_infos.cmt_loadpath.hidden)
+                in
+                Some
+                  { root
+                  ; source =
+                      Cwdpath.concat (Cwdpath.dirname cmt_path) (Filename.basename source)
+                  ; compilation_unit = cmt_infos.cmt_modname
+                  ; cmt_dirs
+                  ; cmt_load_paths = cmt_load_paths_from_cmt_dirs load_path_cache cmt_dirs
+                  })
+        |> create_internal load_path_cache)
 
   let how_to_build_cmt () =
     "Either build that part of the repository, or if you already have, try building \
@@ -579,55 +582,56 @@ module Type_index = struct
   [@@deriving sexp_of]
 
   let create_without_setting_up_loadpath (cmt_infos : Cmt_format.cmt_infos) =
-    let exp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
-    let pat = Hashtbl.create (module Uast.Location.Ignoring_filename) in
-    let typ = Hashtbl.create (module Uast.Location.Ignoring_filename) in
-    let cexp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
-    let ctyp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
-    let mexp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
-    let mtyp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
-    let super = Tast_iterator.default_iterator in
-    let self =
-      { super with
-        expr =
-          (fun self v ->
-            super.expr self v;
-            Hashtbl.add_multi exp ~key:v.exp_loc ~data:v)
-      ; pat =
-          (fun self v ->
-            super.pat self v;
-            Hashtbl.add_multi pat ~key:v.pat_loc ~data:(T v : Uast.any_pattern))
-      ; typ =
-          (fun self v ->
-            super.typ self v;
-            Hashtbl.add_multi typ ~key:v.ctyp_loc ~data:v)
-      ; class_expr =
-          (fun self v ->
-            super.class_expr self v;
-            Hashtbl.add_multi cexp ~key:v.cl_loc ~data:v)
-      ; class_type =
-          (fun self v ->
-            super.class_type self v;
-            Hashtbl.add_multi ctyp ~key:v.cltyp_loc ~data:v)
-      ; module_expr =
-          (fun self v ->
-            super.module_expr self v;
-            Hashtbl.add_multi mexp ~key:v.mod_loc ~data:v)
-      ; module_type =
-          (fun self v ->
-            super.module_type self v;
-            Hashtbl.add_multi mtyp ~key:v.mty_loc ~data:v)
-      }
-    in
-    (match cmt_infos.cmt_annots with
-    | Implementation structure -> self.structure self structure
-    | Interface signature -> self.signature self signature
-    | Partial_implementation _ ->
-        failwith "unexpected content of cmt (file doesn't fully type?)"
-    | Partial_interface _ ->
-        failwith "unexpected content of cmti (file doesn't fully type?)"
-    | _ -> failwith "unexpected content of cmt");
-    { exp; pat; typ; cexp; ctyp; mexp; mtyp }
+    Profile.record "Build.Type_index.create" (fun () ->
+        let exp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+        let pat = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+        let typ = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+        let cexp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+        let ctyp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+        let mexp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+        let mtyp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
+        let super = Tast_iterator.default_iterator in
+        let self =
+          { super with
+            expr =
+              (fun self v ->
+                super.expr self v;
+                Hashtbl.add_multi exp ~key:v.exp_loc ~data:v)
+          ; pat =
+              (fun self v ->
+                super.pat self v;
+                Hashtbl.add_multi pat ~key:v.pat_loc ~data:(T v : Uast.any_pattern))
+          ; typ =
+              (fun self v ->
+                super.typ self v;
+                Hashtbl.add_multi typ ~key:v.ctyp_loc ~data:v)
+          ; class_expr =
+              (fun self v ->
+                super.class_expr self v;
+                Hashtbl.add_multi cexp ~key:v.cl_loc ~data:v)
+          ; class_type =
+              (fun self v ->
+                super.class_type self v;
+                Hashtbl.add_multi ctyp ~key:v.cltyp_loc ~data:v)
+          ; module_expr =
+              (fun self v ->
+                super.module_expr self v;
+                Hashtbl.add_multi mexp ~key:v.mod_loc ~data:v)
+          ; module_type =
+              (fun self v ->
+                super.module_type self v;
+                Hashtbl.add_multi mtyp ~key:v.mty_loc ~data:v)
+          }
+        in
+        (match cmt_infos.cmt_annots with
+        | Implementation structure -> self.structure self structure
+        | Interface signature -> self.signature self signature
+        | Partial_implementation _ ->
+            failwith "unexpected content of cmt (file doesn't fully type?)"
+        | Partial_interface _ ->
+            failwith "unexpected content of cmti (file doesn't fully type?)"
+        | _ -> failwith "unexpected content of cmt");
+        { exp; pat; typ; cexp; ctyp; mexp; mtyp })
 
   let create_from_cmt_infos cmt_infos (listing1 : Listing.one) =
     Load_path.init ~auto_include:Load_path.no_auto_include ~visible:[] ~hidden:[];

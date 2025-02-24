@@ -52,42 +52,44 @@ module Vcs = struct
 end
 
 let diff ?label1 ?label2 src1 src2 =
-  let label1 =
-    Option.value label1
-      ~default:(match src1 with `Path p -> Cwdpath.to_string p | `Str _ -> "")
-  in
-  let label2 =
-    Option.value label2
-      ~default:(match src2 with `Path p -> Cwdpath.to_string p | `Str _ -> "")
-  in
-  let with_file src f =
-    match src with
-    | `Path p -> f p
-    | `Str s -> with_str_in_file s (fun p -> f (Abspath.to_cwdpath p))
-  in
-  with_file src1 (fun path1 ->
-      with_file src2 (fun path2 ->
-          flush_transient ();
-          let code =
-            Sys.command
-              (match Sys.getenv_opt "OCAMLMIG_DIFF" with
-              | Some script ->
-                  Printf.sprintf "LABEL1=%s; LABEL2=%s; %s %s %s" (Filename.quote label1)
-                    (Filename.quote label2) script
-                    (quote_no_dash (Cwdpath.to_string path1))
-                    (quote_no_dash (Cwdpath.to_string path2))
-              | None ->
-                  Printf.sprintf
-                    "if which patdiff >/dev/null; then patdiff -context 5 -alt-old %s \
-                     -alt-new %s %s %s; else diff -u --label %s --label %s %s %s; fi"
-                    (Filename.quote label1) (Filename.quote label2)
-                    (quote_no_dash (Cwdpath.to_string path1))
-                    (quote_no_dash (Cwdpath.to_string path2))
-                    (Filename.quote label1) (Filename.quote label2)
-                    (quote_no_dash (Cwdpath.to_string path1))
-                    (quote_no_dash (Cwdpath.to_string path2)))
-          in
-          if code <> 0 && code <> 1 then failwith "diffing failed"))
+  Profile.record "diff" (fun () ->
+      let label1 =
+        Option.value label1
+          ~default:(match src1 with `Path p -> Cwdpath.to_string p | `Str _ -> "")
+      in
+      let label2 =
+        Option.value label2
+          ~default:(match src2 with `Path p -> Cwdpath.to_string p | `Str _ -> "")
+      in
+      let with_file src f =
+        match src with
+        | `Path p -> f p
+        | `Str s -> with_str_in_file s (fun p -> f (Abspath.to_cwdpath p))
+      in
+      with_file src1 (fun path1 ->
+          with_file src2 (fun path2 ->
+              flush_transient ();
+              let code =
+                Sys.command
+                  (match Sys.getenv_opt "OCAMLMIG_DIFF" with
+                  | Some script ->
+                      Printf.sprintf "LABEL1=%s; LABEL2=%s; %s %s %s"
+                        (Filename.quote label1) (Filename.quote label2) script
+                        (quote_no_dash (Cwdpath.to_string path1))
+                        (quote_no_dash (Cwdpath.to_string path2))
+                  | None ->
+                      Printf.sprintf
+                        "if which patdiff >/dev/null; then patdiff -context 5 -alt-old \
+                         %s -alt-new %s %s %s; else diff -u --label %s --label %s %s %s; \
+                         fi"
+                        (Filename.quote label1) (Filename.quote label2)
+                        (quote_no_dash (Cwdpath.to_string path1))
+                        (quote_no_dash (Cwdpath.to_string path2))
+                        (Filename.quote label1) (Filename.quote label2)
+                        (quote_no_dash (Cwdpath.to_string path1))
+                        (quote_no_dash (Cwdpath.to_string path2)))
+              in
+              if code <> 0 && code <> 1 then failwith "diffing failed")))
 
 let diff_or_write ~original_formatting file_path ~write
     ((file_contents, file_contents', asts) : Transform_common.result) =
@@ -307,6 +309,11 @@ let write_param =
       "instead of showing the diff of the changes, writing the changes to the source \
        files"
 
+let with_profile f =
+  match Sys.getenv_opt "OCAMLMIG_PROFILE" with
+  | Some fname -> Profile.with_profile fname f
+  | None -> f ()
+
 let make_report_exn () =
   let got_error = ref false in
   ( got_error
@@ -319,7 +326,7 @@ let make_report_exn () =
 
 let with_ocaml_exn f =
   let got_error, report_exn = make_report_exn () in
-  (try f report_exn with e -> report_exn e);
+  (try with_profile (fun () -> f report_exn) with e -> report_exn e);
   if !got_error then Stdlib.exit 1
 
 let with_reported_ocaml_exn report_exn def f =

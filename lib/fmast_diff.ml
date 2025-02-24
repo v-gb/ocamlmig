@@ -597,6 +597,10 @@ let print ~ocaml_version ~debug_diff ~source_contents file_type ast1 ast2 =
                   ^ printed_ast add_comments loc Signature [ s2 ]
                   ^ "\n")))
 
+let print ~ocaml_version ~debug_diff ~source_contents file_type ast1 ast2 =
+  Profile.record "diff_print" (fun () ->
+      print ~ocaml_version ~debug_diff ~source_contents file_type ast1 ast2)
+
 (* problems:
    - record fields should be special cased like variants
  *)

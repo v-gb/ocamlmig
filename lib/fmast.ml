@@ -33,21 +33,24 @@ let ocamlformat_print =
   in
   fun (type ext) (ext_fg : ext Extended_ast.t) ~(conf : Conf.t)
       (ext_t : _ Parse_with_comments.with_comments) ->
-    let open Fmt in
-    let conf = maybe_add_debug conf in
-    let cmts_t =
-      Ocamlformat_lib.Cmts.init ext_fg ~debug:conf.opr_opts.debug.v ext_t.source ext_t.ast
-        ext_t.comments
-    in
-    let contents =
-      with_buffer_formatter ~buffer_size:1000
-        (set_margin conf.fmt_opts.margin.v
-        $ set_max_indent conf.fmt_opts.max_indent.v
-        $ fmt_if (not (String.is_empty ext_t.prefix)) (str ext_t.prefix $ force_newline)
-        $ Fmt_ast.fmt_ast ext_fg ~debug:conf.opr_opts.debug.v ext_t.source cmts_t conf
-            ext_t.ast)
-    in
-    contents
+    Profile.record "fmast_print" (fun () ->
+        let open Fmt in
+        let conf = maybe_add_debug conf in
+        let cmts_t =
+          Ocamlformat_lib.Cmts.init ext_fg ~debug:conf.opr_opts.debug.v ext_t.source
+            ext_t.ast ext_t.comments
+        in
+        let contents =
+          with_buffer_formatter ~buffer_size:1000
+            (set_margin conf.fmt_opts.margin.v
+            $ set_max_indent conf.fmt_opts.max_indent.v
+            $ fmt_if
+                (not (String.is_empty ext_t.prefix))
+                (str ext_t.prefix $ force_newline)
+            $ Fmt_ast.fmt_ast ext_fg ~debug:conf.opr_opts.debug.v ext_t.source cmts_t conf
+                ext_t.ast)
+        in
+        contents)
 
 let fake_pos =
   let super = Ocamlformat_parser_extended.Ast_mapper.default_mapper in
@@ -85,10 +88,11 @@ let debug_print (type a) ?(raw = false) (kind : a Ocamlformat_lib.Extended_ast.t
       }
 
 let parse_with_ocamlformat kind ~conf ~input_name str =
-  Ocamlformat_lib.Parse_with_comments.parse
-    ~disable_w50:true (* avoid exception being thrown *)
-    (Ocamlformat_lib.Parse_with_comments.parse_ast conf)
-    kind conf ~input_name ~source:str
+  Profile.record "fmast_parse" (fun () ->
+      Ocamlformat_lib.Parse_with_comments.parse
+        ~disable_w50:true (* avoid exception being thrown *)
+        (Ocamlformat_lib.Parse_with_comments.parse_ast conf)
+        kind conf ~input_name ~source:str)
 
 let update_structure (ast_plus : _ Ocamlformat_lib.Parse_with_comments.with_comments) f =
   Option.map (f ast_plus.ast) ~f:(fun (ast, other_stuff) ->
