@@ -811,6 +811,17 @@ let run ~(listing : Build.Listing.t) motif_and_repls () =
                         Queue.enqueue_all all_nodes_to_remove nodes_to_remove;
                         changed_something := true;
                         ty)
+              ; type_declaration =
+                  (fun self v ->
+                    (* prevents recursion into type params, which had a sensible
+                       representation of string option until
+                       https://github.com/ocaml/ocaml/issues/5584, which turned into
+                       core_type :/. This allows type replacements to not apply to type
+                       parameters, as they would likely creates asts that have no
+                       syntax if any rewrite happens. *)
+                    { (super.type_declaration self { v with ptype_params = [] }) with
+                      ptype_params = v.ptype_params
+                    })
               ; value_binding =
                   (fun self vb ->
                     let vb = super.value_binding self vb in
