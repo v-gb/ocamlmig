@@ -676,7 +676,10 @@ let match_binding_op ~need_type_index
     && s_pat op.pbop_pat ~env ~ctx
     && s_expr op.pbop_exp ~env ~ctx
 
-let compile_motif ~need_type_index (motif : Uast.Parsetree.expression) =
+let compile_motif ~need_type_index motif =
+  let motif =
+    Uast.Parse.expression (lexing_from_string motif ~file_path:"command line param")
+  in
   match motif.pexp_desc with
   | Pexp_extension ({ txt = "binding"; _ }, payload) -> (
       match payload with
@@ -772,9 +775,6 @@ let run ~(listing : Build.Listing.t) motif_and_repls () =
   let may_need_type_index_ref = ref false in
   let stage2_and_repls =
     List.map motif_and_repls ~f:(fun (motif, repl) ->
-        let motif =
-          Uast.Parse.expression (lexing_from_string motif ~file_path:"command line param")
-        in
         let repl = ref (`Unforced repl) in
         (compile_motif ~need_type_index:may_need_type_index_ref motif, repl))
   in
