@@ -369,49 +369,54 @@ let migrate =
               List.iter source_paths ~f:(fun source_path ->
                   transient_line
                     (Printf.sprintf "processing %s" (Cwdpath.to_string source_path));
-                  match get_ocamlformat_conf ~dune_root source_path with
-                  | None -> ()
-                  | Some (fmconf, fm_orig) -> (
-                      match Build.Listing.locate_cmt listing ~source_path with
-                      | Error e ->
-                          eprint_s
-                            [%sexp
-                              ("skipping " ^ Cwdpath.to_string source_path : string)
-                            , (e : Sexp.t)]
-                      | Ok (cmt_path, listing1) ->
-                          let type_index = Build.Type_index.create cmt_path listing1 in
-                          let cmt_infos = Build.read_cmt cmt_path in
-                          let artifacts =
-                            ( cmt_infos.cmt_modname
-                            , Build.Artifacts.create ~cache:artifacts_cache listing )
-                          in
-                          let extra_migrations_cmts =
-                            Option.map extra_migrations_libraries ~f:(fun library_name ->
-                                match
-                                  Build.Artifacts.locate_cmt_from_library_name
-                                    (snd artifacts) ~dune_root ~library_name
-                                with
-                                | Some v -> v
-                                | None ->
-                                    raise_s
-                                      [%sexp
-                                        "unable to find cmt for"
-                                      , ~~(library_name : string)])
-                          in
-                          with_reported_ocaml_exn report_exn None (fun () ->
-                              Transform_migration.run ~fmconf ~artifacts ~source_path
-                                ~extra_migrations_cmts ~type_index ~module_migrations
-                                ~input_name_matching_compilation_command:
-                                  (Build.input_name_matching_compilation_command cmt_infos))
-                          |> Option.iter ~f:(fun (contents, { libraries }) ->
-                                 Queue.enqueue deps (`Path source_path, libraries);
-                                 diff_or_write ~original_formatting:(Some fm_orig)
-                                   source_path ~write contents)));
-              List.iter
-                (Dune_files.add_dependencies ~dune_root (Queue.to_list deps))
-                ~f:(fun (`Path file_path, before, after) ->
-                  diff_or_write ~original_formatting:None file_path ~write
-                    (before, Lazy.from_val after, None)))] )
+                  Profile.record (Cwdpath.to_string source_path) (fun () ->
+                      match get_ocamlformat_conf ~dune_root source_path with
+                      | None -> ()
+                      | Some (fmconf, fm_orig) -> (
+                          match Build.Listing.locate_cmt listing ~source_path with
+                          | Error e ->
+                              eprint_s
+                                [%sexp
+                                  ("skipping " ^ Cwdpath.to_string source_path : string)
+                                , (e : Sexp.t)]
+                          | Ok (cmt_path, listing1) ->
+                              let type_index =
+                                Build.Type_index.create cmt_path listing1
+                              in
+                              let cmt_infos = Build.read_cmt cmt_path in
+                              let artifacts =
+                                ( cmt_infos.cmt_modname
+                                , Build.Artifacts.create ~cache:artifacts_cache listing )
+                              in
+                              let extra_migrations_cmts =
+                                Option.map extra_migrations_libraries
+                                  ~f:(fun library_name ->
+                                    match
+                                      Build.Artifacts.locate_cmt_from_library_name
+                                        (snd artifacts) ~dune_root ~library_name
+                                    with
+                                    | Some v -> v
+                                    | None ->
+                                        raise_s
+                                          [%sexp
+                                            "unable to find cmt for"
+                                          , ~~(library_name : string)])
+                              in
+                              with_reported_ocaml_exn report_exn None (fun () ->
+                                  Transform_migration.run ~fmconf ~artifacts ~source_path
+                                    ~extra_migrations_cmts ~type_index ~module_migrations
+                                    ~input_name_matching_compilation_command:
+                                      (Build.input_name_matching_compilation_command
+                                         cmt_infos))
+                              |> Option.iter ~f:(fun (contents, { libraries }) ->
+                                     Queue.enqueue deps (`Path source_path, libraries);
+                                     diff_or_write ~original_formatting:(Some fm_orig)
+                                       source_path ~write contents)));
+                  List.iter
+                    (Dune_files.add_dependencies ~dune_root (Queue.to_list deps))
+                    ~f:(fun (`Path file_path, before, after) ->
+                      diff_or_write ~original_formatting:None file_path ~write
+                        (before, Lazy.from_val after, None))))] )
 
 type original_formatting =
   [ `Not_configured of Ocamlformat_lib.Conf_t.t
@@ -453,36 +458,40 @@ let make_transform param =
           List.iter source_paths ~f:(fun source_path ->
               transient_line
                 (Printf.sprintf "processing %s" (Cwdpath.to_string source_path));
-              let ocamlformat_conf =
-                lazy
-                  (get_ocamlformat_conf
-                     ~dune_root:(Result.ok_or_failwith dune_root)
-                     source_path)
-              in
-              let diff_or_write ~original_formatting =
-                Option.iter __ ~f:(diff_or_write ~original_formatting source_path ~write)
-              in
-              match Build.Listing.locate_cmt listing ~source_path with
-              | Error e ->
-                  eprint_s
-                    [%sexp
-                      ("skipping " ^ Cwdpath.to_string source_path : string), (e : Sexp.t)]
-              | Ok (cmt_path, dirs) ->
-                  let cmt_infos = lazy (Build.read_cmt cmt_path) in
-                  let type_index =
-                    lazy (Build.Type_index.create_from_cmt_infos (force cmt_infos) dirs)
+              Profile.record (Cwdpath.to_string source_path) (fun () ->
+                  let ocamlformat_conf =
+                    lazy
+                      (get_ocamlformat_conf
+                         ~dune_root:(Result.ok_or_failwith dune_root)
+                         source_path)
                   in
-                  with_reported_ocaml_exn report_exn () (fun () ->
-                      f
-                        { source_path
-                        ; cmt_path
-                        ; cmt_infos
-                        ; listing
-                        ; type_index
-                        ; ocamlformat_conf
-                        ; diff_or_write
-                        ; artifacts_cache
-                        })))]
+                  let diff_or_write ~original_formatting =
+                    Option.iter __
+                      ~f:(diff_or_write ~original_formatting source_path ~write)
+                  in
+                  match Build.Listing.locate_cmt listing ~source_path with
+                  | Error e ->
+                      eprint_s
+                        [%sexp
+                          ("skipping " ^ Cwdpath.to_string source_path : string)
+                        , (e : Sexp.t)]
+                  | Ok (cmt_path, dirs) ->
+                      let cmt_infos = lazy (Build.read_cmt cmt_path) in
+                      let type_index =
+                        lazy
+                          (Build.Type_index.create_from_cmt_infos (force cmt_infos) dirs)
+                      in
+                      with_reported_ocaml_exn report_exn () (fun () ->
+                          f
+                            { source_path
+                            ; cmt_path
+                            ; cmt_infos
+                            ; listing
+                            ; type_index
+                            ; ocamlformat_conf
+                            ; diff_or_write
+                            ; artifacts_cache
+                            }))))]
 
 let transform =
   ( "transform"
@@ -756,40 +765,42 @@ Syntax of the motifs:
               List.iter source_paths ~f:(fun source_path ->
                   transient_line
                     (Printf.sprintf "processing %s" (Cwdpath.to_string source_path));
-                  let located_cmt =
-                    lazy (Build.Listing.locate_cmt listing ~source_path)
-                  in
-                  let cmt_infos =
-                    Lazy.map located_cmt ~f:(function
-                      | Error _ -> None
-                      | Ok (cmt_path, _) -> Some (Build.read_cmt cmt_path))
-                  in
-                  let type_index =
-                    lazy
-                      (match (force located_cmt, force cmt_infos) with
-                      | Error e, None ->
-                          eprint_s
-                            [%sexp
-                              ("skipping over " ^ Cwdpath.to_string source_path : string)
-                            , (e : Sexp.t)];
-                          None
-                      | Error _, Some _ | Ok _, None -> assert false
-                      | Ok (_cmt_path, dirs), Some cmt_infos ->
-                          Some (Build.Type_index.create_from_cmt_infos cmt_infos dirs))
-                  in
-                  match get_ocamlformat_conf ~dune_root source_path with
-                  | None -> ()
-                  | Some (fmconf, fm_orig) ->
-                      with_reported_ocaml_exn report_exn None (fun () ->
-                          transform_replace ~fmconf ~type_index ~source_path
-                            ~input_name_matching_compilation_command:
-                              (lazy
-                                (Option.bind (force cmt_infos)
-                                   ~f:Build.input_name_matching_compilation_command)))
-                      |> Option.iter
-                           ~f:
-                             (diff_or_write ~original_formatting:(Some fm_orig)
-                                source_path ~write)))] )
+                  Profile.record (Cwdpath.to_string source_path) (fun () ->
+                      let located_cmt =
+                        lazy (Build.Listing.locate_cmt listing ~source_path)
+                      in
+                      let cmt_infos =
+                        Lazy.map located_cmt ~f:(function
+                          | Error _ -> None
+                          | Ok (cmt_path, _) -> Some (Build.read_cmt cmt_path))
+                      in
+                      let type_index =
+                        lazy
+                          (match (force located_cmt, force cmt_infos) with
+                          | Error e, None ->
+                              eprint_s
+                                [%sexp
+                                  ("skipping over " ^ Cwdpath.to_string source_path
+                                    : string)
+                                , (e : Sexp.t)];
+                              None
+                          | Error _, Some _ | Ok _, None -> assert false
+                          | Ok (_cmt_path, dirs), Some cmt_infos ->
+                              Some (Build.Type_index.create_from_cmt_infos cmt_infos dirs))
+                      in
+                      match get_ocamlformat_conf ~dune_root source_path with
+                      | None -> ()
+                      | Some (fmconf, fm_orig) ->
+                          with_reported_ocaml_exn report_exn None (fun () ->
+                              transform_replace ~fmconf ~type_index ~source_path
+                                ~input_name_matching_compilation_command:
+                                  (lazy
+                                    (Option.bind (force cmt_infos)
+                                       ~f:Build.input_name_matching_compilation_command)))
+                          |> Option.iter
+                               ~f:
+                                 (diff_or_write ~original_formatting:(Some fm_orig)
+                                    source_path ~write))))] )
 
 let internal_dune_config =
   ( "dune-config"
