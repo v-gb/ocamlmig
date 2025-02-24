@@ -39,7 +39,12 @@ let debug =
   | Some "help" ->
       print_string
         (String.concat_lines
-           [ "all"; "build_artifacts"; "ocamlformat"; "extra_migrations" ]);
+           [ "all"
+           ; "build_artifacts"
+           ; "ocamlformat"
+           ; "extra_migrations"
+           ; "preserve_format_parens"
+           ]);
       Stdlib.exit 0
   | Some str ->
       List.fold_left (String.split str ~on:',') ~init:no_debug ~f:(fun d -> function
