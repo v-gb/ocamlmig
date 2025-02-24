@@ -103,7 +103,7 @@ type ast_result =
       * Ocamlformat_lib.Conf_t.t)
       -> ast_result
 
-type result = string * string * ast_result option
+type result = string * string Lazy.t * ast_result option
 type 'other f' = { f : 'ast. bool ref -> 'ast File_type.t -> 'ast -> 'ast * 'other }
 type f = { f : 'ast. bool ref -> 'ast File_type.t -> 'ast -> 'ast }
 

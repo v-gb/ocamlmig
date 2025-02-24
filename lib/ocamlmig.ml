@@ -104,8 +104,8 @@ let diff_or_write ~original_formatting file_path ~write
     | _ -> (
         match original_formatting with
         | Some (`Enabled | `Disabled) ->
-            Dyn_ocamlformat.format ~path:file_path ~contents:file_contents'
-        | Some (`Not_configured _) | None -> file_contents')
+            Dyn_ocamlformat.format ~path:file_path ~contents:(force file_contents')
+        | Some (`Not_configured _) | None -> force file_contents')
   in
   if write
   then Out_channel.write_all (Cwdpath.to_string file_path) ~data:file_contents'
@@ -411,7 +411,7 @@ let migrate =
                 (Dune_files.add_dependencies ~dune_root (Queue.to_list deps))
                 ~f:(fun (`Path file_path, before, after) ->
                   diff_or_write ~original_formatting:None file_path ~write
-                    (before, after, None)))] )
+                    (before, Lazy.from_val after, None)))] )
 
 type original_formatting =
   [ `Not_configured of Ocamlformat_lib.Conf_t.t

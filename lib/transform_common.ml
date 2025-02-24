@@ -481,7 +481,13 @@ type ast_result =
       * Ocamlformat_lib.Conf_t.t)
       -> ast_result
 
-type result = string * string * ast_result option
+type result =
+  string
+  * string Lazy.t
+  (* lazy because we don't need the new pretty printed file when using fmast_diff, and
+     ocamlformat is quite slow, compared to the rest of ocamlmig *)
+  * ast_result option
+
 type 'other f' = { f : 'ast. bool ref -> 'ast File_type.t -> 'ast -> 'ast * 'other }
 type f = { f : 'ast. bool ref -> 'ast File_type.t -> 'ast -> 'ast }
 
@@ -521,7 +527,10 @@ let process_file' ~fmconf:conf ~source_path ~input_name_matching_compilation_com
   Fmast.update_structure structure (process_ast file_type __ f)
   |> Option.map ~f:(fun (structure', other) ->
          let source_contents' =
-           Fmast.ocamlformat_print (File_type.to_extended_ast file_type) ~conf structure'
+           lazy
+             (Fmast.ocamlformat_print
+                (File_type.to_extended_ast file_type)
+                ~conf structure')
          in
          ( ( source_contents
            , source_contents'
