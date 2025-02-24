@@ -587,6 +587,7 @@ type repl_text =
   { unambiguous : string
   ; ambiguous : string option
   }
+[@@deriving sexp_of]
 (* New text to insert into the file. [unambiguous] is a string that should work in all
    contexts, so normally a parenthesized string. [ambiguous] is the unparenthesized
    string, which may or may not work depending on the context, or None if the unambiguous
@@ -639,20 +640,32 @@ let choose_repl_text file_type repl_texts ~ocaml_version =
     Parser.INCLUDE
   in
   let menhir_stack = ref None in
-  let update_menhir_stack tokens =
-    menhir_stack := Some (snd (Result.ok_exn (parse file_type !menhir_stack tokens)))
+  let parse_error_ok_exn i = function
+    | Error (Failure s) ->
+        raise_s
+          [%sexp
+            (s : string)
+          , `prevs
+              (let pos = Int.max (i - 3) 0 in
+               Array.sub repl_texts ~pos ~len:(i + 1 - pos)
+                : [< `Preserve of string | `Repl_text of _ * repl_text ] array)]
+    | result -> Result.ok_exn result
+  in
+  let update_menhir_stack tokens i =
+    menhir_stack :=
+      Some (snd (parse_error_ok_exn i (parse file_type !menhir_stack tokens)))
   in
   let next_token_lower_bound = ref (None, -1) in
   Array.filter_mapi repl_texts ~f:(fun i -> function
     | `Preserve s ->
-        update_menhir_stack (tokens s);
+        update_menhir_stack (tokens s) i;
         None
     | `Repl_text (loc, { unambiguous; ambiguous }) ->
         Some
           ( loc
           , match ambiguous with
             | None ->
-                update_menhir_stack (tokens unambiguous);
+                update_menhir_stack (tokens unambiguous) i;
                 unambiguous
             | Some ambiguous -> (
                 let next_token =
@@ -669,13 +682,16 @@ let choose_repl_text file_type repl_texts ~ocaml_version =
                 in
                 let res1 =
                   parse file_type !menhir_stack (tokens unambiguous @ [ next_token ])
-                  |> Result.ok_exn (* should parse, since it's the unambiguous one *)
+                  |> parse_error_ok_exn i
+                  (* should not fail, since it's the unambiguous version, although it can
+                   happen when creating code that doesn't even parse like replacing by
+                   ['a] by [foo] in [type 'a t = unit]. *)
                 in
                 let res2 =
                   parse file_type !menhir_stack (tokens ambiguous @ [ next_token ])
                 in
                 let unupdated_stack = !menhir_stack in
-                update_menhir_stack (tokens unambiguous);
+                update_menhir_stack (tokens unambiguous) i;
                 match (res1, res2) with
                 | (env1, _), Ok (env2, _) when equal_menhir_env env1 env2 -> ambiguous
                 | _ ->
