@@ -26,7 +26,7 @@ type debug =
 let debug =
   let all b = { all = b; build_artifacts = b; ocamlformat = b; extra_migrations = b } in
   let no_debug = all false in
-  match Base.Sys.getenv "DEBUG" with
+  match Base.Sys.getenv "OCAMLMIG_DEBUG" with
   | None -> no_debug
   | Some "help" ->
       print_string
@@ -40,7 +40,7 @@ let debug =
         | "ocamlformat" -> { d with ocamlformat = true }
         | "extra_migrations" -> { d with extra_migrations = true }
         | s ->
-            eprintf "DEBUG: unknown field %S (see DEBUG=help)\n" s;
+            eprintf "OCAMLMIG_DEBUG: unknown field %S (see OCAMLMIG_DEBUG=help)\n" s;
             d)
 
 let log = ref false

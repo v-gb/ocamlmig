@@ -92,7 +92,7 @@ let diff ?label1 ?label2 src1 src2 =
 let diff_or_write ~original_formatting file_path ~write
     ((file_contents, file_contents', asts) : Transform_common.result) =
   let preserve_format = Option.is_some (Sys.getenv_opt "OCAMLMIG_PRESERVE_FORMAT") in
-  let debug_diff = (not write) && Option.is_some (Sys.getenv_opt "DEBUGDIFF") in
+  let debug_diff = (not write) && Option.is_some (Sys.getenv_opt "OCAMLMIG_DEBUG_DIFF") in
   let file_contents' =
     match asts with
     | Some (T (ftype, ast1, ast2, fmconf)) when preserve_format ->
