@@ -123,6 +123,12 @@ let internalize_reorder_attribute (expr : P.expression) =
     }
   else expr
 
+let internalize_reorder_attribute_mapper =
+  let super = Ast_mapper.default_mapper in
+  { super with
+    expr = (fun self expr -> super.expr self (internalize_reorder_attribute expr))
+  }
+
 let fmexpr_of_uexpr ~fmconf source e =
   let e_str = Format.asprintf "%a" Uast.Pprintast.expression e in
   let expr =
@@ -130,14 +136,8 @@ let fmexpr_of_uexpr ~fmconf source e =
       ~ocaml_version:(ocaml_version fmconf) ~preserve_beginend:false
       ~input_name:(migrate_filename source) e_str
   in
-  let self =
-    let super = Ast_mapper.default_mapper in
-    { super with
-      expr = (fun self expr -> super.expr self (internalize_reorder_attribute expr))
-    }
-  in
   expr
-  |> Ocamlformat_lib.Extended_ast.map Expression self
+  |> Ocamlformat_lib.Extended_ast.map Expression internalize_reorder_attribute_mapper
   |> Ocamlformat_lib.Extended_ast.map Expression drop_concrete_syntax_constructs
 
 let fmexpr_of_fmexpr source e =

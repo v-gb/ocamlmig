@@ -677,91 +677,88 @@ let match_binding_op ~need_type_index
     && s_expr op.pbop_exp ~env ~ctx
 
 let compile_motif ~need_type_index motif =
-  let motif =
-    Uast.Parse.expression (lexing_from_string motif ~file_path:"command line param")
-  in
-  match motif.pexp_desc with
-  | Pexp_extension ({ txt = "binding"; _ }, payload) -> (
-      match payload with
-      | PStr
-          [ { pstr_desc =
-                Pstr_eval ({ pexp_desc = Pexp_let (Nonrecursive, [ vb ], _); _ }, _)
-            ; _
-            }
-          ] ->
+  let file_path = "command line param" in
+  match String.lsplit2 motif ~on:':' with
+  | Some ("binding", motif) -> (
+      match Uast.Parse.implementation (lexing_from_string motif ~file_path) with
+      | [ { pstr_desc =
+              Pstr_eval ({ pexp_desc = Pexp_let (Nonrecursive, [ vb ], _); _ }, _)
+          ; _
+          }
+        ] ->
           `Binding (match_value_binding ~need_type_index vb)
-      | PStr
-          [ { pstr_desc =
-                Pstr_eval
-                  ( { pexp_desc = Pexp_letop { let_ = binding_op; ands = []; body = _ }
-                    ; _
-                    }
-                  , _ )
-            ; _
-            }
-          ] ->
+      | [ { pstr_desc =
+              Pstr_eval
+                ( { pexp_desc = Pexp_letop { let_ = binding_op; ands = []; body = _ }; _ }
+                , _ )
+          ; _
+          }
+        ] ->
           `Binding_op (match_binding_op ~need_type_index binding_op)
-      | _ -> unsupported_motif motif.pexp_loc)
-  | Pexp_extension ({ txt = "type"; _ }, payload) -> (
-      match payload with
-      | PTyp typ -> `Type (match_type ~need_type_index typ)
-      | _ -> unsupported_motif motif.pexp_loc)
-  | _ -> `Expr (match_ ~need_type_index motif)
+      | stri :: _ -> unsupported_motif stri.pstr_loc
+      | [] -> unsupported_motif Uast.Location.none)
+  | Some ("type", motif) ->
+      let typ = Uast.Parse.core_type (lexing_from_string motif ~file_path) in
+      `Type (match_type ~need_type_index typ)
+  | _ ->
+      let motif = Uast.Parse.expression (lexing_from_string motif ~file_path) in
+      `Expr (match_ ~need_type_index motif)
 
 let parse_template ~fmconf stage2 repl =
-  let repl =
+  let repl wrap unwrap kind =
     match !repl with
-    | `Forced v -> v
+    | `Forced v -> unwrap v
     | `Unforced repl_str ->
         let v =
-          (Fmast.parse_with_ocamlformat Expression ~conf:fmconf
-             ~input_name:migrate_filename_gen
+          (Fmast.parse_with_ocamlformat kind ~conf:fmconf ~input_name:migrate_filename_gen
              (* important for comment placement, among which
-                        preserve_loc_to_preserve_comment_pos to work *)
+                preserve_loc_to_preserve_comment_pos to work *)
              repl_str)
             .ast
-          |> Transform_migration.internalize_reorder_attribute
+          |> Ocamlformat_lib.Extended_ast.map kind
+               Transform_migration.internalize_reorder_attribute_mapper
         in
-        repl := `Forced v;
+        repl := `Forced (wrap v);
         v
   in
   match stage2 with
-  | `Expr stage2 -> `Expr (stage2, repl)
-  | `Type stage2 -> (
-      match repl.pexp_desc with
-      | Pexp_extension ({ txt = "type"; _ }, PTyp typ) -> `Type (stage2, typ)
-      | _ -> unsupported_motif (Conv.location' repl.pexp_loc))
+  | `Expr stage2 ->
+      `Expr
+        (stage2, repl (`Expr __) (function `Expr v -> v | _ -> assert false) Expression)
+  | `Type stage2 ->
+      `Type
+        (stage2, repl (`Type __) (function `Type v -> v | _ -> assert false) Core_type)
   | (`Binding _ | `Binding_op _) as stage2 -> (
-      match (stage2, repl.pexp_desc) with
-      | `Binding stage2, Pexp_extension ({ txt = "binding"; _ }, payload) -> (
-          match payload with
-          | PStr
-              [ { pstr_desc =
-                    Pstr_eval
-                      ( { pexp_desc =
-                            Pexp_let
-                              ({ pvbs_rec = Nonrecursive; pvbs_bindings = [ vb ] }, _, _)
-                        ; _
-                        }
-                      , _ )
-                ; _
-                }
-              ] ->
+      match
+        (stage2, repl (`Str __) (function `Str v -> v | _ -> assert false) Structure)
+      with
+      | `Binding stage2, stri -> (
+          match stri with
+          | [ { pstr_desc =
+                  Pstr_eval
+                    ( { pexp_desc =
+                          Pexp_let
+                            ({ pvbs_rec = Nonrecursive; pvbs_bindings = [ vb ] }, _, _)
+                      ; _
+                      }
+                    , _ )
+              ; _
+              }
+            ] ->
               `Binding (stage2, vb)
-          | _ -> unsupported_motif (Conv.location' repl.pexp_loc))
-      | `Binding_op stage2, Pexp_extension ({ txt = "binding"; _ }, payload) -> (
-          match payload with
-          | PStr
-              [ { pstr_desc =
-                    Pstr_eval
-                      ( { pexp_desc = Pexp_letop { let_ = binding_op; ands = []; _ }; _ }
-                      , _ )
-                ; _
-                }
-              ] ->
+          | stri :: _ -> unsupported_motif (Conv.location' stri.pstr_loc)
+          | [] -> unsupported_motif Uast.Location.none)
+      | `Binding_op stage2, stri -> (
+          match stri with
+          | [ { pstr_desc =
+                  Pstr_eval
+                    ({ pexp_desc = Pexp_letop { let_ = binding_op; ands = []; _ }; _ }, _)
+              ; _
+              }
+            ] ->
               `Binding_op (stage2, binding_op)
-          | _ -> unsupported_motif (Conv.location' repl.pexp_loc))
-      | _ -> unsupported_motif (Conv.location' repl.pexp_loc))
+          | stri :: _ -> unsupported_motif (Conv.location' stri.pstr_loc)
+          | _ -> unsupported_motif Uast.Location.none))
 
 let run ~(listing : Build.Listing.t) motif_and_repls () =
   ((* set up load paths to be able to type the motifs *)

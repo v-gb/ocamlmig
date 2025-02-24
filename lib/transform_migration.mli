@@ -49,4 +49,4 @@ val commute_args : Fmast.function_arg list -> Fmast.function_arg list
 val commute_list :
   ('a -> 'a -> bool) -> ('a * P.expression) list -> ('a * P.expression) list
 
-val internalize_reorder_attribute : P.expression -> P.expression
+val internalize_reorder_attribute_mapper : Ast_mapper.mapper
