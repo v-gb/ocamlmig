@@ -212,6 +212,11 @@ module Ast_helper = struct
             }
             body
 
+    let string ?(loc = !default_loc) ?quotation_delimiter s =
+      constant ~loc (Const.string ?quotation_delimiter ~loc s)
+
+    let int ?(loc = !default_loc) ?suffix s = constant ~loc (Const.int ?suffix ~loc s)
+
     let some ?(loc = !default_loc) arg =
       construct ~loc (located ~loc (Longident.Lident "Some")) (Some arg)
 

@@ -101,9 +101,7 @@ module Sattr = struct
 
   let int_attr name =
     { name = Attr.prefix ^ name
-    ; build =
-        (fun ~loc id ->
-          Attr.create ~loc name (Some (Ast_helper.Exp.constant (Ast_helper.Const.int id))))
+    ; build = (fun ~loc id -> Attr.create ~loc name (Some (Ast_helper.Exp.int id)))
     ; match_ =
         match_expr (function
           | { pexp_desc = Pexp_constant { pconst_desc = Pconst_integer (id, None); _ }

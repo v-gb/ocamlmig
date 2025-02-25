@@ -50,9 +50,7 @@ let payload_attribute ~attrs { repl; libraries } =
                             , None
                             , Some
                                 (Ast_helper.Exp.list
-                                   (List.map l ~f:(fun s ->
-                                        Ast_helper.Exp.constant
-                                          (Ast_helper.Const.string s)))) ))
+                                   (List.map l ~f:Ast_helper.Exp.string)) ))
                     ])
                  None)
           ])

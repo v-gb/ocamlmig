@@ -151,10 +151,9 @@ let run_structure file_type structure =
                   then
                     print_s [%sexp "can't inverse", (src_id.txt : Longident.t), (e : exn)];
                   Ast_helper.with_default_loc repl.pexp_loc (fun () ->
-                      Ast_helper.Exp.constant
-                        (Ast_helper.Const.string
-                           ("can't inverse "
-                           ^ String.concat ~sep:"." (Longident.flatten src_id.txt))))
+                      Ast_helper.Exp.string
+                        ("can't inverse "
+                        ^ String.concat ~sep:"." (Longident.flatten src_id.txt)))
               | repl', id' ->
                   (* Ideally, we'd check the absolute path to [id] in the typed tree,
                      and used that in the replacement code. *)
