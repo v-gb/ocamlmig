@@ -47,7 +47,13 @@ module _ = struct
     module T1 = struct
       let _y = 1
       let _x, _y = (2, 2)
-      let _ = 1 + _x + _y
+
+      let _ =
+        1
+        + M._x
+        +
+        ("MIG: variable _y is bound to different value";
+         _y)
     end]
 
   (* [%move_def] inlining ghost expressions *)

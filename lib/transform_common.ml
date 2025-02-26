@@ -629,16 +629,27 @@ module Requalify = struct
 
   let idents_of_path path = List.filter_opt (idents_of_path path)
 
-  let rec requalify : type a. (Path.t * a) Uast.ns -> _ -> _ -> Longident.t -> Longident.t
+  let rec requalify : type a.
+      ?fail:(string -> _) -> (Path.t * a) Uast.ns -> _ -> _ -> Longident.t -> Longident.t
       =
-   fun ns env1 env2 -> function
+   fun ?fail ns env1 env2 -> function
     | Lident s -> (
         match same_resolution ns (Lident s, env1) (Lident s, env2) with
         | `Unknown | `Yes -> Lident s
-        | `No path -> ident_of_path_exn path)
-    | Ldot (lid, s) -> Ldot (requalify Module env1 env2 lid, s)
+        | `No path -> (
+            let id = ident_of_path_exn path in
+            match fail with
+            | None -> id
+            | Some f -> (
+                match same_resolution ns (Lident s, env1) (id, env2) with
+                | `Unknown -> assert false
+                | `Yes -> id
+                | `No _ ->
+                    f s;
+                    Lident s)))
+    | Ldot (lid, s) -> Ldot (requalify ?fail Module env1 env2 lid, s)
     | Lapply (lid1, lid2) ->
-        Lapply (requalify Module env1 env2 lid1, requalify ns env1 env2 lid2)
+        Lapply (requalify ?fail Module env1 env2 lid1, requalify ?fail ns env1 env2 lid2)
 
   let rec try_unqualifying_ident ~same_resolution_as_initially (env : Env.summary) var =
     let var =
@@ -658,4 +669,46 @@ module Requalify = struct
     match Uast.Env_summary.next env with
     | None -> var
     | Some env -> try_unqualifying_ident ~same_resolution_as_initially env var
+
+  let requalify_deeply envs =
+    let super = Ast_mapper.default_mapper in
+    { super with
+      expr =
+        (fun self expr ->
+          let expr = super.expr self expr in
+          match expr with
+          | { pexp_desc = Pexp_ident { txt = var; loc }; _ } -> (
+              match envs expr with
+              | None -> expr
+              | Some (orig_env, new_base_env, rebased_env) -> (
+                  let failed = ref None in
+                  let var' =
+                    var
+                    |> requalify Value orig_env rebased_env __ ~fail:(fun id ->
+                           failed := Some id)
+                    |> try_unqualifying_ident (Env.summary new_base_env) __
+                         ~same_resolution_as_initially:(fun new_var ->
+                           match
+                             same_resolution Value (var, orig_env) (new_var, rebased_env)
+                           with
+                           | `Yes -> true
+                           | `No _ | `Unknown -> false)
+                  in
+                  let expr = { expr with pexp_desc = Pexp_ident { txt = var'; loc } } in
+                  match !failed with
+                  | None -> expr
+                  | Some id ->
+                      Ast_helper.Exp.sequence ~loc:expr.pexp_loc
+                        (Ast_helper.Exp.string
+                           ~loc:
+                             { expr.pexp_loc with
+                               loc_start =
+                                 { expr.pexp_loc.loc_start with
+                                   pos_fname = migrate_filename_gen
+                                 }
+                             }
+                           ("MIG: variable " ^ id ^ " is bound to different value"))
+                        expr))
+          | _ -> expr)
+    }
 end

@@ -134,7 +134,8 @@ module Requalify : sig
   val idents_of_path : Uast.Path.t -> Fmast.Longident.t list
 
   val requalify :
-       (Uast.Path.t * 'a) Uast.ns
+       ?fail:(string -> unit)
+    -> (Uast.Path.t * 'a) Uast.ns
     -> Uast.env
     -> Uast.env
     -> Fmast.Longident.t
@@ -156,4 +157,8 @@ module Requalify : sig
       that identifier that points to the same value. Concretely, this consults any open in
       the environment, and tries to chop any opened module from the identifier. We could
       also consult aliases like [module H = Hashtbl], but we don't. *)
+
+  val requalify_deeply :
+       (P.expression -> (Uast.env * Uast.env * Uast.env) option)
+    -> Ocamlformat_parser_extended.Ast_mapper.mapper
 end
