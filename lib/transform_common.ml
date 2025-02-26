@@ -280,8 +280,23 @@ let drop_concrete_syntax_constructs =
         | [], Pfunction_body _ -> binding
         | (_ :: _ as params), body | params, (Pfunction_cases _ as body) ->
             let body =
-              let loc = binding.pvb_loc in
-              Ast_helper.Exp.function_ ~loc params
+              let body_start, body_end =
+                match body with
+                | Pfunction_body e -> (e.pexp_loc.loc_start, e.pexp_loc.loc_end)
+                | Pfunction_cases (_, loc, _) -> (loc.loc_start, loc.loc_end)
+              in
+              Ast_helper.Exp.function_
+                ~loc:
+                  (* same position as the upstream parser, so this node can be
+                  successfully looked up in the type_index. *)
+                  { loc_ghost = true
+                  ; loc_start =
+                      (match List.hd params with
+                      | None -> body_start
+                      | Some param -> param.pparam_loc.loc_start)
+                  ; loc_end = body_end
+                  }
+                params
                 (Option.map binding.pvb_constraint
                    ~f:Fmast.type_constraint_of_value_constraint)
                 body
