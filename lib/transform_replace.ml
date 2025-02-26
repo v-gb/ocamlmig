@@ -580,7 +580,6 @@ let subst meth v ~env =
                   { expr with pexp_desc = Pexp_apply (f', args') }
               | _ -> super.expr self expr
             in
-            let expr = super.expr self expr in
             match expr.pexp_desc with
             | Pexp_record (fields, init)
               when not (Attr.exists expr.pexp_attributes (Attr.reorder `Internal)) ->
