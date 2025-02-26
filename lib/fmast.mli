@@ -131,6 +131,14 @@ module Ast_helper : sig
     val string : ?loc:loc -> ?quotation_delimiter:string -> string -> P.expression
     val int : ?loc:loc -> ?suffix:char -> int -> P.expression
   end
+
+  module Attr : sig
+    include module type of struct
+      include Ast_helper.Attr
+    end
+
+    val exp : ?loc:loc -> string -> P.expression -> P.attribute
+  end
 end
 
 type function_arg = Asttypes.arg_label * Parsetree.expression

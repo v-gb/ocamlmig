@@ -232,6 +232,13 @@ module Ast_helper = struct
     let unit ?(loc = !default_loc) () =
       construct ~loc (located ~loc (Longident.Lident "()")) None
   end
+
+  module Attr = struct
+    include Attr
+
+    let exp ?(loc = !default_loc) name e =
+      Ast_helper.Attr.mk (located ~loc name) (PStr [ Str.eval ~loc e ])
+  end
 end
 
 type function_arg = Asttypes.arg_label * Parsetree.expression
