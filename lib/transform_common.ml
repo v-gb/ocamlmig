@@ -263,7 +263,6 @@ let drop_concrete_syntax_constructs =
             in
             { expr with pexp_desc = Pexp_apply (fun_, [ (Nolabel, e1); (Nolabel, e2) ]) }
         | Pexp_open (modname, e) ->
-            (* print_s [%sexp ~~(modname.txt : Longident.t), ~~(modname.loc : Location.t)]; *)
             { expr with
               pexp_desc =
                 Pexp_letopen
