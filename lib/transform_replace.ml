@@ -408,6 +408,14 @@ and match_pat ~ctx1 (p : Uast.Parsetree.pattern) =
   match p.ppat_desc with
   | Ppat_var v_motif when String.is_prefix v_motif.txt ~prefix:"__" ->
       match_var v_motif.txt (fun p -> Pat p)
+  | Ppat_construct (id_motif, ((None | Some ([], _)) as motif_opt)) -> (
+      let sopt = match_option (match_pat ~ctx1) (Option.map ~f:snd motif_opt) in
+      fun pat ~env ~ctx ->
+        match pat.ppat_desc with
+        | Ppat_construct (id, ((None | Some ([], _)) as popt)) ->
+            Fmast.Longident.compare id.txt (Conv.longident id_motif.txt) = 0
+            && sopt (Option.map ~f:snd popt) ~env ~ctx
+        | _ -> false)
   | Ppat_variant (v, p2) -> (
       let s_label =
         if String.is_suffix v ~suffix:"__"
