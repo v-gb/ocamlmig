@@ -28,12 +28,10 @@ let map_ref_find_and_remove map key =
       opt
 
 let uid_of_var_binding ~index (binding : P.value_binding) =
-  match binding.pvb_pat.ppat_desc with
-  | Ppat_var _ -> (
+  match binding.pvb_pat with
+  | { ppat_desc = Ppat_var _; _ } -> (
       match Build.Type_index.pat index (Conv.location' binding.pvb_pat.ppat_loc) with
-      | [] ->
-          if !log then print_s [%sexp "no type"];
-          None
+      | [] -> None
       | T tpat :: _ -> (
           match tpat.pat_desc with Tpat_var (_, _, uid) -> Some uid | _ -> None))
   | _ -> None
@@ -54,6 +52,8 @@ let locate_def ~index structure uid =
         }
       in
       ignore (self.structure self structure);
+      if !log || debug.all
+      then print_s [%sexp "couldn't locate def for", (uid : Uast.Shape.Uid.t)];
       None)
 
 let drop_defs ~type_index file_type structure uids =
@@ -168,18 +168,18 @@ let rec match_ ~ctx1 (motif : Uast.Parsetree.expression) : stage2 =
       fun expr ~env ~ctx ->
         match Lazy.force ctx.type_index with
         | None ->
-            if !log then print_s [%sexp "missing type index"];
+            if !log || debug.all then print_s [%sexp "missing type index"];
             false
         | Some index -> (
             match Build.Type_index.exp index (Conv.location' expr.pexp_loc) with
             | [] ->
-                if !log then print_s [%sexp "no type"];
+                if !log || debug.all then print_s [%sexp "pexp_constraint", "no type"];
                 false
             | texpr :: _ ->
                 (let does_match =
                    Uast.match_typ ~env:texpr.exp_env texpr.exp_type ~user_type
                  in
-                 if !log
+                 if !log || debug.all
                  then
                    print_s
                      [%sexp
@@ -209,12 +209,12 @@ let rec match_ ~ctx1 (motif : Uast.Parsetree.expression) : stage2 =
         | Pexp_ident _ -> (
             match Lazy.force ctx.type_index with
             | None ->
-                if !log then print_s [%sexp "missing type index"];
+                if !log || debug.all then print_s [%sexp "missing type index"];
                 false
             | Some index -> (
                 match Build.Type_index.exp index (Conv.location' expr.pexp_loc) with
                 | [] ->
-                    if !log then print_s [%sexp "no type"];
+                    if !log || debug.all then print_s [%sexp "id motif", "no type"];
                     false
                 | texpr :: _ -> (
                     match texpr.exp_desc with
@@ -308,14 +308,15 @@ let rec match_ ~ctx1 (motif : Uast.Parsetree.expression) : stage2 =
                 | Pexp_ident { txt = Lident _; _ } -> (
                     match Lazy.force ctx.type_index with
                     | None ->
-                        if !log then print_s [%sexp "missing type index"];
+                        if !log || debug.all then print_s [%sexp "missing type index"];
                         false
                     | Some index -> (
                         match
                           Build.Type_index.exp index (Conv.location' expr.pexp_loc)
                         with
                         | [] ->
-                            if !log then print_s [%sexp "no type"];
+                            if !log || debug.all
+                            then print_s [%sexp (expr : expression), "no type"];
                             false
                         | texpr :: _ -> (
                             match texpr.exp_desc with
@@ -868,22 +869,22 @@ let run ~(listing : Build.Listing.t) motif_and_repls () =
                         changed_something := true;
                         bop)
               ; expr =
-                  (fun self expr ->
-                    let expr = super.expr self expr in
-                    match
-                      List.find_map stage2_and_repls ~f:(function
-                        | `Expr (stage2, repl) ->
-                            replace
-                              ( __.expr
-                              , preserve_loc_to_preserve_comment_pos_expr ~from:expr )
-                              expr ~whole_ast ~type_index ~stage2 ~repl
-                        | _ -> None)
-                    with
-                    | None -> expr
-                    | Some (expr, nodes_to_remove) ->
-                        Queue.enqueue_all all_nodes_to_remove nodes_to_remove;
-                        changed_something := true;
-                        expr)
+                  with_log (fun self expr ->
+                      let expr = super.expr self expr in
+                      match
+                        List.find_map stage2_and_repls ~f:(function
+                          | `Expr (stage2, repl) ->
+                              replace
+                                ( __.expr
+                                , preserve_loc_to_preserve_comment_pos_expr ~from:expr )
+                                expr ~whole_ast ~type_index ~stage2 ~repl
+                          | _ -> None)
+                      with
+                      | None -> expr
+                      | Some (expr, nodes_to_remove) ->
+                          Queue.enqueue_all all_nodes_to_remove nodes_to_remove;
+                          changed_something := true;
+                          expr)
               ; structure_item =
                   update_migrate_test_payload
                     ~match_attr:(__ =: "migrate_test.replace")
