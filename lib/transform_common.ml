@@ -376,12 +376,16 @@ let undrop_concrete_syntax_constructs =
   ; value_binding =
       (fun self binding ->
         let binding = super.value_binding self binding in
-        match (binding.pvb_args, binding.pvb_body, binding.pvb_constraint) with
-        | ( []
-          , Pfunction_body
-              ({ pexp_desc = Pexp_function (params, constraint_, inner_body); _ } as
-               outer_body)
-          , None )
+        match binding with
+        | { pvb_pat = { ppat_desc = Ppat_var _; _ }
+          ; pvb_args = []
+          ; pvb_constraint = None
+          ; pvb_body =
+              Pfunction_body
+                ({ pexp_desc = Pexp_function (params, constraint_, inner_body); _ } as
+                 outer_body)
+          ; _
+          }
           when Sattr.exists Sattr.pun outer_body.pexp_attributes
                || Sattr.exists Sattr.touched outer_body.pexp_attributes
                || is_migrate_filename outer_body.pexp_loc
