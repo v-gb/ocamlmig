@@ -329,6 +329,18 @@ module Node = struct
         , Typedtree.class_expr )
         t
     | Ctyp : ([> `Ctyp ], class_type, Parsetree.class_type_desc, Typedtree.class_type) t
+    | Value_binding : ([> `Value_binding ], Parsetree.value_binding, unit, unit) t
+    | Binding_op : ([> `Binding_op ], Parsetree.binding_op, unit, unit) t
+
+  type desc =
+    [ `Exp
+    | `Pat
+    | `Typ
+    | `Mexp
+    | `Mtyp
+    | `Cexp
+    | `Ctyp
+    ]
 
   let loc (type w a b e) (t : (w, a, b, e) t) (v : a) =
     match t with
@@ -339,6 +351,8 @@ module Node = struct
     | Mtyp -> v.pmty_loc
     | Cexp -> v.pcl_loc
     | Ctyp -> v.pcty_loc
+    | Value_binding -> v.pvb_loc
+    | Binding_op -> v.pbop_loc
 
   let attributes (type w a b e) (t : (w, a, b, e) t) (v : a) =
     match t with
@@ -349,8 +363,10 @@ module Node = struct
     | Mtyp -> v.pmty_attributes
     | Cexp -> v.pcl_attributes
     | Ctyp -> v.pcty_attributes
+    | Value_binding -> v.pvb_attributes.attrs_before @ v.pvb_attributes.attrs_after
+    | Binding_op -> []
 
-  let desc (type w a b e) (t : (w, a, b, e) t) (v : a) : b =
+  let desc (type a b e) (t : (desc, a, b, e) t) (v : a) : b =
     match t with
     | Exp -> v.pexp_desc
     | Pat -> v.ppat_desc
@@ -360,7 +376,7 @@ module Node = struct
     | Cexp -> v.pcl_desc
     | Ctyp -> v.pcty_desc
 
-  let update (type w a b e) ?(desc : b option) ?attributes (t : (w, a, b, e) t) (v : a) :
+  let update (type a b e) ?(desc : b option) ?attributes (t : (desc, a, b, e) t) (v : a) :
       a =
     match t with
     | Exp ->
@@ -398,6 +414,21 @@ module Node = struct
           pcty_desc = Option.value desc ~default:v.pcty_desc
         ; pcty_attributes = Option.value attributes ~default:v.pcty_attributes
         }
+
+  let meth (type w a b e) (t : (w, a, b, e) t) (mapper : Ast_mapper.mapper) :
+      Ast_mapper.mapper -> a -> a =
+    match t with
+    | Exp -> mapper.expr
+    | Pat -> mapper.pat
+    | Typ -> mapper.typ
+    | Mexp -> mapper.module_expr
+    | Mtyp -> mapper.module_type
+    | Cexp -> mapper.class_expr
+    | Ctyp -> mapper.class_type
+    | Value_binding -> mapper.value_binding
+    | Binding_op -> mapper.binding_op
+
+  let map t mapper v = (meth t mapper) mapper v
 end
 
 module Flat_longident = struct

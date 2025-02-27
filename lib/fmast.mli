@@ -197,13 +197,30 @@ module Node : sig
         , Typedtree.class_expr )
         t
     | Ctyp : ([> `Ctyp ], class_type, Parsetree.class_type_desc, Typedtree.class_type) t
+    | Value_binding : ([> `Value_binding ], Parsetree.value_binding, unit, unit) t
+    | Binding_op : ([> `Binding_op ], Parsetree.binding_op, unit, unit) t
+
+  type desc =
+    [ `Exp
+    | `Pat
+    | `Typ
+    | `Mexp
+    | `Mtyp
+    | `Cexp
+    | `Ctyp
+    ]
 
   val loc : (_, 'a, _, _) t -> 'a -> Location.t
   val attributes : (_, 'a, _, _) t -> 'a -> Parsetree.attributes
-  val desc : (_, 'a, 'desc, _) t -> 'a -> 'desc
+  val desc : (desc, 'a, 'desc, _) t -> 'a -> 'desc
 
   val update :
-    ?desc:'desc -> ?attributes:Parsetree.attributes -> (_, 'a, 'desc, _) t -> 'a -> 'a
+    ?desc:'desc -> ?attributes:Parsetree.attributes -> (desc, 'a, 'desc, _) t -> 'a -> 'a
+
+  val meth :
+    (_, 'node, _, _) t -> Ast_mapper.mapper -> Ast_mapper.mapper -> 'node -> 'node
+
+  val map : (_, 'node, _, _) t -> Ast_mapper.mapper -> 'node -> 'node
 end
 
 module Flat_longident : sig

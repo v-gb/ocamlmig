@@ -505,113 +505,116 @@ and match_structure_item ~loc ~ctx1 (motif : Uast.Parsetree.structure_item) =
         match s.pstr_desc with Pstr_eval (e, _) -> s1 e ~env ~ctx | _ -> false)
   | _ -> unsupported_motif loc
 
-let subst meth v ~env =
+let subst ~env =
   let super = Ast_mapper.default_mapper in
-  let self =
-    { super with
-      typ =
-        (fun self ty ->
-          let ty = super.typ self ty in
-          match ty.ptyp_desc with
-          | Ptyp_constr ({ txt = Lident v; _ }, []) when Map.mem env v -> (
-              match Map.find_exn env v with
-              | Typ ty -> ty
-              | Fields _ | Expr _ | Variant _ | Args _ | Pat _ ->
-                  Location.raise_errorf ~loc:ty.ptyp_loc
-                    "motif %s can't be inserted in a type" v)
-          | _ -> ty)
-    ; pat =
-        (fun self pat ->
-          let pat = super.pat self pat in
-          match pat.ppat_desc with
-          | Ppat_var { txt = var; _ } when Map.mem env var -> (
-              match Map.find_exn env var with
-              | Pat p -> p
-              | Fields _ | Expr _ | Variant _ | Args _ | Typ _ ->
-                  Location.raise_errorf ~loc:pat.ppat_loc
-                    "motif %s can't be inserted in a pattern" var)
-          | Ppat_variant (var, p2) when Map.mem env var.txt.txt -> (
-              match Map.find_exn env var.txt.txt with
-              | Variant var' ->
-                  { pat with
-                    ppat_desc =
-                      Ppat_variant ({ var with txt = { var.txt with txt = var' } }, p2)
-                  }
-              | Fields _ | Expr _ | Pat _ | Args _ | Typ _ ->
-                  Location.raise_errorf ~loc:pat.ppat_loc
-                    "motif %s can't be inserted in a pattern" var.txt.txt)
-          | _ -> pat)
-    ; expr =
-        with_log (fun self expr ->
-            let expr =
-              match expr.pexp_desc with
-              | Pexp_record (fields, init) ->
-                  let fields' =
-                    List.concat_map fields ~f:(fun ((id, typopt, value) as field) ->
-                        match etc_field field with
-                        | Some v -> (
-                            match Map.find_exn env v with
-                            | Expr _ | Args _ | Pat _ | Typ _ | Variant _ ->
-                                Location.raise_errorf ~loc:id.loc "hm, what"
-                            | Fields fs -> fs)
-                        | None ->
-                            [ ( id
-                              , typopt
-                                (* should map over the type constraint here, or perhaps
-                                 normalize this construction away *)
-                              , Option.map ~f:(self.expr self) value )
-                            ])
-                  in
-                  let init' = Option.map ~f:(self.expr self) init in
-                  { expr with pexp_desc = Pexp_record (fields', init') }
-              | Pexp_apply (f, args) when Option.is_some (List.find_map args ~f:etc_arg)
-                ->
-                  let f' = self.expr self f in
-                  let args' =
-                    List.concat_map args ~f:(fun (arg_label, arg) ->
-                        match etc_arg (arg_label, arg) with
-                        | Some v -> (
-                            match Map.find_exn env v with
-                            | Expr _ | Fields _ | Pat _ | Typ _ | Variant _ ->
-                                Location.raise_errorf ~loc:arg.pexp_loc "hm, what"
-                            | Args args -> args)
-                        | None -> [ (arg_label, self.expr self arg) ])
-                  in
-                  { expr with pexp_desc = Pexp_apply (f', args') }
-              | _ -> super.expr self expr
-            in
+  { super with
+    typ =
+      (fun self ty ->
+        let ty = super.typ self ty in
+        match ty.ptyp_desc with
+        | Ptyp_constr ({ txt = Lident v; _ }, []) when Map.mem env v -> (
+            match Map.find_exn env v with
+            | Typ ty -> ty
+            | Fields _ | Expr _ | Variant _ | Args _ | Pat _ ->
+                Location.raise_errorf ~loc:ty.ptyp_loc
+                  "motif %s can't be inserted in a type" v)
+        | _ -> ty)
+  ; pat =
+      (fun self pat ->
+        let pat = super.pat self pat in
+        match pat.ppat_desc with
+        | Ppat_var { txt = var; _ } when Map.mem env var -> (
+            match Map.find_exn env var with
+            | Pat p -> p
+            | Fields _ | Expr _ | Variant _ | Args _ | Typ _ ->
+                Location.raise_errorf ~loc:pat.ppat_loc
+                  "motif %s can't be inserted in a pattern" var)
+        | Ppat_variant (var, p2) when Map.mem env var.txt.txt -> (
+            match Map.find_exn env var.txt.txt with
+            | Variant var' ->
+                { pat with
+                  ppat_desc =
+                    Ppat_variant ({ var with txt = { var.txt with txt = var' } }, p2)
+                }
+            | Fields _ | Expr _ | Pat _ | Args _ | Typ _ ->
+                Location.raise_errorf ~loc:pat.ppat_loc
+                  "motif %s can't be inserted in a pattern" var.txt.txt)
+        | _ -> pat)
+  ; expr =
+      with_log (fun self expr ->
+          let expr =
             match expr.pexp_desc with
-            | Pexp_record (fields, init)
-              when not (Attr.exists expr.pexp_attributes (Attr.reorder `Internal)) ->
+            | Pexp_record (fields, init) ->
                 let fields' =
-                  fields
-                  |> List.map ~f:(fun (id, typopt, eopt) ->
-                         ((id, typopt), Option.value_exn eopt))
-                  |> Transform_migration.commute_list (fun _ _ -> true)
-                  |> List.map ~f:(fun ((id, typopt), e) -> (id, typopt, Some e))
+                  List.concat_map fields ~f:(fun ((id, typopt, value) as field) ->
+                      match etc_field field with
+                      | Some v -> (
+                          match Map.find_exn env v with
+                          | Expr _ | Args _ | Pat _ | Typ _ | Variant _ ->
+                              Location.raise_errorf ~loc:id.loc "hm, what"
+                          | Fields fs -> fs)
+                      | None ->
+                          [ ( id
+                            , typopt
+                              (* should map over the type constraint here, or perhaps
+                                 normalize this construction away *)
+                            , Option.map ~f:(self.expr self) value )
+                          ])
                 in
-                { expr with pexp_desc = Pexp_record (fields', init) }
-            | Pexp_apply (f, args)
-              when not (Attr.exists expr.pexp_attributes (Attr.reorder `Internal)) ->
-                let args' = Transform_migration.commute_args args in
-                { expr with pexp_desc = Pexp_apply (f, args') }
-            | Pexp_ident { txt = Lident var; _ } when Map.mem env var -> (
-                match Map.find_exn env var with
-                | Expr e -> e
-                | Fields _ | Pat _ | Typ _ | Args _ | Variant _ ->
-                    Location.raise_errorf ~loc:expr.pexp_loc
-                      "motif %s cannot be inserted into an expression" var)
-            | _ -> expr)
-    }
-  in
-  (meth self) self v
+                let init' = Option.map ~f:(self.expr self) init in
+                { expr with pexp_desc = Pexp_record (fields', init') }
+            | Pexp_apply (f, args) when Option.is_some (List.find_map args ~f:etc_arg) ->
+                let f' = self.expr self f in
+                let args' =
+                  List.concat_map args ~f:(fun (arg_label, arg) ->
+                      match etc_arg (arg_label, arg) with
+                      | Some v -> (
+                          match Map.find_exn env v with
+                          | Expr _ | Fields _ | Pat _ | Typ _ | Variant _ ->
+                              Location.raise_errorf ~loc:arg.pexp_loc "hm, what"
+                          | Args args -> args)
+                      | None -> [ (arg_label, self.expr self arg) ])
+                in
+                { expr with pexp_desc = Pexp_apply (f', args') }
+            | _ -> super.expr self expr
+          in
+          match expr.pexp_desc with
+          | Pexp_record (fields, init)
+            when not (Attr.exists expr.pexp_attributes (Attr.reorder `Internal)) ->
+              let fields' =
+                fields
+                |> List.map ~f:(fun (id, typopt, eopt) ->
+                       ((id, typopt), Option.value_exn eopt))
+                |> Transform_migration.commute_list (fun _ _ -> true)
+                |> List.map ~f:(fun ((id, typopt), e) -> (id, typopt, Some e))
+              in
+              { expr with pexp_desc = Pexp_record (fields', init) }
+          | Pexp_apply (f, args)
+            when not (Attr.exists expr.pexp_attributes (Attr.reorder `Internal)) ->
+              let args' = Transform_migration.commute_args args in
+              { expr with pexp_desc = Pexp_apply (f, args') }
+          | Pexp_ident { txt = Lident var; _ } when Map.mem env var -> (
+              match Map.find_exn env var with
+              | Expr e -> e
+              | Fields _ | Pat _ | Typ _ | Args _ | Variant _ ->
+                  Location.raise_errorf ~loc:expr.pexp_loc
+                    "motif %s cannot be inserted into an expression" var)
+          | _ -> expr)
+  }
 
-let replace (meth, preserve_loc) expr ~whole_ast ~type_index ~stage2 ~repl =
+let replace (type a b e) ((vnode : (_, a, b, e) Fmast.Node.t), (v : a)) ~whole_ast
+    ~type_index ~stage2 ~(repl : a) =
   let env = ref { bindings = Map.empty (module String); nodes_to_remove = [] } in
-  if stage2 expr ~env ~ctx:{ type_index; whole_ast }
+  if stage2 v ~env ~ctx:{ type_index; whole_ast }
   then
-    let repl = preserve_loc repl in
-    Some (subst meth repl ~env:!env.bindings, !env.nodes_to_remove)
+    let repl : a =
+      match vnode with
+      | Exp -> preserve_loc_to_preserve_comment_pos_expr ~from:v repl
+      | _ ->
+          preserve_loc_to_preserve_comment_pos (Fmast.Node.meth vnode)
+            ~from:(Fmast.Node.loc vnode v) repl
+    in
+    Some (Fmast.Node.map vnode (subst ~env:!env.bindings) repl, !env.nodes_to_remove)
   else None
 
 let rec match_type ~ctx1 (t : Uast.Parsetree.core_type) =
@@ -806,11 +809,7 @@ let run ~(listing : Build.Listing.t) motif_and_repls () =
                     match
                       List.find_map stage2_and_repls ~f:(function
                         | `Type (stage2, repl) ->
-                            replace
-                              ( __.typ
-                              , preserve_loc_to_preserve_comment_pos __.typ
-                                  ~from:ty.ptyp_loc )
-                              ty ~whole_ast ~type_index ~stage2 ~repl
+                            replace (Typ, ty) ~whole_ast ~type_index ~stage2 ~repl
                         | _ -> None)
                     with
                     | None -> ty
@@ -835,11 +834,8 @@ let run ~(listing : Build.Listing.t) motif_and_repls () =
                     match
                       List.find_map stage2_and_repls ~f:(function
                         | `Binding (stage2, repl) ->
-                            replace
-                              ( __.value_binding
-                              , preserve_loc_to_preserve_comment_pos __.value_binding
-                                  ~from:vb.pvb_loc )
-                              vb ~whole_ast ~type_index ~stage2 ~repl
+                            replace (Value_binding, vb) ~whole_ast ~type_index ~stage2
+                              ~repl
                         | _ -> None)
                     with
                     | None -> vb
@@ -863,11 +859,7 @@ let run ~(listing : Build.Listing.t) motif_and_repls () =
                                   }
                               }
                             in
-                            replace
-                              ( __.binding_op
-                              , preserve_loc_to_preserve_comment_pos __.binding_op
-                                  ~from:bop.pbop_loc )
-                              bop ~whole_ast ~type_index ~stage2 ~repl
+                            replace (Binding_op, bop) ~whole_ast ~type_index ~stage2 ~repl
                         | _ -> None)
                     with
                     | None -> bop
@@ -881,10 +873,7 @@ let run ~(listing : Build.Listing.t) motif_and_repls () =
                       match
                         List.find_map stage2_and_repls ~f:(function
                           | `Expr (stage2, repl) ->
-                              replace
-                                ( __.expr
-                                , preserve_loc_to_preserve_comment_pos_expr ~from:expr )
-                                expr ~whole_ast ~type_index ~stage2 ~repl
+                              replace (Exp, expr) ~whole_ast ~type_index ~stage2 ~repl
                           | _ -> None)
                       with
                       | None -> expr
