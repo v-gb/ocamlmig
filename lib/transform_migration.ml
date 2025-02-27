@@ -2056,18 +2056,7 @@ let requalify ((expr : P.expression), expr_type_index) new_base_env =
   | [] -> expr
   | texp :: _ ->
       let rebased_env =
-        let base_env = Env.summary texp.exp_env in
-        let n_to_chop = Uast.Env_summary.length base_env in
-        fun (env : Env.t) ->
-          Env.env_of_only_summary
-            (fun sum subst ->
-              let sum =
-                Uast.Env_summary.at_exn sum
-                  (Uast.Env_summary.length sum - n_to_chop)
-                  (fun _ -> Env.summary new_base_env)
-              in
-              Envaux.env_from_summary sum subst)
-            env
+        Uast.Env_summary.rebase' ~old_base:texp.exp_env ~new_base:new_base_env |> __.next
       in
       let self =
         let super = Ast_mapper.default_mapper in

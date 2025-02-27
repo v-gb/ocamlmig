@@ -14,6 +14,7 @@
     rather than merely tweaking the string of the source files. *)
 
 open Base
+open Common
 module Format = Stdlib.Format
 module Asttypes = Asttypes
 module Parsetree = Parsetree
@@ -177,6 +178,8 @@ module Env_summary : sig
   val set_exn : t -> next:t -> t
   val length : t -> int
   val at_exn : t -> int -> (t -> t) -> t
+  val rebase : old_base:t -> new_base:t -> (t -> t) staged
+  val rebase' : old_base:Env.t -> new_base:Env.t -> (Env.t -> Env.t) staged
 end
 
 type env = Env.t [@@deriving sexp_of]

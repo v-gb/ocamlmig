@@ -16,6 +16,8 @@ let transient_line str = Printf.eprintf "%s%!\r[K" str
 let flush_transient () = Stdio.Out_channel.flush stderr
 let in_test = Option.is_some (Base.Sys.getenv "OCAMLMIG_TEST")
 
+type 'a staged = { next : 'a } [@@unboxed]
+
 type debug =
   { all : bool
   ; build_artifacts : bool

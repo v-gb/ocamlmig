@@ -388,6 +388,21 @@ module Env_summary = struct
 
   let rec at_exn t i f =
     if i <= 0 then f t else set_exn t ~next:(at_exn (next_exn t) (i - 1) f)
+
+  let rebase ~old_base ~new_base =
+    let len_old_base = length old_base in
+    { next = (fun old -> at_exn old (length old - len_old_base) (fun _ -> new_base)) }
+
+  let rebase' ~old_base ~new_base =
+    let { next } =
+      rebase ~old_base:(Env.summary old_base) ~new_base:(Env.summary new_base)
+    in
+    { next =
+        (fun old ->
+          Env.env_of_only_summary
+            (fun old subst -> Envaux.env_from_summary (next old) subst)
+            old)
+    }
 end
 
 type env = Env.t
