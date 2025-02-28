@@ -65,6 +65,17 @@ module _ = struct
     module T2 = struct
       let _ = fun () -> 1
     end]
+
+  (* Nested [%move_defs] don't work. *)
+  module T3 = struct
+    let def = 1
+    let def2 = def
+    let _ = def2
+  end
+  [@@migrate_test.replace
+    module T3 = struct
+      let _ = def
+    end]
 end
 
 (* Replace List.mapi by List.map to observe that the comment is moved. I suspect the

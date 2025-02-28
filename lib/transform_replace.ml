@@ -6,18 +6,25 @@ open Ocamlformat_parser_extended
 module P = Parsetree
 open! Fmast
 
-(* Possible design:
-   - unclear if pexp_ident sould match the value rather than syntactically.
-     Maybe have some mechanism for a syntactic match. Maybe [%exact foo]?
-   - maybe it should be possible to replace in context, which in particular
-     enables multiple replaces
+(* Thoughts about the design:
+   - not clear if identifiers should be matched syntactically or by val_uid.
+     Currently they are matched syntactically by default, or by uid when
+     written as [%id Foo.x]
+   - Rewriting would be more powerful if the "///" could be nested, such
+     that we could rewrite under context:
      f (motif1 /// repl1) (motif2 /// repl2)
-     That could be useful for changing a definition and a caller
-     at once
-   - it might be useful to match non-syntactic properties of the code like
-     "cannot raise" or "duplicatable", such that you can say things like
-     (try Some (Sys.getenv (__var & [%noraise])) with Not_found -> None) /// Sys.getenv_opt __var
-   - unclear how to match on different ast fragments.
+     That could be useful for changing a definition and a caller at once:
+     [%def fun ?f __etc -> __body /// fun __etc -> __body] ~f:[%absent] __etc
+   - maybe it should be possible to express more indirect rewriting rules.
+     Say (fun a -> try Some (Sys.getenv a) with Not_found -> None) /// Sys.getenv_opt
+     The advantage, compared to an hypothetical explicit version like
+     (try Some (Sys.getenv (__var & [%noraise])) with Not_found -> None)
+     is that the burden on ocamlmig to figure out under what constraints is the
+     rewrite rule correct, and the user doesn't need to learn the syntax to express
+     such conditions.
+   - Maybe we should provide a way to upgrade an input to this module
+     into an ocaml program that calls ocamlmig as a library, to help people upgrade
+     to a real language when a rewriting gets complicated.
 *)
 
 let map_ref_find_and_remove map key =
@@ -311,6 +318,13 @@ let rec match_ ~ctx1 (motif : Uast.Parsetree.expression) : stage2 =
       match motif_name.txt with
       | "move_def" -> (
           fun expr ~env ~ctx ->
+            (* The use of whole_ast is problematic because if the fraction of ast we're
+             getting from whole_ast has been modified by the current transform (for
+             instance, by a match of [%move_def] inside it), we're losing these
+             modifications (except definition deletions, in the case of [%move_def]).
+             Ideally, we'd refrain from performing these kind of nested rewrites.  This
+             is unlike what happens without [%move_def], which motifs match on the AST
+             being rewritten. *)
             match ctx.whole_ast with
             | None -> false
             | Some whole_ast -> (

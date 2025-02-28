@@ -17,7 +17,7 @@ ocamlmig replace \
          -e "List.filter_map ~f:__f __l /// List.filter_map' __l ~f:__f [@reorder]" \
          -e 'List.memq __etc /// List.mem ~eq:Stdlib.(==) __etc' \
          -e '{ field1 = __field1; __etc } /// { __etc; field3 = __field1 }' \
-         -e '(def & [%move_def __def]) /// __def' \
+         -e '((def or def2) & [%move_def __def]) /// __def' \
          *.ml "$@"
 
 (
