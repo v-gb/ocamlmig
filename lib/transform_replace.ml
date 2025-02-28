@@ -795,11 +795,14 @@ let run ~(listing : Build.Listing.t) motif_and_repls () =
       then force input_name_matching_compilation_command
       else None
     in
-    let all_nodes_to_remove = Queue.create () in
     process_file ~fmconf ~source_path ~input_name_matching_compilation_command
       { f =
-          (fun changed_something file_type structure ->
-            let whole_ast = File_type.structure file_type structure in
+          (fun (type a) changed_something file_type (structure : a) ->
+            let should_act_in_test = ref false in
+            let whole_ast =
+              ref (if in_test then None else File_type.structure file_type structure)
+            in
+            let all_nodes_to_remove = Queue.create () in
             let super = Ast_mapper.default_mapper in
             let self =
               { super with
@@ -809,7 +812,8 @@ let run ~(listing : Build.Listing.t) motif_and_repls () =
                     match
                       List.find_map stage2_and_repls ~f:(function
                         | `Type (stage2, repl) ->
-                            replace (Typ, ty) ~whole_ast ~type_index ~stage2 ~repl
+                            replace (Typ, ty) ~whole_ast:!whole_ast ~type_index ~stage2
+                              ~repl
                         | _ -> None)
                     with
                     | None -> ty
@@ -834,8 +838,8 @@ let run ~(listing : Build.Listing.t) motif_and_repls () =
                     match
                       List.find_map stage2_and_repls ~f:(function
                         | `Binding (stage2, repl) ->
-                            replace (Value_binding, vb) ~whole_ast ~type_index ~stage2
-                              ~repl
+                            replace (Value_binding, vb) ~whole_ast:!whole_ast ~type_index
+                              ~stage2 ~repl
                         | _ -> None)
                     with
                     | None -> vb
@@ -859,7 +863,8 @@ let run ~(listing : Build.Listing.t) motif_and_repls () =
                                   }
                               }
                             in
-                            replace (Binding_op, bop) ~whole_ast ~type_index ~stage2 ~repl
+                            replace (Binding_op, bop) ~whole_ast:!whole_ast ~type_index
+                              ~stage2 ~repl
                         | _ -> None)
                     with
                     | None -> bop
@@ -873,7 +878,8 @@ let run ~(listing : Build.Listing.t) motif_and_repls () =
                       match
                         List.find_map stage2_and_repls ~f:(function
                           | `Expr (stage2, repl) ->
-                              replace (Exp, expr) ~whole_ast ~type_index ~stage2 ~repl
+                              replace (Exp, expr) ~whole_ast:!whole_ast ~type_index
+                                ~stage2 ~repl
                           | _ -> None)
                       with
                       | None -> expr
@@ -882,9 +888,30 @@ let run ~(listing : Build.Listing.t) motif_and_repls () =
                           changed_something := true;
                           expr)
               ; structure_item =
-                  update_migrate_test_payload
-                    ~match_attr:(__ =: "migrate_test.replace")
-                    super ~changed_something
+                  (let match_attr = __ =: "migrate_test.replace" in
+                   update_migrate_test_payload ~match_attr ~state:should_act_in_test
+                     { super with
+                       structure_item =
+                         (fun self si ->
+                           if !should_act_in_test && Option.is_none !whole_ast
+                           then
+                             (* In scope, narrow the scope of [%move_def] to only
+                                what's under a [@@migrate_test.replace] annotation,
+                                otherwise the changes "leak" out of the
+                                [@@migrate_test.replace] attribute. *)
+                             Ref.set_temporarily whole_ast (Some [ si ]) ~f:(fun () ->
+                                 let si = super.structure_item self si in
+                                 match
+                                   drop_defs Impl ~type_index [ si ]
+                                     (Queue.to_list all_nodes_to_remove)
+                                 with
+                                 | [ si ] ->
+                                     Queue.clear all_nodes_to_remove;
+                                     si
+                                 | _ -> assert false)
+                           else super.structure_item self si)
+                     }
+                     ~changed_something)
               }
             in
             let structure = File_type.map file_type self structure in

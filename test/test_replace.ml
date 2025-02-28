@@ -29,6 +29,38 @@ let _ =
     let field1 = 1 in
     ignore { field3 = field1; field2 = "a" }]
 
+module _ = struct
+  module M = struct
+    let _x = 1
+  end
+
+  open M
+
+  (* [%move_def] handling of scoping changes *)
+  module T1 = struct
+    let _y = 1
+    let def = 1 (* a *) + _x + _y
+    let _x, _y = (2, 2)
+    let _ = def
+  end
+  [@@migrate_test.replace
+    module T1 = struct
+      let _y = 1
+      let _x, _y = (2, 2)
+      let _ = 1 + _x + _y
+    end]
+
+  (* [%move_def] inlining ghost expressions *)
+  module T2 = struct
+    let def () = 1
+    let _ = def
+  end
+  [@@migrate_test.replace
+    module T2 = struct
+      let _ = fun () -> 1
+    end]
+end
+
 (* Replace List.mapi by List.map to observe that the comment is moved. I suspect the
    problem is that as we replace List.map ~f:__f __l by List.map __l ~f:__f, the position
    for the function application is not transferred to the new function application. *)
