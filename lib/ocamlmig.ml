@@ -91,17 +91,23 @@ let diff ?label1 ?label2 src1 src2 =
               in
               if code <> 0 && code <> 1 then failwith "diffing failed")))
 
-let diff_or_write ~original_formatting file_path ~write
+let diff_or_write ~format ~original_formatting file_path ~write
     ((file_contents, file_contents', asts) : Transform_common.result) =
-  let preserve_format = Option.is_some (Sys.getenv_opt "OCAMLMIG_PRESERVE_FORMAT") in
+  let format =
+    Option.value format
+      ~default:
+        (match original_formatting with
+        | Some (`Not_configured _) -> `Preserve
+        | None | Some (`Enabled | `Disabled) -> `Ocamlformat)
+  in
   let debug_diff = (not write) && Option.is_some (Sys.getenv_opt "OCAMLMIG_DEBUG_DIFF") in
   let file_contents' =
-    match asts with
-    | Some (T (ftype, ast1, ast2, fmconf)) when preserve_format ->
+    match (asts, format) with
+    | Some (T (ftype, ast1, ast2, fmconf)), `Preserve ->
         Fmast_diff.print
           ~ocaml_version:(Some (Fmast.ocaml_version' fmconf))
           ~debug_diff ~source_contents:file_contents ftype ast1 ast2.ast
-    | _ -> (
+    | _, `Ocamlformat | None, `Preserve -> (
         match original_formatting with
         | Some (`Enabled | `Disabled) ->
             Dyn_ocamlformat.format ~path:file_path ~contents:(force file_contents')
@@ -115,7 +121,9 @@ let diff_or_write ~original_formatting file_path ~write
     then print_string file_contents'
     else
       let file_contents =
-        if Option.is_some asts && preserve_format
+        if
+          Option.is_some asts
+          && match format with `Preserve -> true | `Ocamlformat -> false
         then file_contents
         else
           match original_formatting with
@@ -241,6 +249,15 @@ let flag_optional_with_default_doc_custom name ~all:all_v ~to_string ~default ~d
          (String.concat ~sep:"|" (List.map ~f:to_string all_v))
          doc (to_string default))
 
+let flag_optional_custom name ~all:all_v ~to_string ~doc =
+  let open Command.Let_syntax.Let_syntax.Open_on_rhs in
+  flag name
+    (optional
+       (Arg_type.of_alist_exn ~list_values_in_help:false
+          (List.map all_v ~f:(fun v -> (to_string v, v)))))
+    ~doc:
+      (Printf.sprintf "%s %s" (String.concat ~sep:"|" (List.map ~f:to_string all_v)) doc)
+
 let ocamlformat_conf_param =
   [%map_open.Command
     let unformatted =
@@ -309,6 +326,15 @@ let write_param =
       "instead of showing the diff of the changes, writing the changes to the source \
        files"
 
+let format_param =
+  flag_optional_custom "-format" ~all:[ `Preserve; `Ocamlformat ]
+    ~to_string:(function `Preserve -> "preserve" | `Ocamlformat -> "ocamlformat")
+    ~doc:
+      "how to print source code. \"ocamlformat\" reformats code. \"preserve\" is an \
+       experimental attempt to reduce reformatting by reusing the initial source code \
+       when it's easy (default: ocamlformat when the repository uses ocamlformat, \
+       otherwise preserve)."
+
 let with_profile f =
   match Sys.getenv_opt "OCAMLMIG_PROFILE" with
   | Some fname -> Profile.with_profile fname f
@@ -344,6 +370,7 @@ let migrate =
       [%map_open.Command
         let source = source_param
         and write = write_param
+        and format = format_param
         and get_ocamlformat_conf = ocamlformat_conf_param
         and extra_migrations_libraries =
           flag "-extra-migrations"
@@ -410,12 +437,13 @@ let migrate =
                                          cmt_infos))
                               |> Option.iter ~f:(fun (contents, { libraries }) ->
                                      Queue.enqueue deps (`Path source_path, libraries);
-                                     diff_or_write ~original_formatting:(Some fm_orig)
-                                       source_path ~write contents)));
+                                     diff_or_write ~format
+                                       ~original_formatting:(Some fm_orig) source_path
+                                       ~write contents)));
                   List.iter
                     (Dune_files.add_dependencies ~dune_root (Queue.to_list deps))
                     ~f:(fun (`Path file_path, before, after) ->
-                      diff_or_write ~original_formatting:None file_path ~write
+                      diff_or_write ~format ~original_formatting:None file_path ~write
                         (before, Lazy.from_val after, None))))] )
 
 type original_formatting =
@@ -442,6 +470,7 @@ let make_transform param =
   [%map_open.Command
     let source = source_param
     and write = write_param
+    and format = format_param
     and get_ocamlformat_conf = ocamlformat_conf_param
     and f = param in
     fun () ->
@@ -467,7 +496,7 @@ let make_transform param =
                   in
                   let diff_or_write ~original_formatting =
                     Option.iter __
-                      ~f:(diff_or_write ~original_formatting source_path ~write)
+                      ~f:(diff_or_write ~format ~original_formatting source_path ~write)
                   in
                   match Build.Listing.locate_cmt listing ~source_path with
                   | Error e ->
@@ -750,6 +779,7 @@ Syntax of the motifs:
                           , (str : string)
                           , "to separate MOTIF and REPL"])))
         and source = source_param
+        and format = format_param
         and write = write_param
         and get_ocamlformat_conf = ocamlformat_conf_param in
         fun () ->
@@ -799,8 +829,9 @@ Syntax of the motifs:
                                        ~f:Build.input_name_matching_compilation_command)))
                           |> Option.iter
                                ~f:
-                                 (diff_or_write ~original_formatting:(Some fm_orig)
-                                    source_path ~write))))] )
+                                 (diff_or_write ~format
+                                    ~original_formatting:(Some fm_orig) source_path ~write))))]
+  )
 
 let internal_dune_config =
   ( "dune-config"

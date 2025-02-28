@@ -221,8 +221,7 @@ everything possible.
 But one could rewrite code in arbitrary ways by using ocamlmig as a library
 instead. Then, only the limitations of the library itself would potentially be
 limiting: it only supports builds that use dune (except for some trivial changes), and
-ocamlformat (though there is experimental functionality to avoid that one), and of
-course the library may be missing functionality (like getting build feedback while
+of course the library may be missing functionality (like getting build feedback while
 rewriting files).
 
 # Using ocamlmig

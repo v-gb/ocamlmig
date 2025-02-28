@@ -7,11 +7,7 @@ To rewrite your code with ocamlmig, you need to:
 
 - build the ocamlmig command line executable
 - use dune to build your own code
-- use ocamlformat. You can try things out without ocamlformat, but all code will be
-  printed back ocamlformatted. ocamlmig needs not be linked with the exact ocamlformat
-  version you use. Or if ocamlformat is really not an option, you could try an
-  experimental printer that reduces (but does not minimize) gratuitous reformatting,
-  with `OCAMLMIG_PRESERVE_FORMAT= ocamlmig ...`.
+- preferably use ocamlformat, though this is not strictly required
 
 You can set up a test repository this way:
 
@@ -73,6 +69,11 @@ If something is not working right, the usual way to debug is by adding a
 `[@migrate.log]` around the expression where you expected a different result, then
 rerunning `ocamlmig migrate`. `[@migrate.log]` should generally wrap as small an
 expression as possible, as the amount of debug output can be overwhelming otherwise.
+
+If your repo isn't configured to use ocamlformat, ocamlmig will print code in a way
+that tries to preserve the initial formatting. This is more experimental, so if you
+observe issues, you may want to try `ocamlmig migrate -format ocamlformat` to see if it
+makes a difference.
 
 ## Builtin transformations
 

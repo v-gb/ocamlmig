@@ -8,7 +8,8 @@
   use-site of `x`, in some case, we now modify `e` to avoid shadowing-related
   issues, and shorten module paths according to the modules opened in that scope.
 - added an experimental printer that ocamlformats only the sections of the code
-  that are modified, instead of the entire file.
+  that are modified, instead of the entire file. It is used by default when a repository
+  does not use ocamlformat.
 - `ocamlmig transform rescope -unopen` now know to rename all kinds of identifiers
   (module identifiers, type constructors, class identifiers, etc), instead of only
   values.
