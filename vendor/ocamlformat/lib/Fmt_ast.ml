@@ -549,6 +549,8 @@ let fmt_docstring_padded c doc =
   fmt_docstring c ~pro:(break c.conf.fmt_opts.doc_comments_padding.v 0) doc
 
 let sequence_blank_line c (l1 : Location.t) (l2 : Location.t) =
+  String.( = ) l1.loc_end.pos_fname l2.loc_start.pos_fname
+  &&
   match c.conf.fmt_opts.sequence_blank_line.v with
   | `Preserve_one ->
       let rec loop prev_pos = function
