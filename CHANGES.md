@@ -1,4 +1,4 @@
-# next
+# 5.2-20250228
 
 - Added support for rewriting .mli files, just not .ml files.
 - First stab at supporting migrating modules: `module Old_name : sig end
@@ -10,9 +10,9 @@
 - added an experimental printer that ocamlformats only the sections of the code
   that are modified, instead of the entire file. It is used by default when a repository
   does not use ocamlformat.
-- `ocamlmig transform rescope -unopen` now know to rename all kinds of identifiers
-  (module identifiers, type constructors, class identifiers, etc), instead of only
-  values.
+- `ocamlmig transform rescope -unopen` now knows to rename identifiers in all
+  namespaces (module identifiers, type constructors, class identifiers, etc), instead of
+  only values.
 
 # 5.2-20250202
 
