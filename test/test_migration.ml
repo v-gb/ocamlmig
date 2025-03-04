@@ -236,7 +236,6 @@ let () =
         let __ (a : 'a) =
           (let (x : 'a) = () in
            x);
-
           a]
       (* QOI. 'a should not escape the code of the inlined code. Even if the original
          code didn't mention 'a, this would be wrong because the simple act of saying
@@ -517,9 +516,10 @@ let () =
         }]
 
       let __ = f None (Some 1) (fun x y -> Some (x + y))
-      [@@migrate_test let __ = let+ x = None and+ y = Some 1 in
-
-                               Some (x + y)]
+      [@@migrate_test
+        let __ =
+          let+ x = None and+ y = Some 1 in
+          Some (x + y)]
 
       (* A more realistic scenario, seems complicated to get good code out of that
          by regular simplification rules. *)
