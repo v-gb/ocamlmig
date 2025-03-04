@@ -30,6 +30,16 @@ let _ =
     ignore { field3 = field1; field2 = "a" }]
 
 module _ = struct
+  (* type coercions *)
+  let coercion = None
+  let _ = coercion [@@migrate_test.replace let _ = coercion]
+  let _ = (coercion : int option) [@@migrate_test.replace let _ = (Some 1 : int option)]
+
+  let _ = (coercion : string option)
+  [@@migrate_test.replace let _ = (coercion : string option)]
+end
+
+module _ = struct
   (* [%move_def] *)
 
   module M = struct
