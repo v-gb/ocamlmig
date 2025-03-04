@@ -114,6 +114,18 @@ type env =
   ; nodes_to_remove : Shape.Uid.t list
   }
 
+let env_pat ~loc env var =
+  match force (Map.find_exn env var) with
+  | Pat v -> v
+  | Expr _ | Fields _ | Typ _ | Args _ | Variant _ ->
+      Location.raise_errorf ~loc "motif %s cannot be inserted into a pattern" var
+
+let env_exp ~loc env var =
+  match force (Map.find_exn env var) with
+  | Expr v -> v
+  | Pat _ | Fields _ | Typ _ | Args _ | Variant _ ->
+      Location.raise_errorf ~loc "motif %s cannot be inserted into an expression" var
+
 type stage2 = Parsetree.expression -> env:env ref -> ctx:ctx -> bool
 
 let match_option match_x x_opt =
@@ -552,12 +564,8 @@ let subst ~env =
       (fun self pat ->
         let pat = super.pat self pat in
         match pat.ppat_desc with
-        | Ppat_var { txt = var; _ } when Map.mem env var -> (
-            match force (Map.find_exn env var) with
-            | Pat p -> p
-            | Fields _ | Expr _ | Variant _ | Args _ | Typ _ ->
-                Location.raise_errorf ~loc:pat.ppat_loc
-                  "motif %s can't be inserted in a pattern" var)
+        | Ppat_var { txt = var; _ } when Map.mem env var ->
+            env_pat ~loc:pat.ppat_loc env var
         | Ppat_variant (var, p2) when Map.mem env var.txt.txt -> (
             match force (Map.find_exn env var.txt.txt) with
             | Variant var' ->
@@ -622,12 +630,8 @@ let subst ~env =
             when not (Attr.exists expr.pexp_attributes (Attr.reorder `Internal)) ->
               let args' = Transform_migration.commute_args args in
               { expr with pexp_desc = Pexp_apply (f, args') }
-          | Pexp_ident { txt = Lident var; _ } when Map.mem env var -> (
-              match force (Map.find_exn env var) with
-              | Expr e -> e
-              | Fields _ | Pat _ | Typ _ | Args _ | Variant _ ->
-                  Location.raise_errorf ~loc:expr.pexp_loc
-                    "motif %s cannot be inserted into an expression" var)
+          | Pexp_ident { txt = Lident var; _ } when Map.mem env var ->
+              env_exp ~loc:expr.pexp_loc env var
           | _ -> expr)
   }
 
