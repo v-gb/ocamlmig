@@ -1230,10 +1230,6 @@ let case_of_case e f =
 let execute_apply ~process_call ~loc (fun_ : P.expression) args =
   if can_simplify fun_.pexp_loc loc then process_call ~apply_loc:loc args fun_ else None
 
-let utype_of_fmtype typ =
-  let str = debug_print Core_type typ in
-  Uast.Parse.core_type (Lexing.from_string str)
-
 let has_context_match : P.expression -> _ = function
   | { pexp_desc = Pexp_function ([], None, Pfunction_cases (case :: _, _, _)); _ } -> (
       match case.pc_lhs with

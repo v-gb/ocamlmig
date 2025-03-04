@@ -712,3 +712,11 @@ module Requalify = struct
           | _ -> expr)
     }
 end
+
+let utype_of_fmtype typ =
+  let str = Fmast.debug_print Core_type typ in
+  Uast.Parse.core_type (Lexing.from_string str)
+
+let uexpr_of_fmexpr typ =
+  let str = Fmast.debug_print Expression typ in
+  Uast.Parse.expression (Lexing.from_string str)

@@ -162,3 +162,6 @@ module Requalify : sig
        (P.expression -> (Uast.env * Uast.env * Uast.env) option)
     -> Ocamlformat_parser_extended.Ast_mapper.mapper
 end
+
+val utype_of_fmtype : Fmast.core_type -> Uast.Parsetree.core_type
+val uexpr_of_fmexpr : Fmast.expression -> Uast.Parsetree.expression
