@@ -193,7 +193,7 @@ ocamlmig should be useful as is, but with presumably a fair amount of rough edge
 
 - [Renaming operators](https://github.com/v-gb/Gillian/commit/e15ac20a5fac0849dae51523d1b73f1612f976e5) (not trivial because the operators change precedence)
 - [Switching code using both Stdlib and Core to mostly Core](https://github.com/v-gb/ortografe/commit/b0b6a0c323edb67c03ae938d122e73b4f6a8affc), using [these attributes](../examples/stdlib_to_base/stdlib_to_base.ml).
-- [Switching code using Cmdliner's `$` to `let+`](https://github.com/tarides/dune-release/pull/503), in three parts: [switch to let+ proper](https://github.com/tarides/dune-release/pull/503/commits/17352d037304fe8df9ada390130d91add9165d49), [removing tags](https://github.com/tarides/dune-release/pull/503/commits/67dbebf9ffed4022debf0482dda7063cd42c68c4), and [inlining flag terms](https://github.com/tarides/dune-release/pull/503/commits/ca2ce09432d7572be45bc8b07491324661bbffc2). ocamlmig also checks that variables in moved code keep pointing to the same value.
+- [Switching code using Cmdliner's `$` to `let+`](https://github.com/tarides/dune-release/pull/503/commits), in three parts: switch to let+ proper (commit 2), removing tags (commit 3), and inlining flag terms (last commit). ocamlmig also checks that variables in moved code keep pointing to the same value.
 
 Aside from making what exists work better (nicer resulting code, more correct code in
 corner cases, better performance, etc), we could imagine improving ocamlmig along a
