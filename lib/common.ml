@@ -27,30 +27,30 @@ type debug =
   }
 
 let debug =
-  let all b =
-    { all = b
-    ; build_artifacts = b
-    ; ocamlformat = b
-    ; extra_migrations = b
-    ; preserve_format_parens = b
+  let all f b =
+    { all = f "all" b
+    ; build_artifacts = f "build_artifacts" b
+    ; ocamlformat = f "ocamlformat" b
+    ; extra_migrations = f "extra_migrations" b
+    ; preserve_format_parens = f "preserve_format_parens" b
     }
   in
-  let no_debug = all false in
+  let l = ref [] in
+  let no_debug =
+    all
+      (fun name b ->
+        l := name :: !l;
+        b)
+      false
+  in
   match Base.Sys.getenv "OCAMLMIG_DEBUG" with
   | None -> no_debug
   | Some "help" ->
-      print_string
-        (String.concat_lines
-           [ "all"
-           ; "build_artifacts"
-           ; "ocamlformat"
-           ; "extra_migrations"
-           ; "preserve_format_parens"
-           ]);
+      print_string (String.concat_lines (List.rev !l));
       Stdlib.exit 0
   | Some str ->
       List.fold_left (String.split str ~on:',') ~init:no_debug ~f:(fun d -> function
-        | "all" -> all true
+        | "all" -> all (fun _ b -> b) true
         | "build_artifacts" -> { d with build_artifacts = true }
         | "ocamlformat" -> { d with ocamlformat = true }
         | "extra_migrations" -> { d with extra_migrations = true }
