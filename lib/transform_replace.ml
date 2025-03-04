@@ -103,28 +103,26 @@ type value =
 type ctx =
   { type_index : Build.Type_index.t option Lazy.t
   ; whole_ast : Parsetree.structure option
+  ; new_base_env : (Build.Type_index.t * Env.t) option Lazy.t
   }
 
-type ctx1 =
-  { need_type_index : bool ref
-  ; inside_move_def : bool
-  }
+type ctx1 = { need_type_index : bool ref }
 
 type env =
-  { bindings : (bool * value) Map.M(String).t
-  ; xbindings : (bool * value) Map.M(String).t
+  { bindings : value Map.M(String).t
+  ; xbindings : value Map.M(String).t
   ; xrest : value option
   ; nodes_to_remove : Shape.Uid.t list
   }
 
 let env_pat ~loc env var =
-  match force (Map.find_exn env var) with
+  match Map.find_exn env var with
   | Pat v -> v
   | Expr _ | Fields _ | Typ _ | Args _ | Variant _ ->
       Location.raise_errorf ~loc "motif %s cannot be inserted into a pattern" var
 
 let env_exp ~loc env var =
-  match force (Map.find_exn env var) with
+  match Map.find_exn env var with
   | Expr v -> v
   | Pat _ | Fields _ | Typ _ | Args _ | Variant _ ->
       Location.raise_errorf ~loc "motif %s cannot be inserted into an expression" var
@@ -157,27 +155,20 @@ let same_value (v1 : value) (v2 : value) =
       n =: n'
   | _ -> false
 
-let match_var_snd_stage ?(x = false) ~env ~inside_move_def v_motif data =
-  match
-    Map.add
-      (if x then !env.xbindings else !env.bindings)
-      ~key:v_motif ~data:(inside_move_def, data)
-  with
+let match_var_snd_stage ?(x = false) ~env v_motif data =
+  match Map.add (if x then !env.xbindings else !env.bindings) ~key:v_motif ~data with
   | `Ok map ->
       env := if x then { !env with xbindings = map } else { !env with bindings = map };
       true
   | `Duplicate -> (
       match Map.find (if x then !env.xbindings else !env.bindings) v_motif with
-      | Some (_, data') when same_value data data' -> true
+      | Some data' when same_value data data' -> true
       | _ -> false)
 
-let match_var ?x ~ctx1 v_motif make_data =
+let match_var ?x v_motif make_data =
   if v_motif =: "__" (* has a dedicated branch to support multiple __ patterns *)
   then fun _ ~env:_ ~ctx:_ -> true
-  else
-    let inside_move_def = ctx1.inside_move_def in
-    fun data ~env ~ctx:_ ->
-      match_var_snd_stage ?x ~env ~inside_move_def v_motif (make_data data)
+  else fun data ~env ~ctx:_ -> match_var_snd_stage ?x ~env v_motif (make_data data)
 
 let etc_field : Longident.t Location.loc * _ option * expression option -> _ = function
   | { txt = Lident v; _ }, None, Some { pexp_desc = Pexp_ident { txt = Lident v'; _ }; _ }
@@ -192,14 +183,12 @@ let etc_arg : function_arg -> _ = function
   | _ -> None
 
 let unsupported_motif loc = Location.raise_errorf ~loc "unsupported motif syntax"
-
-let match_count ~env n =
-  match_var_snd_stage ~env ~inside_move_def:false "__count" (Expr (Ast_helper.Exp.int n))
+let match_count ~env n = match_var_snd_stage ~env "__count" (Expr (Ast_helper.Exp.int n))
 
 let rec match_ ~ctx1 (motif : expression) : stage2 =
   match motif.pexp_desc with
   | Pexp_ident { txt = Lident v; _ } when String.is_prefix v ~prefix:"__" ->
-      match_var ~ctx1 v (fun e -> Expr e)
+      match_var v (fun e -> Expr e)
   | Pexp_constant c_m -> (
       fun expr ~env:_ ~ctx:_ ->
         match expr.pexp_desc with
@@ -358,7 +347,7 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
             ; _
             }
           ] ) ->
-      match_var ~x:true ~ctx1 motif (fun v -> Expr v)
+      match_var ~x:true motif (fun v -> Expr v)
   | Pexp_extension
       ({ txt = "repeat"; _ }, PStr [ { pstr_desc = Pstr_eval (motif, _); _ } ]) ->
       let base, repeated =
@@ -397,13 +386,12 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
          && match_count ~env (List.length xvars + 1)
          && List.for_alli xvars ~f:(fun i map ->
                 let i = i + 2 in
-                Map.for_alli map ~f:(fun ~key ~data:(inside_move_def, data) ->
-                    match_var_snd_stage ~env ~inside_move_def (key ^ Int.to_string i) data)))
+                Map.for_alli map ~f:(fun ~key ~data ->
+                    match_var_snd_stage ~env (key ^ Int.to_string i) data)))
       in
       loop []
   | Pexp_extension ({ txt = "repeat2"; _ }, PStr [ { pstr_desc = Pstr_eval (e, _); _ } ])
     -> (
-      let inside_move_def = ctx1.inside_move_def in
       match e.pexp_desc with
       | Pexp_function
           ( [ { pparam_desc =
@@ -418,9 +406,7 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
             List.for_alli params ~f:(fun i param ->
                 match param.pparam_desc with
                 | Pparam_val (Nolabel, None, pat) ->
-                    match_var_snd_stage ~env ~inside_move_def
-                      (var_base ^ Int.to_string (i + 1))
-                      (Pat pat)
+                    match_var_snd_stage ~env (var_base ^ Int.to_string (i + 1)) (Pat pat)
                 | Pparam_newtype _ | Pparam_val _ -> false)
             && match_count ~env (List.length params)
           in
@@ -433,11 +419,7 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
       | _ -> unsupported_motif motif.pexp_loc)
   | Pexp_extension (motif_name, motif_payload) -> (
       ctx1.need_type_index := true;
-      let s_payload =
-        match_payload ~loc:motif.pexp_loc
-          ~ctx1:{ ctx1 with inside_move_def = true }
-          motif_payload
-      in
+      let s_payload = match_payload ~loc:motif.pexp_loc ~ctx1 motif_payload in
       match motif_name.txt with
       | "move_def" -> (
           fun expr ~env ~ctx ->
@@ -472,6 +454,37 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
                                 match locate_def ~index whole_ast uid with
                                 | None -> false
                                 | Some def ->
+                                    let def =
+                                      match force ctx.new_base_env with
+                                      | None -> def
+                                      | Some (index, new_base_env) -> (
+                                          match Build.Type_index.find index Exp def with
+                                          | [] -> def
+                                          | texp :: _ ->
+                                              let rebased_env =
+                                                Uast.Env_summary.rebase'
+                                                  ~old_base:texp.exp_env
+                                                  ~new_base:new_base_env
+                                                |> __.next
+                                              in
+                                              let mapper =
+                                                Requalify.requalify_deeply (fun e ->
+                                                    match
+                                                      Build.Type_index.find index Exp e
+                                                    with
+                                                    | [] -> None
+                                                    | z :: _ ->
+                                                        let orig_env =
+                                                          Envaux.env_of_only_summary
+                                                            (Build.Type_index.env Exp z)
+                                                        in
+                                                        Some
+                                                          ( orig_env
+                                                          , new_base_env
+                                                          , rebased_env orig_env ))
+                                              in
+                                              mapper.expr mapper def)
+                                    in
                                     env :=
                                       { !env with
                                         nodes_to_remove = uid :: !env.nodes_to_remove
@@ -505,7 +518,6 @@ and match_fields ~ctx1 (mfields : (Longident.t Location.loc * _ * expression opt
       | _ -> s_named := Map.add_exn !s_named ~key:id.txt ~data:(id.txt, match_ ~ctx1 m));
   let var_other = !var_other in
   let s_named = !s_named in
-  let inside_move_def = ctx1.inside_move_def in
   fun fields ~env ~ctx ->
     let s_named = ref s_named in
     let others = ref [] in
@@ -530,10 +542,7 @@ and match_fields ~ctx1 (mfields : (Longident.t Location.loc * _ * expression opt
     match var_other with
     | None -> true
     | Some var_other -> (
-        match
-          Map.add !env.bindings ~key:var_other
-            ~data:(inside_move_def, Fields (List.rev !others))
-        with
+        match Map.add !env.bindings ~key:var_other ~data:(Fields (List.rev !others)) with
         | `Ok map ->
             env := { !env with bindings = map };
             true
@@ -555,7 +564,7 @@ and match_param ~ctx1 (p : P.expr_function_param) =
 and match_pat ~ctx1 (p : pattern) =
   match p.ppat_desc with
   | Ppat_var v_motif when String.is_prefix v_motif.txt ~prefix:"__" ->
-      match_var ~ctx1 v_motif.txt (fun p -> Pat p)
+      match_var v_motif.txt (fun p -> Pat p)
   | Ppat_construct (id_motif, ((None | Some ([], _)) as motif_opt)) -> (
       let sopt = match_option (match_pat ~ctx1) (Option.map ~f:snd motif_opt) in
       fun pat ~env ~ctx ->
@@ -567,7 +576,7 @@ and match_pat ~ctx1 (p : pattern) =
   | Ppat_variant (v, p2) -> (
       let s_label =
         if String.is_suffix v.txt.txt ~suffix:"__"
-        then match_var ~ctx1 v.txt.txt (fun t -> Variant t)
+        then match_var v.txt.txt (fun t -> Variant t)
         else fun v' ~env:_ ~ctx:_ -> v.txt.txt =: v'
       in
       let s_payload = match_option (match_pat ~ctx1) p2 in
@@ -596,7 +605,6 @@ and match_args ~ctx1 (margs : (arg_label * expression) list) =
   let var_other = !var_other in
   let s_named = !s_named in
   let s_anon = Queue.to_list s_anon in
-  let inside_move_def = ctx1.inside_move_def in
   fun args ~env ~ctx ->
     let s_anon = ref s_anon in
     let s_named = ref s_named in
@@ -629,10 +637,7 @@ and match_args ~ctx1 (margs : (arg_label * expression) list) =
     match var_other with
     | None -> true
     | Some var_other -> (
-        match
-          Map.add !env.bindings ~key:var_other
-            ~data:(inside_move_def, Args (List.rev !others))
-        with
+        match Map.add !env.bindings ~key:var_other ~data:(Args (List.rev !others)) with
         | `Ok map ->
             env := { !env with bindings = map };
             true
@@ -659,9 +664,7 @@ and match_structure_item ~loc ~ctx1 (motif : structure_item) =
 let get_count bindings =
   match Map.find bindings "__count" with
   | Some
-      (lazy
-        (Expr
-           { pexp_desc = Pexp_constant { pconst_desc = Pconst_integer (n, None); _ }; _ }))
+      (Expr { pexp_desc = Pexp_constant { pconst_desc = Pconst_integer (n, None); _ }; _ })
     ->
       Int.of_string n
   | _ -> failwith "no __count?"
@@ -674,7 +677,7 @@ let subst ~env =
         let ty = super.typ self ty in
         match ty.ptyp_desc with
         | Ptyp_constr ({ txt = Lident v; _ }, []) when Map.mem env v -> (
-            match force (Map.find_exn env v) with
+            match Map.find_exn env v with
             | Typ ty -> ty
             | Fields _ | Expr _ | Variant _ | Args _ | Pat _ ->
                 Location.raise_errorf ~loc:ty.ptyp_loc
@@ -687,7 +690,7 @@ let subst ~env =
         | Ppat_var { txt = var; _ } when Map.mem env var ->
             env_pat ~loc:pat.ppat_loc env var
         | Ppat_variant (var, p2) when Map.mem env var.txt.txt -> (
-            match force (Map.find_exn env var.txt.txt) with
+            match Map.find_exn env var.txt.txt with
             | Variant var' ->
                 { pat with
                   ppat_desc =
@@ -711,7 +714,7 @@ let subst ~env =
                   List.concat_map fields ~f:(fun ((id, typopt, value) as field) ->
                       match etc_field field with
                       | Some v -> (
-                          match force (Map.find_exn env v) with
+                          match Map.find_exn env v with
                           | Expr _ | Args _ | Pat _ | Typ _ | Variant _ ->
                               Location.raise_errorf ~loc:id.loc "hm, what"
                           | Fields fs -> fs)
@@ -731,7 +734,7 @@ let subst ~env =
                   List.concat_map args ~f:(fun (arg_label, arg) ->
                       match etc_arg (arg_label, arg) with
                       | Some v -> (
-                          match force (Map.find_exn env v) with
+                          match Map.find_exn env v with
                           | Expr _ | Fields _ | Pat _ | Typ _ | Variant _ ->
                               Location.raise_errorf ~loc:arg.pexp_loc "hm, what"
                           | Args args -> args)
@@ -770,7 +773,28 @@ let replace (type a b e) ((vnode : (_, a, b, e) Fmast.Node.t), (v : a)) ~whole_a
       ; nodes_to_remove = []
       }
   in
-  if stage2 v ~env ~ctx:{ type_index; whole_ast }
+  if
+    stage2 v ~env
+      ~ctx:
+        { type_index
+        ; whole_ast
+        ; new_base_env =
+            lazy
+              (match (vnode, v) with
+              | Exp, (v : expression)
+              | Binding_op, { pbop_exp = v; _ }
+              | Value_binding, { pvb_body = Pfunction_body v; _ } -> (
+                  match force type_index with
+                  | None -> None
+                  | Some type_index -> (
+                      match Build.Type_index.find type_index Exp v with
+                      | [] -> None
+                      | z :: _ ->
+                          Some
+                            ( type_index
+                            , Envaux.env_of_only_summary (Build.Type_index.env Exp z) )))
+              | _ -> None)
+        }
   then
     let repl : a =
       match vnode with
@@ -779,71 +803,19 @@ let replace (type a b e) ((vnode : (_, a, b, e) Fmast.Node.t), (v : a)) ~whole_a
           preserve_loc_to_preserve_comment_pos (Fmast.Node.meth vnode)
             ~from:(Fmast.Node.loc vnode v) repl
     in
-    let bindings =
-      let new_base_env =
-        lazy
-          (match (vnode, v) with
-          | Exp, (v : expression)
-          | Binding_op, { pbop_exp = v; _ }
-          | Value_binding, { pvb_body = Pfunction_body v; _ } -> (
-              match force type_index with
-              | None -> None
-              | Some type_index -> (
-                  match Build.Type_index.find type_index Exp v with
-                  | [] -> None
-                  | z :: _ ->
-                      Some
-                        ( type_index
-                        , Envaux.env_of_only_summary (Build.Type_index.env Exp z) )))
-          | _ -> None)
-      in
-      Map.map !env.bindings ~f:(fun (inside_move_def, x) ->
-          lazy
-            (match x with
-            | Expr e when inside_move_def ->
-                Expr
-                  (match force new_base_env with
-                  | None -> e
-                  | Some (type_index, new_base_env) -> (
-                      match Build.Type_index.find type_index Exp e with
-                      | [] -> e
-                      | texp :: _ ->
-                          let rebased_env =
-                            Uast.Env_summary.rebase' ~old_base:texp.exp_env
-                              ~new_base:new_base_env
-                            |> __.next
-                          in
-                          let mapper =
-                            Requalify.requalify_deeply (fun e ->
-                                match Build.Type_index.find type_index Exp e with
-                                | [] -> None
-                                | z :: _ ->
-                                    (* might want to compare uid of z with uid of
-                                      definitions captures in other variables, to avoid
-                                      warning with matches like [%move_dev fun __ a ->
-                                      __body]. *)
-                                    let orig_env =
-                                      Envaux.env_of_only_summary
-                                        (Build.Type_index.env Exp z)
-                                    in
-                                    Some (orig_env, new_base_env, rebased_env orig_env))
-                          in
-                          mapper.expr mapper e))
-            | v -> v))
-    in
-    Some (Fmast.Node.map vnode (subst ~env:bindings) repl, !env.nodes_to_remove)
+    Some (Fmast.Node.map vnode (subst ~env:!env.bindings) repl, !env.nodes_to_remove)
   else None
 
 let rec match_type ~ctx1 (t : core_type) =
   match t.ptyp_desc with
   | Ptyp_constr ({ txt = Lident v; _ }, []) when String.is_prefix v ~prefix:"__" ->
-      match_var ~ctx1 v (fun t -> Typ t)
+      match_var v (fun t -> Typ t)
   | Ptyp_variant
       ([ { prf_desc = Rtag (label, has_no_payload, types); _ } ], closed_flag, None)
     when Bool.( = ) has_no_payload (List.is_empty types) -> (
       let s_label =
         if String.is_suffix label.txt.txt ~suffix:"__"
-        then match_var ~ctx1 label.txt.txt (fun t -> Variant t)
+        then match_var label.txt.txt (fun t -> Variant t)
         else fun label' ~env:_ ~ctx:_ -> label.txt.txt =: label'
       in
       let s_typ =
@@ -1046,10 +1018,7 @@ let run ~(listing : Build.Listing.t) motif_and_repls () =
   let stage2_and_repls =
     List.map motif_and_repls ~f:(fun (motif, repl) ->
         let repl = ref (`Unforced repl) in
-        ( compile_motif
-            ~ctx1:{ inside_move_def = false; need_type_index = may_need_type_index_ref }
-            motif
-        , repl ))
+        (compile_motif ~ctx1:{ need_type_index = may_need_type_index_ref } motif, repl))
   in
   fun ~fmconf ~type_index ~source_path ~input_name_matching_compilation_command ->
     let stage2_and_repls =

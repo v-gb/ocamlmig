@@ -78,7 +78,8 @@ module _ = struct
       let _ = fun () -> 1
     end]
 
-  (* [%move_def] handling of scoping changes *)
+  (* [%move_def] handling of scoping changes, even when destructing the inside of
+     the %move_def. *)
   module T2_5 = struct
     let _y = 1
     let def3 z = 1 (* a *) + _x + _y + z
@@ -86,16 +87,18 @@ module _ = struct
     let _ = def3
   end
   [@@migrate_test.replace
-    module T1 = struct
+    module T2_5 = struct
       let _y = 1
       let _x, _y = (2, 2)
 
       let _ =
+       fun bla ->
+        let z = bla in
         1
         + M._x
-        +
-        ("MIG: variable _y is bound to different value";
-         _y)
+        + ("MIG: variable _y is bound to different value";
+           _y)
+        + z
     end]
 
   (* Nested [%move_defs] don't work. *)
