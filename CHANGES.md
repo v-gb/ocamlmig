@@ -1,11 +1,11 @@
 # 5.2-20250228
 
-- Added support for rewriting .mli files, just not .ml files.
+- Added support for rewriting .mli files, not just .ml files.
 - First stab at supporting migrating modules: `module Old_name : sig end
   .... [@@migrate { repl = New_name }]`. These annotations are only looked for when
   passing `-module-migration`, and the replacement is limited to a module path.
 - given an annotation `val x : ... [@@migrate { repl = e }]`, when inserting `e` at a
-  use-site of `x`, in some case, we now modify `e` to avoid shadowing-related
+  use-site of `x`, in some case we now modify `e` to avoid shadowing-related
   issues, and shorten module paths according to the modules opened in that scope.
 - added an experimental printer that ocamlformats only the sections of the code
   that are modified, instead of the entire file. It is used by default when a repository
