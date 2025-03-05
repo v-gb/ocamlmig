@@ -111,6 +111,21 @@ module _ = struct
     module _ = struct
       let _ = def
     end]
+
+  (* [%move_def] from a different module. *)
+  module _ = struct
+    module M = struct
+      let def = 1
+    end
+
+    let _ = M.def [@migrate.log]
+  end
+  [@@migrate_test.replace
+    module _ = struct
+      module M = struct end
+
+      let _ = 1
+    end]
 end
 
 module _ = struct

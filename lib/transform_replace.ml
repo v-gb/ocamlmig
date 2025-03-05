@@ -434,7 +434,7 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
             | None -> false
             | Some whole_ast -> (
                 match expr.pexp_desc with
-                | Pexp_ident { txt = Lident _; _ } -> (
+                | Pexp_ident { txt = _; _ } -> (
                     match Lazy.force ctx.type_index with
                     | None ->
                         if !log || debug.all then print_s [%sexp "missing type index"];
