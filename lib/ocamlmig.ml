@@ -708,29 +708,40 @@ let replace =
       ~readme:(fun () ->
         wrap
           {|
-WARNING: this is currently very incomplete.
+WARNING: everything here is experimental, subject to change, and oftentimes
+not fully implemented.
 
 A few examples:
 
   ocamlmig replace -e 'List.map __f __l /// ListLabels.map __l ~f:__f'
-  # replace List.map by ListLabels.map
+  # replace calls to List.map by calls to ListLabels.map
 
   ocamlmig replace -e 'List.map __f __l /// ListLabels.map __l ~f:__f [@@reorder]'
-  # replace List.map by ListLabels.map, and specifically swap the order of the arguments
+  # replace List.map by ListLabels.map, and swap the order of the arguments
+
+The -e flag takes an argument of the form 'MOTIF /// REPLACEMENT', where MOTIF
+describes which expressions to find, and REPLACEMENT describes what to replace
+them first. So it's a bit similar to sed, but with access to program structure.
 
 Syntax of the motifs:
 
   Float.sqrt, "thing", 1
        matches that literal name or constant in the source code
        ex: *Float.sqrt* 1.
-       non-ex: *sqrt*, *Stdlib.Float.sqrt*
+       nonex: *sqrt*, *Stdlib.Float.sqrt*
 
   __a
       matches any expression/pattern in the source code,
       and names it (except for the __ motif). Currently a
       given such pattern can only occur once.
       ex: __a matches *1 + 1*
-      non-ex: none!
+      nonex: none!
+
+  [%id Float.sqrt]
+      matches any identifier that points to the same definition
+      as the given identifier.
+      ex: let open Float in *sqrt*
+      nonex: let module Float = let sqrt = 1 end in sqrt
 
   (MOTIF : type)
       matches any expression/pattern that matches MOTIF
@@ -740,9 +751,10 @@ Syntax of the motifs:
 
   (MOTIF, MOTIF), Some MOTIF, `Some MOTIF, { label = MOTIF }, lazy MOTIF
       matches any algebraic data types by matching the constructor
-      syntactically, their payload recursively
+      syntactically, and their payload recursively. Constructors whose
+      name start/end in __ match any name, similarly to variables.
 
-  MOTIF | MOTIF, MOTIF & MOTIF
+  MOTIF or MOTIF, MOTIF & MOTIF
       disjunction and conjunction of motifs
 
   f MOTIF ~arg2:MOTIF
@@ -753,20 +765,62 @@ Syntax of the motifs:
 
   MOTIF; MOTIF
   fun MOTIF -> MOTIF
-    the obvious match
+      matches the same corresponding syntactic elements
 
   [%move_def MOTIF]
-  Matches any identifier whose definition is located in the current
-  source file, and matches the definition against the inner MOTIF.
-  If the overall motif matches using a [%move_def], then the matched
-  definition will be removed.
-  Effectively, it means that [%move_dev: __def] /// __def inline
-  every locally-defined identifier.
+      Matches any identifier whose definition is located in the current
+      source file, and recursively matches that definition against the
+      inner MOTIF.
+      If the overall motif matches using a [%move_def], then the matched
+      definition will be removed.
+      Effectively, it means that [%move_dev: __def] /// __def inline
+      every locally-defined identifier.
+      The identifiers in the definition are adjusted to avoid captures
+      caused by the code move.
+      ex: [%move_def fun __p -> __body] __arg /// let __p = __arg in __body
+          on let f x = x * 2 in f 1
+          returns let x = 1 in x * 2
+
+   implicit syntax for repetitions
+       If a MOTIF contains references to 3 numbered variables like foo1, foo2
+       and foo3, ocamlmig will infer a generalized version of the patterns that
+       recognizes a pattern with any number of variables.
+       ex: (__e1, __e2, __e3) /// [| __e1; __e2; __e3 |]
+       would turn (1, 2) into [|1; 2|], (1, 2, 3, 4) into [|1; 2; 3; 4|], and so
+       on with tuples/arrays of any length
+       ex: __e1 && __e2 && __e3 /// __e1 || __e2 || __e3
+       There can be multiple repeating sections in the MOTIF, in which case they
+       will be treated as having the same element count:
+       ex: ((__e1, __e2, __e3), (__f1, __f2, __f3)) would match a pair of
+           5-tuples, but not a pair of a 3-tuple and a 5-tuple
+
+search/replace on expressions is the most common use, but it is also possible
+to search/replace other syntactic categories:
+
+   -e 'type: TYPE_MOTIF /// TYPE_REPLACEMENT'
+       replaces types expression matching the given motif by the given replacement
+       ex: -e 'type: [ `X__ of __t ] /// __t'
+               on: val foo : [`Foo of int list ] Term.t
+           result: val foo : int list Term.t
+
+   -e 'binding: let PAT_MOTIF = EXPR_MOTIF
+                /// let PAT_MOTIF = EXPR_MOTIF'
+   -e 'binding: let+ PAT_MOTIF = EXPR_MOTIF in __
+                /// let+ PAT_MOTIF = EXPR_MOTIF in __'
+       replaces any individual binding, whether let or let and, recursive or not,
+       using let operators or not.
+       ex: -e 'binding: let+ `X__ __pat = __e in __ /// let+ __pat = __e in __'
+           on: let+ () = Cli.setup
+               and+ (`Dry_run dry_run) = Cli.dry_run
+               ... in ...
+           result:
+               let+ () = Cli.setup
+               and+ dry_run = Cli.dry_run
+               ... in ...
+
 |})
       [%map_open.Command
         let patterns_and_repls =
-          (* What we really want is -e MOTIF REPL, but command doesn't support that,
-             and I don't think cmdliner does either. *)
           flag "-e" ~doc:"MOTIF///REPL "
             (one_or_more_as_list
                (Arg_type.create (fun str ->
