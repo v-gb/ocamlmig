@@ -49,14 +49,14 @@ module _ = struct
   open M
 
   (* [%move_def] handling of scoping changes *)
-  module T1 = struct
+  module _ = struct
     let _y = 1
     let def = 1 (* a *) + _x + _y
     let _x, _y = (2, 2)
     let _ = def
   end
   [@@migrate_test.replace
-    module T1 = struct
+    module _ = struct
       let _y = 1
       let _x, _y = (2, 2)
 
@@ -69,25 +69,25 @@ module _ = struct
     end]
 
   (* [%move_def] inlining ghost expressions *)
-  module T2 = struct
+  module _ = struct
     let def () = 1
     let _ = def
   end
   [@@migrate_test.replace
-    module T2 = struct
+    module _ = struct
       let _ = fun () -> 1
     end]
 
   (* [%move_def] handling of scoping changes, even when destructing the inside of
      the %move_def. *)
-  module T2_5 = struct
+  module _ = struct
     let _y = 1
     let def3 z = 1 (* a *) + _x + _y + z
     let _x, _y = (2, 2)
     let _ = def3
   end
   [@@migrate_test.replace
-    module T2_5 = struct
+    module _ = struct
       let _y = 1
       let _x, _y = (2, 2)
 
@@ -102,13 +102,13 @@ module _ = struct
     end]
 
   (* Nested [%move_defs] don't work. *)
-  module T3 = struct
+  module _ = struct
     let def = 1
     let def2 = def
     let _ = def2
   end
   [@@migrate_test.replace
-    module T3 = struct
+    module _ = struct
       let _ = def
     end]
 end
