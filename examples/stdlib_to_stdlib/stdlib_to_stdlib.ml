@@ -1,7 +1,7 @@
 (** Migration attributes to move from Stdlib names to other preferred Stdlib names, like
     using [Float.acos] instead of [acos].
 
-    This is intended to br used this way:
+    This is intended to be used this way:
     {v ocamlmig migrate -extra-migration ocamlmig.stdlib_to_stdlib v} *)
 
 (*
