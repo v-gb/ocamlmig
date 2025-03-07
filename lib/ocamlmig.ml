@@ -818,7 +818,8 @@ to search/replace other syntactic categories:
       [%map_open.Command
         let patterns_and_repls =
           flag "-e" ~doc:"MOTIF///REPL "
-            (one_or_more_as_list (Arg_type.create Transform_replace.split_motif_repl))
+            ((if in_test then listed else one_or_more_as_list)
+               (Arg_type.create Transform_replace.split_motif_repl))
         and source = source_param
         and format = format_param
         and write = write_param

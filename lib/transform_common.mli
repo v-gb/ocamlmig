@@ -71,8 +71,12 @@ module Sattr : sig
   val orig : P.expression t
 end
 
+val structure_item_attributes :
+  P.structure_item -> (P.ext_attrs * (P.ext_attrs -> P.structure_item)) option
+
 val update_migrate_test_payload :
      ?match_attr:(string -> bool)
+  -> ?filter_attr:(string -> bool)
   -> ?state:bool ref
   -> changed_something:bool ref
   -> Ast_mapper.mapper

@@ -1019,6 +1019,33 @@ let split_motif_repl str =
         , (str : string)
         , "to separate MOTIF and REPL"]
 
+let find_motif_repl si =
+  match structure_item_attributes si with
+  | None -> None
+  | Some (attrs, _) -> (
+      match
+        List.find_map (attrs.attrs_before @ attrs.attrs_after) ~f:(fun attr ->
+            if attr.attr_name.txt =: "migrate_test.replace_expr"
+            then
+              match attr.attr_payload with
+              | PStr
+                  [ { pstr_desc =
+                        Pstr_eval
+                          ( { pexp_desc =
+                                Pexp_constant { pconst_desc = Pconst_string (s, _, _); _ }
+                            ; _
+                            }
+                          , _ )
+                    ; _
+                    }
+                  ] ->
+                  Some s
+              | _ -> failwith "bad migrate_test.replace_expr attr"
+            else None)
+      with
+      | None -> None
+      | Some payload -> Some (split_motif_repl payload))
+
 let run ~(listing : Build.Listing.t) motif_and_repls () =
   ((* set up load paths to be able to type the motifs *)
    let load_path_dirs =
@@ -1036,8 +1063,9 @@ let run ~(listing : Build.Listing.t) motif_and_repls () =
   in
   fun ~fmconf ~type_index ~source_path ~input_name_matching_compilation_command ->
     let stage2_and_repls =
-      List.map stage2_and_repls ~f:(fun (stage2, repl) ->
-          parse_template ~fmconf stage2 repl)
+      ref
+        (List.map stage2_and_repls ~f:(fun (stage2, repl) ->
+             parse_template ~fmconf stage2 repl))
     in
     let input_name_matching_compilation_command =
       if !may_need_type_index_ref
@@ -1059,7 +1087,7 @@ let run ~(listing : Build.Listing.t) motif_and_repls () =
                   (fun self ty ->
                     let ty = super.typ self ty in
                     match
-                      List.find_map stage2_and_repls ~f:(function
+                      List.find_map !stage2_and_repls ~f:(function
                         | `Type (stage2, repl) ->
                             replace (Typ, ty) ~whole_ast:!whole_ast ~type_index ~stage2
                               ~repl
@@ -1085,7 +1113,7 @@ let run ~(listing : Build.Listing.t) motif_and_repls () =
                   (fun self vb ->
                     let vb = super.value_binding self vb in
                     match
-                      List.find_map stage2_and_repls ~f:(function
+                      List.find_map !stage2_and_repls ~f:(function
                         | `Binding (stage2, repl) ->
                             replace (Value_binding, vb) ~whole_ast:!whole_ast ~type_index
                               ~stage2 ~repl
@@ -1100,7 +1128,7 @@ let run ~(listing : Build.Listing.t) motif_and_repls () =
                   (fun self bop ->
                     let bop = super.binding_op self bop in
                     match
-                      List.find_map stage2_and_repls ~f:(function
+                      List.find_map !stage2_and_repls ~f:(function
                         | `Binding_op (stage2, repl) ->
                             let repl =
                               { repl with
@@ -1125,7 +1153,7 @@ let run ~(listing : Build.Listing.t) motif_and_repls () =
                   with_log (fun self expr ->
                       let expr = super.expr self expr in
                       match
-                        List.find_map stage2_and_repls ~f:(function
+                        List.find_map !stage2_and_repls ~f:(function
                           | `Expr (stage2, repl) ->
                               replace (Exp, expr) ~whole_ast:!whole_ast ~type_index
                                 ~stage2 ~repl
@@ -1138,30 +1166,45 @@ let run ~(listing : Build.Listing.t) motif_and_repls () =
                           expr)
               ; structure_item =
                   (let match_attr = __ =: "migrate_test.replace" in
-                   update_migrate_test_payload ~match_attr ~state:should_act_in_test
-                     { super with
-                       structure_item =
-                         (fun self si ->
-                           if !should_act_in_test && Option.is_none !whole_ast
-                           then
-                             (* In scope, narrow the scope of [%move_def] to only
+                   let filter_attr = String.is_prefix ~prefix:"migrate_test.replace" in
+                   let f =
+                     update_migrate_test_payload ~match_attr ~filter_attr
+                       ~state:should_act_in_test
+                       { super with
+                         structure_item =
+                           (fun self si ->
+                             if !should_act_in_test && Option.is_none !whole_ast
+                             then
+                               (* In scope, narrow the scope of [%move_def] to only
                                 what's under a [@@migrate_test.replace] annotation,
                                 otherwise the changes "leak" out of the
                                 [@@migrate_test.replace] attribute. *)
-                             Ref.set_temporarily whole_ast (Some [ si ]) ~f:(fun () ->
-                                 let si = super.structure_item self si in
-                                 match
-                                   drop_defs Impl ~type_index [ si ]
-                                     (Queue.to_list all_nodes_to_remove)
-                                 with
-                                 | [ si ] ->
-                                     Queue.clear all_nodes_to_remove;
-                                     si
-                                 | _ -> assert false)
-                           else super.structure_item self si)
-                     }
-                     ~changed_something)
-                  |> __.next
+                               Ref.set_temporarily whole_ast (Some [ si ]) ~f:(fun () ->
+                                   let si = super.structure_item self si in
+                                   match
+                                     drop_defs Impl ~type_index [ si ]
+                                       (Queue.to_list all_nodes_to_remove)
+                                   with
+                                   | [ si ] ->
+                                       Queue.clear all_nodes_to_remove;
+                                       si
+                                   | _ -> assert false)
+                             else super.structure_item self si)
+                       }
+                       ~changed_something
+                     |> __.next
+                   in
+                   fun self si ->
+                     match find_motif_repl si with
+                     | None -> f self si
+                     | Some (motif, repl) ->
+                         Ref.set_temporarily stage2_and_repls
+                           [ compile_motif
+                               ~ctx1:{ need_type_index = may_need_type_index_ref }
+                               motif
+                             |> parse_template ~fmconf __ (ref (`Unforced repl))
+                           ]
+                           ~f:(fun () -> f self si))
               }
             in
             let structure = File_type.map file_type self structure in

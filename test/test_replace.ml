@@ -3,14 +3,18 @@
 open Base
 
 let _ = List.map ~f:(fun x -> x + 1) [ 2 ]
+[@@migrate_test.replace_expr {| List.map ~f:__f __l /// List.map' __l ~f:__f |}]
 [@@migrate_test.replace let _ = List.map' ~f:(fun x -> x + 1) [ 2 ]]
 
-let _ = List.filter_map ~f:(fun x -> Some (x + 1)) [ 2 ]
-[@@migrate_test.replace let _ = List.filter_map' [ 2 ] ~f:(fun x -> Some (x + 1))]
+let _ = List.map ~f:(fun x -> Some (x + 1)) [ 2 ]
+[@@migrate_test.replace_expr
+  {| List.map ~f:__f __l /// List.map' __l ~f:__f [@reorder] |}]
+[@@migrate_test.replace let _ = List.map' [ 2 ] ~f:(fun x -> Some (x + 1))]
 
 let _ =
   let open Stdlib in
   List.memq (ref 3) [ ref 1; ref 2 ]
+[@@migrate_test.replace_expr {| List.memq __etc /// List.mem ~eq:Stdlib.(==) __etc |}]
 [@@migrate_test.replace
   let _ =
     let open Stdlib in
@@ -24,6 +28,8 @@ type record =
 let _ =
   let field1 = 1 in
   ignore { field1; field2 = "a" }
+[@@migrate_test.replace_expr
+  {| { field1 = __field1; __etc } /// { __etc; field3 = __field1 } |}]
 [@@migrate_test.replace
   let _ =
     let field1 = 1 in
@@ -32,12 +38,18 @@ let _ =
 module _ = struct
   (* type coercions *)
   let coercion = None
-  let _ = coercion [@@migrate_test.replace let _ = coercion]
-  let _ = (coercion : int option) [@@migrate_test.replace let _ = (Some 1 : int option)]
-
+  let _ = coercion
+  let _ = (coercion : int option)
   let _ = (coercion : string option)
-  [@@migrate_test.replace let _ = (coercion : string option)]
 end
+[@@migrate_test.replace_expr {| (coercion : Stdlib.Int.t option) /// Some 1 |}]
+[@@migrate_test.replace
+  module _ = struct
+    let coercion = None
+    let _ = coercion
+    let _ = (Some 1 : int option)
+    let _ = (coercion : string option)
+  end]
 
 module _ = struct
   (* [%move_def] *)
@@ -55,6 +67,7 @@ module _ = struct
     let _x, _y = (2, 2)
     let _ = def
   end
+  [@@migrate_test.replace_expr {| def & [%move_def __def] /// __def |}]
   [@@migrate_test.replace
     module _ = struct
       let _y = 1
@@ -73,6 +86,7 @@ module _ = struct
     let def () = 1
     let _ = def
   end
+  [@@migrate_test.replace_expr {| def & [%move_def __def] /// __def |}]
   [@@migrate_test.replace
     module _ = struct
       let _ = fun () -> 1
@@ -82,10 +96,12 @@ module _ = struct
      the %move_def. *)
   module _ = struct
     let _y = 1
-    let def3 z = 1 (* a *) + _x + _y + z
+    let def z = 1 (* a *) + _x + _y + z
     let _x, _y = (2, 2)
-    let _ = def3
+    let _ = def
   end
+  [@@migrate_test.replace_expr
+    {| def & [%move_def (fun __p -> __e)] /// (fun bla -> let __p = bla in __e) |}]
   [@@migrate_test.replace
     module _ = struct
       let _y = 1
@@ -107,6 +123,7 @@ module _ = struct
     let def2 = def
     let _ = def2
   end
+  [@@migrate_test.replace_expr {| [%move_def __def] /// __def |}]
   [@@migrate_test.replace
     module _ = struct
       let _ = def
@@ -120,6 +137,7 @@ module _ = struct
 
     let _ = M.def
   end
+  [@@migrate_test.replace_expr {| [%move_def __def] /// __def |}]
   [@@migrate_test.replace
     module _ = struct
       module M = struct end
@@ -132,23 +150,32 @@ module _ = struct
   (* n-ary replaces *)
   let nary _ = ()
 
-  let _ = nary (fun a b c d e -> (a, b, c, d, e))
+  let _ = fun a b c d e -> (a, b, c, d, e)
+  [@@migrate_test.replace_expr {| (fun __p1 __p2 __p3 -> __body) /// __body |}]
   [@@migrate_test.replace let _ = (a, b, c, d, e)]
 
   let const _ = ()
-  let const2 = const
-  let const3 = const
   let ( $ ) _ _ = ()
-  let _ = nary (const 1 $ 2 $ 3 $ 5 $ 5 $ 6 $ 7) [@@migrate_test.replace let _ = 1]
 
-  let _ = nary (const2 (fun a b c d e -> (a, b, c, d, e)) $ 2 $ 3 $ 5 $ 5 $ 6 $ 7)
+  let _ = nary (const 1 $ 2 $ 3 $ 5 $ 5 $ 6 $ 7)
+  [@@migrate_test.replace_expr {| nary (const __f $ __e1 $ __e2 $ __e3) /// __f |}]
+  [@@migrate_test.replace let _ = 1]
+
+  module _ = struct
+    let _ = nary (const (fun a b c d e -> (a, b, c, d, e)) $ 2 $ 3 $ 5 $ 5 $ 6 $ 7)
+    let _ = nary (const (fun a b c d e -> (a, b, c, d, e)) $ 2 $ 3 $ 5 $ 5 $ 6)
+  end
+  [@@migrate_test.replace_expr
+    {| nary (const (fun __p1 __p2 __p3 -> __body) $ __e1 $ __e2 $ __e3) /// __body |}]
   [@@migrate_test.replace
-    let _ = nary (const2 (fun a b c d e -> (a, b, c, d, e)) $ 2 $ 3 $ 5 $ 5 $ 6 $ 7)]
+    module _ = struct
+      let _ = nary (const (fun a b c d e -> (a, b, c, d, e)) $ 2 $ 3 $ 5 $ 5 $ 6 $ 7)
+      let _ = (a, b, c, d, e)
+    end]
 
-  let _ = nary (const2 (fun a b c d e -> (a, b, c, d, e)) $ 2 $ 3 $ 5 $ 5 $ 6)
-  [@@migrate_test.replace let _ = (a, b, c, d, e)]
-
-  let _ = nary (const3 (fun a b c d e -> (a, b, c, d, e)) $ 2 $ 3 $ 5 $ 5 $ 6)
+  let _ = nary (const (fun a b c d e -> (a, b, c, d, e)) $ 2 $ 3 $ 5 $ 5 $ 6)
+  [@@migrate_test.replace_expr
+    {| nary (const (fun __p1 __p2 __p3 -> __body) $ __e1 $ __e2 $ __e3) /// let+ __p1 = __e1 and+ __p2 = __e2 and+ __p3 = __e3 in __body |}]
   [@@migrate_test.replace
     let _ =
       let+ a = 2 and+ b = 3 and+ c = 5 and+ d = 5 and+ e = 6 in

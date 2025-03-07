@@ -12,20 +12,7 @@ ocamlmig transform rescope -unopen Z test_scope_unopen.ml "$@"
 ocamlmig transform rescope -open Z test_scope_open.ml "$@"
 ocamlmig transform migration-inverse test_migration_inverse.ml "$@"
 ocamlmig transform migration-check test_migration_check.ml "$@"
-ocamlmig replace \
-         -e "List.map ~f:__f __l /// List.map' __l ~f:__f" \
-         -e "List.filter_map ~f:__f __l /// List.filter_map' __l ~f:__f [@reorder]" \
-         -e 'List.memq __etc /// List.mem ~eq:Stdlib.(==) __etc' \
-         -e '{ field1 = __field1; __etc } /// { __etc; field3 = __field1 }' \
-         -e '(coercion : Stdlib.Int.t option) /// Some 1' \
-         -e '((def or def2) & [%move_def __def]) /// __def' \
-         -e '((def or def3) & [%move_def (fun __p -> __e)]) /// (fun bla -> let __p = bla in __e)' \
-         -e '(M.def & [%move_def __def]) /// __def' \
-         -e 'nary (fun __p1 __p2 __p3 -> __body) /// __body' \
-         -e 'nary ((const __f) $ __e1 $ __e2 $ __e3) /// __f' \
-         -e 'nary ((const2 (fun __p1 __p2 __p3 -> __body)) $ __e1 $ __e2 $ __e3) /// __body' \
-         -e 'nary ((const3 (fun __p1 __p2 __p3 -> __body)) $ __e1 $ __e2 $ __e3) /// let+ __p1 = __e1 and+ __p2 = __e2 and+ __p3 = __e3 in __body' \
-         *.ml "$@"
+ocamlmig replace *.ml "$@"
 
 (
     unset OCAMLMIG_TEST

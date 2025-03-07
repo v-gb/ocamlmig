@@ -202,7 +202,8 @@ let update_migrate_test_payload =
             ; attrs_before = attributes_attrs_before
             }
   in
-  fun ?match_attr ?(state = ref false) ~changed_something (super : Ast_mapper.mapper) ->
+  fun ?match_attr ?filter_attr ?(state = ref false) ~changed_something
+      (super : Ast_mapper.mapper) ->
     { next =
         (fun self si ->
           let si' = lazy (super.structure_item self si) in
@@ -213,7 +214,9 @@ let update_migrate_test_payload =
                     { attr with
                       attr_payload =
                         PStr
-                          [ update_migrate_test ?match_attr (force si')
+                          [ update_migrate_test
+                              ?match_attr:(Option.first_some filter_attr match_attr)
+                              (force si')
                               (fun _ -> None)
                               ~default:si'
                           ]
