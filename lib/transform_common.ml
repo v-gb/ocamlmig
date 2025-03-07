@@ -141,49 +141,66 @@ module Sattr = struct
     }
 end
 
+let structure_item_attributes (si : P.structure_item) =
+  match si.pstr_desc with
+  | Pstr_value { pvbs_bindings = [ pvs_binding ]; pvbs_rec = Nonrecursive } ->
+      Some
+        ( pvs_binding.pvb_attributes
+        , fun attrs ->
+            let pvbs_bindings = [ { pvs_binding with pvb_attributes = attrs } ] in
+            { si with pstr_desc = Pstr_value { pvbs_bindings; pvbs_rec = Nonrecursive } }
+        )
+  | Pstr_module v ->
+      Some
+        ( v.pmb_ext_attrs
+        , fun attrs ->
+            { si with pstr_desc = Pstr_module { v with pmb_ext_attrs = attrs } } )
+  | Pstr_modtype v ->
+      Some
+        ( v.pmtd_ext_attrs
+        , fun attrs ->
+            { si with pstr_desc = Pstr_modtype { v with pmtd_ext_attrs = attrs } } )
+  | Pstr_class [ v ] ->
+      Some
+        ( v.pci_attributes
+        , fun attrs ->
+            { si with pstr_desc = Pstr_class [ { v with pci_attributes = attrs } ] } )
+  | Pstr_class_type [ v ] ->
+      Some
+        ( v.pci_attributes
+        , fun attrs ->
+            { si with pstr_desc = Pstr_class_type [ { v with pci_attributes = attrs } ] }
+        )
+  | _ -> None
+
 let update_migrate_test_payload =
   let update_migrate_test ?(match_attr = ( =: ) "migrate_test") (si : P.structure_item) f
       ~default =
-    let update_test_attribute (attributes : P.ext_attrs) with_attributes =
-      let found = ref false in
-      let find_attr (attr : P.attribute) =
-        match attr with
-        | { attr_name = { txt; _ }; _ } when match_attr txt ->
-            found := true;
-            f attr
-        | _ -> Some attr
-      in
-      let attributes_attrs_before =
-        List.filter_map attributes.attrs_before ~f:find_attr
-      in
-      let attributes_attrs_after = List.filter_map attributes.attrs_after ~f:find_attr in
-      if not !found
-      then force default
-      else
-        with_attributes
-          { attributes with
-            attrs_after = attributes_attrs_after
-          ; attrs_before = attributes_attrs_before
-          }
-    in
-    match si.pstr_desc with
-    | Pstr_value { pvbs_bindings = [ pvs_binding ]; pvbs_rec = Nonrecursive } ->
-        update_test_attribute pvs_binding.pvb_attributes (fun attrs ->
-            let pvbs_bindings = [ { pvs_binding with pvb_attributes = attrs } ] in
-            { si with pstr_desc = Pstr_value { pvbs_bindings; pvbs_rec = Nonrecursive } })
-    | Pstr_module v ->
-        update_test_attribute v.pmb_ext_attrs (fun attrs ->
-            { si with pstr_desc = Pstr_module { v with pmb_ext_attrs = attrs } })
-    | Pstr_modtype v ->
-        update_test_attribute v.pmtd_ext_attrs (fun attrs ->
-            { si with pstr_desc = Pstr_modtype { v with pmtd_ext_attrs = attrs } })
-    | Pstr_class [ v ] ->
-        update_test_attribute v.pci_attributes (fun attrs ->
-            { si with pstr_desc = Pstr_class [ { v with pci_attributes = attrs } ] })
-    | Pstr_class_type [ v ] ->
-        update_test_attribute v.pci_attributes (fun attrs ->
-            { si with pstr_desc = Pstr_class_type [ { v with pci_attributes = attrs } ] })
-    | _ -> force default
+    match structure_item_attributes si with
+    | None -> force default
+    | Some (attributes, with_attributes) ->
+        let found = ref false in
+        let find_attr (attr : P.attribute) =
+          match attr with
+          | { attr_name = { txt; _ }; _ } when match_attr txt ->
+              found := true;
+              f attr
+          | _ -> Some attr
+        in
+        let attributes_attrs_before =
+          List.filter_map attributes.attrs_before ~f:find_attr
+        in
+        let attributes_attrs_after =
+          List.filter_map attributes.attrs_after ~f:find_attr
+        in
+        if not !found
+        then force default
+        else
+          with_attributes
+            { attributes with
+              attrs_after = attributes_attrs_after
+            ; attrs_before = attributes_attrs_before
+            }
   in
   fun ?match_attr ?(state = ref false) ~changed_something (super : Ast_mapper.mapper) ->
     ();
