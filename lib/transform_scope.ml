@@ -499,6 +499,7 @@ let qualify_for_unopen file_type ~changed_something ~artifacts ~type_index
     ; structure_item =
         update_migrate_test_payload ~match_attr:(__ =: "migrate_test.unopen")
           ~state:should_act_in_test ~changed_something super
+        |> __.next
     ; structure =
         (fun self sis ->
           List.filter sis ~f:(fun si ->
@@ -683,6 +684,7 @@ let qualify_for_open (type a) (file_type : a File_type.t) ~changed_something ~ar
     ; structure_item =
         update_migrate_test_payload ~match_attr:(__ =: "migrate_test.open")
           ~state:should_act_in_test ~changed_something super
+        |> __.next
     }
   in
   match file_type with
@@ -805,7 +807,7 @@ let unqualify file_type ~changed_something structure ~artifacts ~type_index
                               })
                             else expr)))
             | _ -> expr)
-    ; structure_item = update_migrate_test_payload ~changed_something super
+    ; structure_item = update_migrate_test_payload ~changed_something super |> __.next
     }
   in
   File_type.map file_type self structure

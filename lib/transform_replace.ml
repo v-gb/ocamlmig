@@ -1161,6 +1161,7 @@ let run ~(listing : Build.Listing.t) motif_and_repls () =
                            else super.structure_item self si)
                      }
                      ~changed_something)
+                  |> __.next
               }
             in
             let structure = File_type.map file_type self structure in

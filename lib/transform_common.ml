@@ -203,21 +203,22 @@ let update_migrate_test_payload =
             }
   in
   fun ?match_attr ?(state = ref false) ~changed_something (super : Ast_mapper.mapper) ->
-    ();
-    fun self si ->
-      let si' = lazy (super.structure_item self si) in
-      update_migrate_test ?match_attr si ~default:si' (fun attr ->
-          changed_something := true;
-          Ref.set_temporarily state true ~f:(fun () ->
-              Some
-                { attr with
-                  attr_payload =
-                    PStr
-                      [ update_migrate_test ?match_attr (force si')
-                          (fun _ -> None)
-                          ~default:si'
-                      ]
-                }))
+    { next =
+        (fun self si ->
+          let si' = lazy (super.structure_item self si) in
+          update_migrate_test ?match_attr si ~default:si' (fun attr ->
+              changed_something := true;
+              Ref.set_temporarily state true ~f:(fun () ->
+                  Some
+                    { attr with
+                      attr_payload =
+                        PStr
+                          [ update_migrate_test ?match_attr (force si')
+                              (fun _ -> None)
+                              ~default:si'
+                          ]
+                    })))
+    }
 
 let drop_concrete_syntax_constructs =
   let super = Ast_mapper.default_mapper in

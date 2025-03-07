@@ -37,7 +37,8 @@ let run ~fmconf ~source_path =
                             expr.pexp_attributes { payload with repl = None }
                       }
                   | _ -> super.expr self expr)
-            ; structure_item = update_migrate_test_payload super ~changed_something
+            ; structure_item =
+                update_migrate_test_payload super ~changed_something |> __.next
             }
           in
           structure

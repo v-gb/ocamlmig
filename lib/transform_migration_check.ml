@@ -49,7 +49,7 @@ let run_structure changed_something file_type structure =
                        ]
                        ~loc_in:Location.none acc)
               |> Option.value ~default:(Ast_helper.Exp.unit ()))
-    ; structure_item = update_migrate_test_payload super ~changed_something
+    ; structure_item = update_migrate_test_payload super ~changed_something |> __.next
     }
   in
   structure |> File_type.map file_type self |> File_type.map file_type remove_attributes

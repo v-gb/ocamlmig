@@ -2234,7 +2234,7 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
         | _ -> v)
   ; structure_item =
       record_if_ocamlformat_disabled
-        (update_migrate_test_payload ~changed_something super)
+        (update_migrate_test_payload ~changed_something super |> __.next)
   }
 
 let resolve_idents () =

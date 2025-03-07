@@ -168,6 +168,7 @@ let run_structure file_type structure =
         update_migrate_test_payload
           ~match_attr:(__ =: "migrate_test.inverse")
           super ~changed_something
+        |> __.next
     }
   in
   structure |> File_type.map file_type self |> File_type.map file_type remove_attributes

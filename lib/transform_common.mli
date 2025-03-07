@@ -76,9 +76,7 @@ val update_migrate_test_payload :
   -> ?state:bool ref
   -> changed_something:bool ref
   -> Ast_mapper.mapper
-  -> Ast_mapper.mapper
-  -> P.structure_item
-  -> P.structure_item
+  -> (Ast_mapper.mapper -> P.structure_item -> P.structure_item) staged
 
 val drop_concrete_syntax_constructs : Ast_mapper.mapper
 val remove_attributes : Ast_mapper.mapper
