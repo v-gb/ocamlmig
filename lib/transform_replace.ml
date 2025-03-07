@@ -1005,6 +1005,20 @@ let parse_template ~fmconf stage2 repl =
           | stri :: _ -> unsupported_motif stri.pstr_loc
           | _ -> unsupported_motif Location.none))
 
+let substr_split t ~on:substr =
+  let substr = String.Search_pattern.create substr in
+  String.Search_pattern.split_on substr t
+
+let split_motif_repl str =
+  match substr_split str ~on:"///" with
+  | [ s1; s2 ] -> (s1, s2)
+  | _ ->
+      raise_s
+        [%sexp
+          "unexpected exactly one \"///\" in argument"
+        , (str : string)
+        , "to separate MOTIF and REPL"]
+
 let run ~(listing : Build.Listing.t) motif_and_repls () =
   ((* set up load paths to be able to type the motifs *)
    let load_path_dirs =

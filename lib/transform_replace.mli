@@ -14,3 +14,5 @@ val run :
   -> source_path:Cwdpath.t
   -> input_name_matching_compilation_command:string option Lazy.t
   -> Transform_common.result option
+
+val split_motif_repl : string -> string * string

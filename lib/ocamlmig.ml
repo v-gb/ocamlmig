@@ -698,10 +698,6 @@ let transform =
                        |> ctx.diff_or_write ~original_formatting:(Some fm_orig)]) )
       ] )
 
-let substr_split t ~on:substr =
-  let substr = String.Search_pattern.create substr in
-  String.Search_pattern.split_on substr t
-
 let replace =
   ( "replace"
   , Command.basic ~summary:"Replace every occurrence of specified code fragments"
@@ -822,16 +818,7 @@ to search/replace other syntactic categories:
       [%map_open.Command
         let patterns_and_repls =
           flag "-e" ~doc:"MOTIF///REPL "
-            (one_or_more_as_list
-               (Arg_type.create (fun str ->
-                    match substr_split str ~on:"///" with
-                    | [ s1; s2 ] -> (s1, s2)
-                    | _ ->
-                        raise_s
-                          [%sexp
-                            "unexpected exactly one \"///\" in argument"
-                          , (str : string)
-                          , "to separate MOTIF and REPL"])))
+            (one_or_more_as_list (Arg_type.create Transform_replace.split_motif_repl))
         and source = source_param
         and format = format_param
         and write = write_param
