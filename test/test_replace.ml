@@ -118,7 +118,7 @@ module _ = struct
       let def = 1
     end
 
-    let _ = M.def [@migrate.log]
+    let _ = M.def
   end
   [@@migrate_test.replace
     module _ = struct
