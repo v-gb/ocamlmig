@@ -137,22 +137,17 @@ end = struct
   let rec to_node t =
     let super = Ast_mapper.default_mapper in
     let children = ref t.children in
+    let pop_exn () =
+      match !children with
+      | [] -> raise_s [%sexp "no more children??", (t : t)]
+      | res :: rest ->
+          children := rest;
+          res
+    in
     let self =
       { super with
-        expr =
-          (fun _ _ ->
-            match !children with
-            | [] -> raise_s [%sexp `wtf, (t : t)]
-            | res :: rest ->
-                children := rest;
-                to_exp res)
-      ; pat =
-          (fun _ _ ->
-            match !children with
-            | [] -> raise_s [%sexp `wtf, (t : t)]
-            | res :: rest ->
-                children := rest;
-                to_pat res)
+        expr = (fun _ _ -> to_exp (pop_exn ()))
+      ; pat = (fun _ _ -> to_pat (pop_exn ()))
       }
     in
     if List.is_empty t.children
