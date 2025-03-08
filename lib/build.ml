@@ -51,6 +51,8 @@ module Listing = struct
     | EXCLUDE_QUERY_DIR of Sexp.t list [@sexp.list]
     | B of string
     | S of string
+    | BH of string
+    | SH of string
     | FLG of string list
     | UNIT_NAME of string
   [@@deriving of_sexp]
@@ -84,13 +86,17 @@ module Listing = struct
   let cmt_load_paths_from_cmt_dirs load_path_cache cmt_dirs =
     List.map cmt_dirs ~f:(fun cmt_dir ->
         Hashtbl.find_or_add load_path_cache cmt_dir ~default:(fun () ->
+            (* Maybe ~hidden should be based on the use of BH vs B in the merlin file,
+               but it's not clear that it matters, and it would complicate things,
+               because all_load_paths would need to combine the hidden and non hidden
+               load paths. *)
             lazy (Load_path.Dir.create (Cwdpath.to_string cmt_dir) ~hidden:false)))
 
   let of_merlin_sexp ~load_path_cache ~dune_root source sexp =
     let merlin_items = [%of_sexp: merlin_thing list] sexp in
     let cmt_dirs =
       List.filter_map merlin_items ~f:(function
-        | STDLIB dir | B dir -> Some (Cwdpath.create_abs_exn dir)
+        | STDLIB dir | B dir | BH dir -> Some (Cwdpath.create_abs_exn dir)
         | _ -> None)
     in
     let compilation_unit =
