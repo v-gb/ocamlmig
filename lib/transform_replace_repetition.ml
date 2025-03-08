@@ -58,7 +58,7 @@ module Tree : sig
   val create : node -> t
 
   (* val to_node : t -> node *)
-  val to_expr : t -> expression
+  val to_exp : t -> expression
 
   (* val to_pat : t -> pattern *)
   val find : t -> (node -> bool) -> (zipper * t) option
@@ -145,7 +145,7 @@ end = struct
             | [] -> raise_s [%sexp `wtf, (t : t)]
             | res :: rest ->
                 children := rest;
-                to_expr res)
+                to_exp res)
       ; pat =
           (fun _ _ ->
             match !children with
@@ -162,7 +162,7 @@ end = struct
       | `Exp e -> `Exp (super.expr self e)
       | `Pat e -> `Pat (super.pat self e)
 
-  and to_expr t = match to_node t with `Exp e -> e | _ -> assert false
+  and to_exp t = match to_node t with `Exp e -> e | _ -> assert false
   and to_pat t = match to_node t with `Pat e -> e | _ -> assert false
 
   let find tree f =
@@ -388,7 +388,7 @@ let infer motif =
                 assert (Poly.( = ) (Tree.fill p1 a1) (Tree.fill p3 a3));
                 let p1f, a1f = Tree.fill p1 a1 in
                 let expr =
-                  match Tree.to_expr a1f with
+                  match Tree.to_exp a1f with
                   | { pexp_desc = Pexp_function (params, typ, body); _ } as pat -> (
                       match params with
                       | [ { pparam_desc = Pparam_val (Nolabel, None, p1); _ }
@@ -467,10 +467,10 @@ let infer motif =
             if debug then print_s [%sexp ~~(tree : Tree.t)];
             tree
         in
-        if debug then print_s [%sexp `end_of_chunk, ~~(Tree.to_expr tree : expression)];
+        if debug then print_s [%sexp `end_of_chunk, ~~(Tree.to_exp tree : expression)];
         tree)
   in
-  let expr = Tree.to_expr result in
+  let expr = Tree.to_exp result in
   if display then print_s [%sexp `result, ~~(expr : expression)];
   expr
 
