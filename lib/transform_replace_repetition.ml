@@ -288,49 +288,49 @@ let infer motif =
         let cur_elt name =
           Ast_helper.Exp.ext_exp "X" (Ast_helper.Exp.ident' (Lident name))
         in
+        let acc = Ast_helper.Exp.ext_exp "acc" (Ast_helper.Exp.unit ()) in
         let rec intersect_down (tree1 : Tree.t) (tree2 : Tree.t) =
           if
             Tree.equal_node tree1.self tree2.self
             || matching_var2 tree1.self tree2.self
             || matching_var1 tree1.self tree2.self
           then
-            let this : Tree.t =
-              { self =
-                  (if Tree.equal_node tree1.self tree2.self
-                   then tree1.self
-                   else
-                     match is_v2 tree1.self with
-                     | Some var -> `Exp (cur_elt var)
-                     | None ->
-                         `Exp
-                           (Ast_helper.Exp.extension
-                              ({ txt = "acc"; loc = Location.none }, PStr [])))
-              ; children =
-                  List.map2_exn tree1.children tree2.children ~f:(fun c1 c2 ->
-                      intersect_down c1 c2)
-              }
+            let has_acc = ref false in
+            let has_none = ref false in
+            let children =
+              List.map2_exn tree1.children tree2.children ~f:(fun c1 c2 : Tree.t ->
+                  match intersect_down c1 c2 with
+                  | Some (c_has_acc, c_tree) ->
+                      has_acc := !has_acc || c_has_acc;
+                      c_tree
+                  | None ->
+                      has_none := true;
+                      { self = `Exp (Ast_helper.Exp.hole ()); children = [] })
             in
-            if
-              List.exists this.children ~f:(fun c ->
-                  match c.self with
-                  | `Exp { pexp_desc = Pexp_hole; _ } -> true
-                  | _ -> false)
+            if !has_none
             then
-              if
-                List.exists this.children ~f:(fun c ->
-                    match c.self with
-                    | `Exp { pexp_desc = Pexp_extension ({ txt = "acc"; _ }, _); _ } ->
-                        true
-                    | _ -> false)
-              then
-                { self = `Exp (Ast_helper.Exp.ext_exp "acc" (Ast_helper.Exp.unit ()))
-                ; children = [ tree1 ]
+              if !has_acc
+              then Some (true, { self = `Exp acc; children = [ tree1 ] })
+              else None
+            else
+              let this : Tree.t =
+                { self =
+                    (if Tree.equal_node tree1.self tree2.self
+                     then tree1.self
+                     else
+                       match is_v2 tree1.self with
+                       | Some var -> `Exp (cur_elt var)
+                       | None ->
+                           has_acc := true;
+                           `Exp acc)
+                ; children
                 }
-              else { self = `Exp (Ast_helper.Exp.hole ()); children = [] }
-            else this
-          else { self = `Exp (Ast_helper.Exp.hole ()); children = [] }
+              in
+              Some (!has_acc, this)
+          else None
         in
-        let rec join_up (z1 : Tree.zipper) (z2 : Tree.zipper) (tree : Tree.t) =
+        let rec join_up (r : _ With_return.return) (z1 : Tree.zipper) (z2 : Tree.zipper)
+            (tree : Tree.t) =
           match (z1, z2) with
           | Some znode1, Some znode2
             when Tree.equal_node znode1.self znode2.self
@@ -346,14 +346,20 @@ let infer motif =
                        | None ->
                            `Exp (Ast_helper.Exp.ext_exp "acc" (Ast_helper.Exp.unit ())))
                 ; children =
-                    List.rev_map2_exn znode1.left_rev_children znode2.left_rev_children
-                      ~f:intersect_down
-                    @ tree
-                      :: List.map2_exn znode1.right_children znode2.right_children
-                           ~f:intersect_down
+                    (let f t1 t2 =
+                       match intersect_down t1 t2 with
+                       | None -> r.return None
+                       | Some (_, v) ->
+                           (* should not infer a motif if we have multiple has_acc *)
+                           v
+                     in
+                     List.rev_map2_exn znode1.left_rev_children znode2.left_rev_children
+                       ~f
+                     @ tree
+                       :: List.map2_exn znode1.right_children znode2.right_children ~f)
                 }
               in
-              join_up znode1.parent znode2.parent this
+              join_up r znode1.parent znode2.parent this
           | _ ->
               Tree.top z2
                 { self = `Exp (Ast_helper.Exp.ext_exp "repeat" (Ast_helper.Exp.unit ()))
@@ -456,7 +462,9 @@ let infer motif =
               if matching_var2 a2.self a3.self && matching_var1 a1.self a2.self
               then
                 let var = Option.value_exn (is_v2 a2.self) in
-                join_up z2 z3 { self = `Exp (cur_elt var); children = [] }
+                With_return.with_return (fun r ->
+                    Some (join_up r z2 z3 { self = `Exp (cur_elt var); children = [] }))
+                |> Option.value ~default:tree
               else tree
             in
             if debug then print_s [%sexp ~~(tree : Tree.t)];

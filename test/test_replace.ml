@@ -180,6 +180,13 @@ module _ = struct
     let _ =
       let+ a = 2 and+ b = 3 and+ c = 5 and+ d = 5 and+ e = 6 in
       (a, b, c, d, e)]
+
+  let _ = nary (((((), Fn.id 1), Fn.id 2), Fn.id 3), Fn.id 4)
+  [@@migrate_test.replace_expr
+    {| nary ((((), Fn.id __e1), Fn.id __e2), Fn.id __e3) /// let+ _ = __e1 and+ _ = __e2 and+ _ = __e3 in () |}]
+  [@@migrate_test.replace let _ = let+ _ = 1 and+ _ = 2 and+ _ = 3 and+ _ = 4 in
+
+                                  ()]
 end
 
 (* Replace List.mapi by List.map to observe that the comment is moved. I suspect the
