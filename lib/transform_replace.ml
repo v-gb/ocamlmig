@@ -418,10 +418,10 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
             | _ -> false)
       | _ -> unsupported_motif motif.pexp_loc)
   | Pexp_extension (motif_name, motif_payload) -> (
-      ctx1.need_type_index := true;
       let s_payload = match_payload ~loc:motif.pexp_loc ~ctx1 motif_payload in
       match motif_name.txt with
       | "move_def" -> (
+          ctx1.need_type_index := true;
           fun expr ~env ~ctx ->
             (* The use of whole_ast is problematic because if the fraction of ast we're
              getting from whole_ast has been modified by the current transform (for
