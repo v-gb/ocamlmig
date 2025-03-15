@@ -1041,7 +1041,7 @@ let main () =
   let hidden ((name, _) as cmd) =
     if Array.length Sys.argv >= 2 && Sys.argv.(1) =: name then Some cmd else None
   in
-  Command_unix.run
+  Command_unix.run ~version:"%%VERSION%%"
     (Command.group ~summary:"A tool for rewriting ocaml code"
        (List.concat
           [ [ migrate; transform ]
