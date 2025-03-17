@@ -216,14 +216,13 @@ number of axes:
 
 # What ocamlmig doesn't do
 
-The ocamlmig executable supports a specific form of rewrites that can't possibly cover
-everything possible.
+The ocamlmig executable supports a specific form of rewrites that can't possibly
+cover all desirable rewrites.
 
-But one could rewrite code in arbitrary ways by using ocamlmig as a library
-instead. Then, only the limitations of the library itself would potentially be
-limiting: it only supports builds that use dune (except for some trivial changes), and
-of course the library may be missing functionality (like getting build feedback while
-rewriting files).
+Though if using ocamlmig as a library instead, the only limitations would be that it
+only supports builds that use dune (except for some trivial changes), and of course the
+library may be missing functionality (like getting build feedback while rewriting
+files).
 
 # Using ocamlmig
 

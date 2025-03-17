@@ -150,6 +150,29 @@ would update the code like so:
 +let () = print_string "a"
 ```
 
+## _(very experimental)_ Find and replace
+
+`ocamlmig replace` is a bit similar to sed, except that instead of replacing a string
+pattern by a string template, it replaces an expression "pattern" by an expression
+template (or types, or other syntactic categories).
+
+For example: `ocamlmig replace -e 'Cli.named __ __e /// __e'` could be used to create
+this kind of changes:
+
+```diff
+ let working_tree =
+   let doc = "Perform the check on the current working tree." in
+-  Cli.named
+-    (fun x -> `Working_tree x)
+-    Arg.(value & flag & info [ "working-tree" ] ~doc)
++  Arg.(value & flag & info [ "working-tree" ] ~doc)
+```
+
+The left of the `///` is the "pattern", the right is the template.
+
+This command changes a lot, so don't expect stability, and please look at `ocamlmig
+replace -help` for help text for the exact version of `ocamlmig` you're using.
+
 # How to write attributes
 
 Here, we will assume you have read through the [high level picture](./what.md) first.
@@ -238,15 +261,39 @@ There are a few things to know about the `repl` expression:
 
 - Since the expression is specified in an attribute, it will be parsed but not
   typechecked, so you may want to manually check (by applying the migration) that your
-  migration generates working code.
+  migration generates working code. We'll likely provide a validation command in the
+  future.
+- The replacement expression should refer to names as if the expression was typechecked
+  in an empty file:
+
+    ```ocaml
+    val v2 : bool -> unit
+
+    val v1 : unit -> unit [@@migrate { repl = fun () -> v2 false }]
+    (* Will NOT work as expected (it would replace This_lib.v1 by v2), because
+       an empty file containing "v2 false" would have a "unbound value v2" error.
+       On the other hand, the reference to "false" is fine, because of the implied
+       "open Stdlib" in empty files. *)
+
+    val v1 : unit -> unit [@@migrate { repl = fun () -> This_lib.v2 false }]
+    (* Correct, assuming This_lib is the name of the current library. *)
+
+    val v1 : unit -> unit [@@migrate { repl = fun () -> Rel.v2 false }]
+    (* Correct as well, since Rel is a special identifier as described above. *)
+    ```
+
+  For the same reason, sum type constructors and record fields may need to be qualified.
+
+  _(partially implemented)_ Identifiers will be requalified depending on the context of
+  the caller to preserve their meaning and blend in with the rest of the code. For
+  instance, asking to replace `string_of_int` by `Int.to_string` could insert
+  `Stdlib.Int.to_string` at a call site if the module `Int` in scope is not the Stdlib
+  one, or it could insert `to_string` if the `Int` module is open.
+
 - Since the expression is meant to be inserted into the caller's source code, although
   any arbitrary ocaml expression can be inserted, not every ocaml bit of the language
   is a good idea to use. Here are known things to be wary about:
 
-    - The scope at the attribute definition and at the call site is different. In
-      particular sum type constructors and record fields may need to be qualified. The
-      intention is that replacement expression should assume that Stdlib is in scope
-      and use fully qualified paths (or `Rel`) to refer to other names.
     - Type variables `(... : 'a list)` should be avoided, because they can collide
       with type variables of the same name in the caller, and cause typing errors even if
       they are fresh.
