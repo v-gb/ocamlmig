@@ -1,4 +1,4 @@
-(version 1.0.7)
+(version 1.0.8)
 
 (build
  (run
@@ -14,6 +14,6 @@
 
 (source
  (fetch
-  (url https://erratique.ch/software/topkg/releases/topkg-1.0.7.tbz)
+  (url https://erratique.ch/software/topkg/releases/topkg-1.0.8.tbz)
   (checksum
-   sha512=09e59f1759bf4db8471f02d0aefd8db602b44932a291c05c312b1423796e7a15d1598d3c62a0cec7f083eff8e410fac09363533dc4bd2120914bb9664efea535)))
+   sha512=4b632b60137852bb72ff9c8cdc2e16ac5ece6473569e50963fef9c1e800a0933a516bea1107b04011645afa4a1e78893c82dbce0aa8de2970d4d6c6d0dd2fe02)))

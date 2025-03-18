@@ -1,4 +1,4 @@
-(version 0.15.0+dune)
+(version 0.16.1+dune)
 
 (build
  (progn
@@ -20,6 +20,6 @@
 (source
  (fetch
   (url
-   https://github.com/Leonidas-from-XIV/ocamlbuild/archive/refs/tags/0.15.0+dune.tar.gz)
+   https://github.com/gridbugs/ocamlbuild/archive/refs/tags/0.16.1+dune.tar.gz)
   (checksum
-   sha512=95f67e239798ecdd60685ae8f947c74f989d620cd4b214448c9c0813c90d6489c52662798384fbd9120cc974eef985de6af1169725e2d917eef0eafb127d81a4)))
+   sha512=9bf33e2e3cd70495c6ff5987f7e8c1c2fb3dccb02da490140726fed3b374489cb93d500f57bea32a1a71da1c9d3dd207e476109d1aaa759f54c3ef07d5b7ccd8)))

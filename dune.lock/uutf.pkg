@@ -1,4 +1,4 @@
-(version 1.0.3)
+(version 1.0.4)
 
 (build
  (run
@@ -14,6 +14,6 @@
 
 (source
  (fetch
-  (url https://erratique.ch/software/uutf/releases/uutf-1.0.3.tbz)
+  (url https://erratique.ch/software/uutf/releases/uutf-1.0.4.tbz)
   (checksum
-   sha512=50cc4486021da46fb08156e9daec0d57b4ca469b07309c508d5a9a41e9dbcf1f32dec2ed7be027326544453dcaf9c2534919395fd826dc7768efc6cc4bfcc9f8)))
+   sha512=e35f408bc971cd8da3077e6c3321e0d8f4eb569898e0e219fde62dae78fbd0a0095cb7f036287656f6a1b346584f7b9f0c6dec0a5a092180da36e43247027598)))
