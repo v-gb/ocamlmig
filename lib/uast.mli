@@ -56,6 +56,17 @@ module Path : sig
     with type t := t
 end
 
+module Unit_info : sig
+  include module type of struct
+    include Unit_info
+  end
+
+  type intf_or_impl = Unit_info.intf_or_impl =
+    | Intf
+    | Impl
+  [@@deriving compare, sexp_of, hash]
+end
+
 module Shape : sig
   include module type of struct
       include Shape

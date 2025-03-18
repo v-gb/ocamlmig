@@ -404,12 +404,13 @@ module Artifacts = struct
     in
     loop_t shape
 
-  let rec create_loaded_cmt t which ~comp_unit ~(cmt_path : Cwdpath.t) : loaded_cmt =
+  let rec create_loaded_cmt t (which : Unit_info.intf_or_impl) ~comp_unit
+      ~(cmt_path : Cwdpath.t) : loaded_cmt =
     match t.cache with
     | None -> create_loaded_cmt_uncached t ~comp_unit ~cmt_path
     | Some cache ->
         Hashtbl.find_or_add
-          (match which with `impl -> cache.impls | `intf -> cache.intfs)
+          (match which with Impl -> cache.impls | Intf -> cache.intfs)
           comp_unit
           ~default:(fun () -> create_loaded_cmt_uncached t ~comp_unit ~cmt_path)
 
@@ -428,7 +429,7 @@ module Artifacts = struct
         let fuel = 20
 
         let read_unit_shape ~unit_name =
-          match loaded_cmt `impl t ~comp_unit:unit_name with
+          match loaded_cmt Impl t ~comp_unit:unit_name with
           | None -> None
           | Some (_, loaded_cmt) -> force loaded_cmt.noapprox_impl
       end)
@@ -447,15 +448,16 @@ module Artifacts = struct
     ; m = (module M)
     }
 
-  and loaded_cmt which t ~comp_unit : (Cwdpath.t * _) option =
+  and loaded_cmt (intf_or_impl : Unit_info.intf_or_impl) t ~comp_unit :
+      (Cwdpath.t * _) option =
     Hashtbl.find_or_add
-      (match which with `impl -> t.impls | `intf -> t.intfs)
+      (match intf_or_impl with Impl -> t.impls | Intf -> t.intfs)
       comp_unit
       ~default:(fun () ->
         match
           List.find_map t.load_path_dirs ~f:(fun dir ->
               Load_path.Dir.find_normalized dir
-                (comp_unit ^ match which with `impl -> ".cmt" | `intf -> ".cmti"))
+                (comp_unit ^ match intf_or_impl with Impl -> ".cmt" | Intf -> ".cmti"))
         with
         | None -> None
         | Some cmt_path ->
@@ -463,7 +465,7 @@ module Artifacts = struct
               (* This is a path relative to cmt_dirs, which is a cwdpath *)
               Cwdpath.create cmt_path
             in
-            Some (cmt_path, create_loaded_cmt t which ~comp_unit ~cmt_path))
+            Some (cmt_path, create_loaded_cmt t intf_or_impl ~comp_unit ~cmt_path))
 
   let parse_library_name library_name =
     let library_dir = String.tr library_name ~target:'.' ~replacement:'/' in
@@ -489,7 +491,7 @@ module Artifacts = struct
                     (* This is a path relative to cmt_dirs, which is a cwdpath *)
                     Cwdpath.create cmt_path
                   in
-                  (cmt_path, create_loaded_cmt t `impl ~comp_unit ~cmt_path)))
+                  (cmt_path, create_loaded_cmt t Impl ~comp_unit ~cmt_path)))
 
   let locate_cmt_from_library_name t ~dune_root ~library_name =
     (* The side migration code will look for an entry in this cache. Maybe we should
@@ -514,7 +516,7 @@ module Artifacts = struct
                   "multiple possible .cmt files for"
                 , ~~(library_name : string)
                 , ~~(cmt_paths : Cwdpath.t list)]
-          | [ cmt_path ] -> Some (cmt_path, create_loaded_cmt t `impl ~comp_unit ~cmt_path)
+          | [ cmt_path ] -> Some (cmt_path, create_loaded_cmt t Impl ~comp_unit ~cmt_path)
           | [] -> locate_cmt_from_library_name_in_opam t parsed_library_name)
     |> Option.map ~f:(fun (cmt_path, loaded_cmt) -> (cmt_path, loaded_cmt.infos))
 
@@ -522,7 +524,7 @@ module Artifacts = struct
     Option.bind (comp_unit_of_uid uid) ~f:(fun comp_unit ->
         match
           match (loaded_cmt impl_or_intf t ~comp_unit, impl_or_intf) with
-          | None, `intf -> loaded_cmt `impl t ~comp_unit
+          | None, Intf -> loaded_cmt Impl t ~comp_unit
           | res, _ -> res
         with
         | None -> None
@@ -535,7 +537,7 @@ module Artifacts = struct
 
   let decl_from_reduce_for_uid_result t = function
     | Shape_reduce.Resolved uid | Resolved_alias (uid, _) ->
-        Ok (uid, decl_from_def_uid t (uid, `impl))
+        Ok (uid, decl_from_def_uid t (uid, Impl))
     | res ->
         Error
           (lazy
@@ -546,7 +548,7 @@ module Artifacts = struct
             ^ Format.asprintf "%a" Shape_reduce.print_result res))
 
   let decl_from_following_shape t (comp_unit, shape) =
-    match loaded_cmt `impl t ~comp_unit with
+    match loaded_cmt Impl t ~comp_unit with
     | None ->
         Error (lazy (Sexp.to_string_hum [%sexp "no comp unit", (comp_unit : string)]))
     | Some (_, loaded_cmt) ->
@@ -557,7 +559,7 @@ module Artifacts = struct
         decl_from_reduce_for_uid_result t shape_res
 
   let shape_from_occurrence t (comp_unit, idloc) =
-    match loaded_cmt `impl t ~comp_unit with
+    match loaded_cmt Impl t ~comp_unit with
     | None -> None
     | Some (_, loaded_cmt) ->
         Map.find (force loaded_cmt.ident_occurrences) idloc

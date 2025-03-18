@@ -58,6 +58,15 @@ module Ident = struct
   let sexp_of_t t = sexp_of_string (Format.asprintf "%a" Ident.print_with_scope t)
 end
 
+module Unit_info = struct
+  include Unit_info
+
+  type intf_or_impl = Unit_info.intf_or_impl =
+    | Intf
+    | Impl
+  [@@deriving compare, sexp_of, hash]
+end
+
 module Shape = struct
   include Shape
 
@@ -87,7 +96,7 @@ module Shape = struct
     type t = string * Sig_component_kind.t [@@deriving sexp_of]
 
     module Map = struct
-      let sexp_of_t (type a) sexp_of_a t =
+      let sexp_of_t sexp_of_a t =
         [%sexp_of: (t * a) list] (Stdlib.List.of_seq (Map.to_seq t))
 
       include Map
