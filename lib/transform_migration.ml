@@ -1728,13 +1728,16 @@ module Decl_id = struct
 
   let compare_shape_uid (t1 : shape_uid) (t2 : shape_uid) =
     match (t1, t2) with
-    | Item { comp_unit = c1; id = id1 }, Item { comp_unit = c2; id = id2 } ->
-        [%compare: string * int] (c1, id1) (c2, id2)
+    | ( Item { comp_unit = c1; id = id1; from = from1 }
+      , Item { comp_unit = c2; id = id2; from = from2 } ) ->
+        [%compare: string * int * Uast.Unit_info.intf_or_impl] (c1, id1, from1)
+          (c2, id2, from2)
     | _ -> assert false
 
   let hash_fold_shape_uid acc (t : shape_uid) =
     match t with
-    | Item { comp_unit; id } -> [%hash_fold: string * int] acc (comp_unit, id)
+    | Item { comp_unit; id; from } ->
+        [%hash_fold: string * int * Uast.Unit_info.intf_or_impl] acc (comp_unit, id, from)
     | _ -> assert false
 
   type t =

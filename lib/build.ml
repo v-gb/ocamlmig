@@ -350,7 +350,7 @@ module Artifacts = struct
      preferable for us to transform all approximated nodes into unique leaves, because
      even though we won't have the real definition either way, at least we'll be able to
      compute a normal form. *)
-  let no_approximated_shapes_thank_you ~comp_unit shape =
+  let no_approximated_shapes_thank_you ~which ~comp_unit shape =
     let ids = ref 0 in
     let cache = Shape.Uid.Tbl.create 12 in
     let rec loop_t ({ uid; desc; approximated } as shape2 : Shape.t) : Shape.t =
@@ -362,10 +362,15 @@ module Artifacts = struct
                let uid =
                  match uid with
                  | Some x -> x
-                 | None -> Shape.Uid.mk ~current_unit:comp_unit
+                 | None ->
+                     Shape.Uid.mk
+                       ~current_unit:
+                         (Some
+                            (Unit_info.make which comp_unit ~check_modname:false
+                               ~source_file:"wontbeused"))
                in
                match uid with
-               | Item { comp_unit = _; id } as foo ->
+               | Item { comp_unit = _; id; from = _ } as foo ->
                    let module Obj = Stdlib.Obj in
                    let field_idx = 1 in
                    assert (id = Obj.obj (Obj.field (Obj.repr foo) field_idx));
@@ -407,14 +412,14 @@ module Artifacts = struct
   let rec create_loaded_cmt t (which : Unit_info.intf_or_impl) ~comp_unit
       ~(cmt_path : Cwdpath.t) : loaded_cmt =
     match t.cache with
-    | None -> create_loaded_cmt_uncached t ~comp_unit ~cmt_path
+    | None -> create_loaded_cmt_uncached t which ~comp_unit ~cmt_path
     | Some cache ->
         Hashtbl.find_or_add
           (match which with Impl -> cache.impls | Intf -> cache.intfs)
           comp_unit
-          ~default:(fun () -> create_loaded_cmt_uncached t ~comp_unit ~cmt_path)
+          ~default:(fun () -> create_loaded_cmt_uncached t which ~comp_unit ~cmt_path)
 
-  and create_loaded_cmt_uncached t ~comp_unit ~(cmt_path : Cwdpath.t) =
+  and create_loaded_cmt_uncached t which ~comp_unit ~(cmt_path : Cwdpath.t) =
     let cmt_infos = read_cmt cmt_path in
     if comp_unit <>: cmt_infos.cmt_modname
     then
@@ -438,7 +443,7 @@ module Artifacts = struct
     ; noapprox_impl =
         lazy
           (Option.map cmt_infos.cmt_impl_shape
-             ~f:(no_approximated_shapes_thank_you ~comp_unit))
+             ~f:(no_approximated_shapes_thank_you ~which ~comp_unit))
     ; infos = cmt_infos
     ; ident_occurrences =
         lazy

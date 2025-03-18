@@ -986,10 +986,11 @@ let internal_cmi =
               (* As it turns out, there is no function to print Types.signature, without
                  dropping attributes at least. *)
               let tree_of_value_description id (decl : Types.value_description) =
-                let open Printtyp in
+                let open Out_type in
                 let open Outcometree in
                 let id = Ident.name id in
-                let ty = tree_of_type_scheme decl.val_type in
+                let () = prepare_for_printing [ decl.val_type ] in
+                let ty = tree_of_typexp Type_scheme decl.val_type in
                 let vd =
                   { oval_name = id
                   ; oval_type = ty
@@ -1013,11 +1014,12 @@ let internal_cmi =
                 with Cmi_format.Error e ->
                   failwith (Format.asprintf "%a" Cmi_format.report_error e)
               in
-              Format.printf "@[<v>%a@]@." !Oprint.out_signature
+              Format.printf "@[<v>%a@]@."
+                (Format_doc.compat !Oprint.out_signature)
                 (List.concat_map cmi_infos.cmi_sign ~f:(fun si ->
                      match si with
                      | Sig_value (id, decl, _) -> [ tree_of_value_description id decl ]
-                     | _ -> Printtyp.tree_of_signature [ si ])))] )
+                     | _ -> Out_type.tree_of_signature [ si ])))] )
 
 let internal_untype =
   ( "untype"

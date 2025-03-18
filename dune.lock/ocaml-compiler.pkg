@@ -1,0 +1,95 @@
+(version 5.3.0)
+
+(install
+ (withenv
+  ((= MSYS2_ARG_CONV_EXCL *)
+   (= LSAN_OPTIONS detect_leaks=0,exitcode=0)
+   (= ASAN_OPTIONS detect_leaks=0,exitcode=0))
+  (run %{make} install)))
+
+(build
+ (withenv
+  ((= MSYS2_ARG_CONV_EXCL *)
+   (= LSAN_OPTIONS detect_leaks=0,exitcode=0)
+   (= ASAN_OPTIONS detect_leaks=0,exitcode=0))
+  (progn
+   (run
+    ./configure
+    (when
+     (and_absorb_undefined_var
+      %{pkg:system-msvc:installed}
+      %{pkg:arch-x86_64:installed})
+     --host=x86_64-pc-windows)
+    (when
+     (and_absorb_undefined_var
+      %{pkg:system-msvc:installed}
+      %{pkg:arch-x86_32:installed})
+     --host=i686-pc-windows)
+    --prefix=%{prefix}
+    --docdir=%{doc}/ocaml
+    (when
+     %{pkg:system-msvc:installed}
+     --with-winpthreads-msvc=%{pkg:winpthreads:share})
+    -C
+    (when %{pkg:ocaml-option-afl:installed} --with-afl)
+    (when
+     %{pkg:ocaml-option-bytecode-only:installed}
+     --disable-native-compiler)
+    (when
+     %{pkg:ocaml-option-no-flat-float-array:installed}
+     --disable-flat-float-array)
+    (when %{pkg:ocaml-option-flambda:installed} --enable-flambda)
+    (when %{pkg:ocaml-option-fp:installed} --enable-frame-pointers)
+    (when %{pkg:ocaml-option-no-compression:installed} --without-zstd)
+    (when %{pkg:ocaml-option-tsan:installed} --enable-tsan)
+    (when
+     (and_absorb_undefined_var %{pkg:ocaml-option-musl:installed} true)
+     CC=musl-gcc)
+    (when
+     (and_absorb_undefined_var %{pkg:ocaml-option-musl:installed} true)
+     CFLAGS=-Os)
+    (when
+     (or_absorb_undefined_var
+      %{pkg:ocaml-option-leak-sanitizer:installed}
+      (and_absorb_undefined_var
+       %{pkg:ocaml-option-address-sanitizer:installed}
+       true))
+     LDFLAGS=-Wl,--no-as-needed,-ldl)
+    (when
+     %{pkg:ocaml-option-leak-sanitizer:installed}
+     "CC=gcc -ldl -fsanitize=leak -fno-omit-frame-pointer -O1 -g")
+    (when
+     (and_absorb_undefined_var
+      %{pkg:ocaml-option-address-sanitizer:installed}
+      true)
+     "CC=gcc -ldl -fsanitize=address -fno-omit-frame-pointer -O1 -g")
+    (when
+     (and_absorb_undefined_var %{pkg:ocaml-option-32bit:installed} true)
+     "CC=gcc -m32")
+    (when
+     (and_absorb_undefined_var %{pkg:ocaml-option-musl:installed} true)
+     "ASPP=musl-gcc -c")
+    (when
+     (and_absorb_undefined_var %{pkg:ocaml-option-32bit:installed} true)
+     --host=i386-linux)
+    (when %{pkg:ocaml-option-static:installed} LIBS=-static)
+    --disable-warn-error)
+   (run %{make} -j%{jobs}))))
+
+(source
+ (fetch
+  (url
+   https://github.com/ocaml/ocaml/releases/download/5.3.0/ocaml-5.3.0.tar.gz)
+  (checksum
+   sha256=22c1dd9de21bf43b62d1909041fb5fad648905227bf69550a6a6bef31e654f38)))
+
+(exported_env
+ (= CAML_LD_LIBRARY_PATH "\%{lib}%/stublibs"))
+
+(extra_sources
+ (ocaml-compiler.install
+  (fetch
+   (url
+    https://raw.githubusercontent.com/ocaml/ocaml/899b8f3bece45f55161dad72eaa223c2bb7202e8/ocaml-variants.install)
+   (checksum
+    sha256=7af3dc34e6f9f3be2ffd8d32cd64fa650d6a036c86c4821a7033d24a90fba11c))))

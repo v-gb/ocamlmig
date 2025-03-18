@@ -49,13 +49,13 @@ end
 module Path = struct
   include Path
 
-  let sexp_of_t t = sexp_of_string (Format.asprintf "%a" Path.print t)
+  let sexp_of_t t = sexp_of_string (Format_doc.asprintf "%a" Path.print t)
 end
 
 module Ident = struct
   include Ident
 
-  let sexp_of_t t = sexp_of_string (Format.asprintf "%a" Ident.print_with_scope t)
+  let sexp_of_t t = sexp_of_string (Format_doc.asprintf "%a" Ident.print_with_scope t)
 end
 
 module Unit_info = struct
@@ -78,6 +78,7 @@ module Shape = struct
       | Item of
           { comp_unit : string
           ; id : int
+          ; from : Unit_info.intf_or_impl
           }
       | Internal
       | Predef of string
