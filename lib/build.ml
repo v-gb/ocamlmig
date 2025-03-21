@@ -44,6 +44,9 @@ let input_name_matching_compilation_command (cmt_infos : Cmt_format.cmt_infos) =
       String.substr_replace_all path ~pattern:".pp" ~with_:"")
 
 module Listing = struct
+  (* This seems to be the code that parses this stuff in merlin:
+     https://github.com/ocaml/merlin/blob/main/src/dot-protocol/merlin_dot_protocol.ml
+     Not that it helps us, probably. *)
   type merlin_thing =
     | INDEX of string
     | STDLIB of string
