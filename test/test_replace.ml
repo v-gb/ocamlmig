@@ -11,6 +11,11 @@ let _ = List.map ~f:(fun x -> Some (x + 1)) [ 2 ]
   {| List.map ~f:__f __l /// List.map' __l ~f:__f [@reorder] |}]
 [@@migrate_test.replace let _ = List.map' [ 2 ] ~f:(fun x -> Some (x + 1))]
 
+let _ : _ = List.map ~f:(fun x -> Some (x + 1))
+[@@migrate_test.replace_expr
+  {| List.map ~f:__f __l /// List.map' __l ~f:__f [@reorder] |}]
+[@@migrate_test.replace let _ : _ = List.map ~f:(fun x -> Some (x + 1))]
+
 let _ =
   let open Stdlib in
   List.memq (ref 3) [ ref 1; ref 2 ]

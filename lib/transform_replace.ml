@@ -635,7 +635,7 @@ and match_args ~ctx1 (margs : (arg_label * expression) list) =
     && Map.is_empty !s_named
     &&
     match var_other with
-    | None -> true
+    | None -> List.is_empty !s_anon
     | Some var_other -> (
         match Map.add !env.bindings ~key:var_other ~data:(Args (List.rev !others)) with
         | `Ok map ->
