@@ -346,7 +346,7 @@ let make_report_exn () =
   , fun e ->
       match Uast.Location.report_exception Format.err_formatter e with
       | () -> got_error := true
-      | exception e -> (
+      | exception _ -> (
           match Fmast.Location.report_exception Format.err_formatter e with
           | () -> got_error := true) )
 
@@ -664,6 +664,8 @@ let transform =
                [%map_open.Command
                  let () = return () in
                  fun ctx ->
+                   transient_line
+                     (Printf.sprintf "processing %s" (Cwdpath.to_string ctx.source_path));
                    match force ctx.ocamlformat_conf with
                    | None -> ()
                    | Some (fmconf, fm_orig) ->

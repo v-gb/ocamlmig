@@ -128,7 +128,13 @@ module Ast_helper : sig
     val none : ?loc:loc -> unit -> P.expression
     val true_ : ?loc:loc -> unit -> P.expression
     val false_ : ?loc:loc -> unit -> P.expression
-    val unit : ?loc:loc -> unit -> P.expression
+
+    val unit :
+         ?loc:loc
+      -> ?attrs:Ocamlformat_parser_extended.Parsetree.attributes
+      -> unit
+      -> P.expression
+
     val string : ?loc:loc -> ?quotation_delimiter:string -> string -> P.expression
     val int : ?loc:loc -> ?suffix:char -> int -> P.expression
     val ext_exp : ?loc:loc -> string -> P.expression -> P.expression
