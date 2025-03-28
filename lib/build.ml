@@ -118,7 +118,7 @@ module Listing = struct
     else [ "opam"; "exec"; "--"; "dune" ]
 
   let find_ignore_vcs dir args =
-    run_process
+    run_process Raise
       (List.concat
          [ [ "find"; Cwdpath.to_string dir; "(" ]
          ; List.map [ "_build"; "_opam"; ".git"; ".hg"; ".jj" ] ~f:(fun dir ->
@@ -136,7 +136,7 @@ module Listing = struct
     Profile.record "Build.Listing.create" (fun () ->
         let load_path_cache = Hashtbl.create (module Cwdpath) in
         let module Csexp = Csexp.Make (Sexp) in
-        with_process_full
+        with_process_full Raise
           (dune_exe ~dune_root @ [ "ocaml"; "merlin"; "start-session" ])
           (fun (stdout, stdin) ->
             List.filter_map source_paths ~f:(fun source_path ->

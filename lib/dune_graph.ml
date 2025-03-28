@@ -69,7 +69,7 @@ let build roots =
     then false
     else
       let text =
-        run_process
+        run_process Raise
           ([ "dune"; "describe"; "rules"; "--display"; "quiet"; "--" ]
           @ Set.to_list !to_visit)
       in
@@ -124,6 +124,7 @@ let cmd =
           | `Svg ->
               let svg =
                 with_str_in_file dot (fun fname ->
-                    run_process [ "dot"; "-T"; "svg"; no_dash (Abspath.to_string fname) ])
+                    run_process Raise
+                      [ "dot"; "-T"; "svg"; no_dash (Abspath.to_string fname) ])
               in
               print svg] )

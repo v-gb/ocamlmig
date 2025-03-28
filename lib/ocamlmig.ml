@@ -45,9 +45,9 @@ module Vcs = struct
   let files t =
     transient_line "loading files";
     (match t.system with
-    | `JJ -> run_process [ "jj"; "file"; "list" ] |> String.split_lines
-    | `Hg -> run_process [ "hg"; "files" ] |> String.split_lines
-    | `Git -> run_process [ "git"; "ls-files"; "--"; t.rel ] |> String.split_lines)
+    | `JJ -> run_process Raise [ "jj"; "file"; "list" ] |> String.split_lines
+    | `Hg -> run_process Raise [ "hg"; "files" ] |> String.split_lines
+    | `Git -> run_process Raise [ "git"; "ls-files"; "--"; t.rel ] |> String.split_lines)
     |> Cwdpath.create_list
 end
 

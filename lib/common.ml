@@ -66,10 +66,27 @@ let log = ref false
 let not_tc x = x
 let _ = not_tc
 
-let with_process_full argv f =
+module Process_res = struct
+  type (_, _) t =
+    | Raise : ('a, 'a) t
+    | Detailed : ('a, ('a, Unix.process_status * Sexp.t) Result.t) t
+end
+
+let with_process_full ?cwd (type a res) (process_res : (a, res) Process_res.t) argv f :
+    res =
+  let argv =
+    match cwd with
+    | None -> argv
+    | Some cwd ->
+        (* We should probably use spawn in general. *)
+        [ "bash"
+        ; "-c"
+        ; "cd " ^ Core.Sys.quote cwd ^ " && " ^ Core.Sys.concat_quoted argv
+        ]
+  in
   let prog = Option.value (List.hd argv) ~default:"" in
   let res = ref (Unix.WEXITED 0) in
-  let fres, stderr =
+  let (fres : a), stderr =
     Exn.protectx
       ~finally:(fun channels -> res := Unix.close_process_full channels)
       (Unix.open_process_args_full prog (Array.of_list argv) (Unix.environment ()))
@@ -80,22 +97,24 @@ let with_process_full argv f =
         (res, In_channel.input_all stderr))
   in
   match !res with
-  | WEXITED 0 -> fres
-  | _ ->
+  | WEXITED 0 -> ( match process_res with Raise -> fres | Detailed -> Ok fres)
+  | _ -> (
       let explain =
         match !res with
         | WEXITED n -> "code " ^ Int.to_string n
         | WSIGNALED n -> "signal " ^ Int.to_string n
         | WSTOPPED _ -> assert false
       in
-      raise_s
+      let sexp =
         [%sexp
           ("process exited with " ^ explain : string)
         , (argv : string list)
         , ~~(stderr : string)]
+      in
+      match process_res with Raise -> raise_s sexp | Detailed -> Error (!res, sexp))
 
-let run_process argv =
-  with_process_full argv (fun (stdout, stdin) ->
+let run_process ?cwd process_res argv =
+  with_process_full ?cwd process_res argv (fun (stdout, stdin) ->
       Out_channel.close stdin;
       (* we should use eio or async, as this can deadlock if stderr is big enough *)
       In_channel.input_all stdout)
