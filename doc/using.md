@@ -47,7 +47,8 @@ ocamlmig and the project must be built with the same compiler version).
 
 If you merely want to add attributes to a project, you can do so without dependencies
 or build system tweaks. You may still want to install ocamlmig to check that your
-attributes are working as intended though.
+attributes are working as intended though, either manually, or by calling `ocamlmig
+check` (with a few caveats in its help text).
 
 # How to rewrite code
 

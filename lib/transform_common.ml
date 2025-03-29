@@ -740,4 +740,9 @@ let utype_of_fmtype typ =
 
 let uexpr_of_fmexpr typ =
   let str = Fmast.debug_print Expression typ in
+  let str =
+    Printf.sprintf "#%d %S\n" typ.pexp_loc.loc_start.pos_lnum
+      typ.pexp_loc.loc_start.pos_fname
+    ^ str
+  in
   Uast.Parse.expression (Lexing.from_string str)

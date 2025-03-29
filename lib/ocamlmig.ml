@@ -258,13 +258,18 @@ let flag_optional_custom name ~all:all_v ~to_string ~doc =
     ~doc:
       (Printf.sprintf "%s %s" (String.concat ~sep:"|" (List.map ~f:to_string all_v)) doc)
 
-let ocamlformat_conf_param =
+let ocamlformat_conf_param ?(rewrite_only_in_test = false) () =
   [%map_open.Command
     let unformatted =
-      flag_optional_with_default_doc_custom "unformatted" ~all:[ `Skip; `Fail; `Proceed ]
-        ~to_string:(function `Skip -> "skip" | `Fail -> "fail" | `Proceed -> "proceed")
-        ~default:`Fail
-        ~doc:"what to do with .ml files for which ocamlformat is explicitly disabled"
+      if (not in_test) && rewrite_only_in_test
+      then return `Proceed
+      else
+        flag_optional_with_default_doc_custom "unformatted"
+          ~all:[ `Skip; `Fail; `Proceed ]
+          ~to_string:(function
+            | `Skip -> "skip" | `Fail -> "fail" | `Proceed -> "proceed")
+          ~default:`Fail
+          ~doc:"what to do with .ml files for which ocamlformat is explicitly disabled"
     in
     fun ~dune_root file_path ->
       let { conf = fmconf; in_use } =
@@ -371,7 +376,7 @@ let migrate =
         let source = source_param
         and write = write_param
         and format = format_param
-        and get_ocamlformat_conf = ocamlformat_conf_param
+        and get_ocamlformat_conf = ocamlformat_conf_param ()
         and extra_migrations_libraries =
           flag "-extra-migrations"
             ~doc:
@@ -453,7 +458,8 @@ type original_formatting =
   ]
 
 type transform_ctx =
-  { source_path : Cwdpath.t
+  { dune_root : Abspath.t Lazy.t
+  ; source_path : Cwdpath.t
   ; cmt_path : Cwdpath.t
   ; cmt_infos : Cmt_format.cmt_infos Lazy.t
   ; listing : Build.Listing.t
@@ -466,12 +472,14 @@ type transform_ctx =
   ; artifacts_cache : Build.Artifacts.cache
   }
 
-let make_transform param =
+let make_transform ?(rewrite_only_in_test = false) param =
   [%map_open.Command
     let source = source_param
-    and write = write_param
-    and format = format_param
-    and get_ocamlformat_conf = ocamlformat_conf_param
+    and write =
+      if (not in_test) && rewrite_only_in_test then return false else write_param
+    and format =
+      if (not in_test) && rewrite_only_in_test then return None else format_param
+    and get_ocamlformat_conf = ocamlformat_conf_param ~rewrite_only_in_test ()
     and f = param in
     fun () ->
       with_ocaml_exn (fun report_exn ->
@@ -512,7 +520,8 @@ let make_transform param =
                       in
                       with_reported_ocaml_exn report_exn () (fun () ->
                           f
-                            { source_path
+                            { dune_root = lazy (Result.ok_or_failwith dune_root)
+                            ; source_path
                             ; cmt_path
                             ; cmt_infos
                             ; listing
@@ -521,6 +530,59 @@ let make_transform param =
                             ; diff_or_write
                             ; artifacts_cache
                             }))))]
+
+let add_to_load_path ctx libs =
+  if not (Set.is_empty libs)
+  then (
+    let dune_root = force ctx.dune_root in
+    let dir = Abspath.concat dune_root "ocamlmig" in
+    Unix.mkdir (Abspath.to_string dir) 0o777;
+    let listing1 =
+      Exn.protect
+        ~finally:(fun () ->
+          if true
+          then
+            Sys_unix.command_exn
+              (Core.Sys.concat_quoted [ "rm"; "-rf"; "--"; Abspath.to_string dir ]))
+        ~f:(fun () ->
+          let ocamlmig_tmp_ml = Abspath.concat dir "ocamlmig_tmp.ml" in
+          Out_channel.write_all (Abspath.to_string ocamlmig_tmp_ml) ~data:"";
+          Out_channel.write_all
+            (Abspath.to_string (Abspath.concat dir "dune"))
+            ~data:
+              (String.concat_lines
+                 (List.map ~f:Sexp.to_string_hum
+                    [ [%sexp
+                        `library
+                        :: [ `name "ocamlmig_tmp"
+                           ; `libraries :: (libs : Set.M(String).t)
+                           ]]
+                      (* Plug the computation we want into @default @check, which are
+                       probably already being built by the user. Or provide @ocamlmig
+                       as a fallback, in case building the whole repo is too much. *)
+                    ; [%sexp `alias :: [ `name "ocamlmig"; `deps "ocamlmig_tmp.cmxa" ]]
+                    ; [%sexp `alias :: [ `name "default"; `deps "ocamlmig_tmp.cmxa" ]]
+                    ; [%sexp `alias :: [ `name "check"; `deps "ocamlmig_tmp.cmxa" ]]
+                    ]));
+          Fn.id
+            ((* dune is racy in some way, as it usually says "no such file
+                ocamlmig_tmp.ml" without this hackery. *)
+             Unix.sleepf 0.05;
+             Out_channel.write_all (Abspath.to_string ocamlmig_tmp_ml) ~data:"");
+          Build.Listing.build_or_wait_for ~dune_root
+            ~target_rel_to_dune_root:"ocamlmig/ocamlmig_tmp.cmxa";
+          Build.Listing.create ~dune_root
+            ~source_paths:[ Abspath.to_cwdpath ocamlmig_tmp_ml ])
+    in
+    if false
+    then
+      print_s
+        [%sexp
+          `libs (libs : Set.M(String).t)
+        , `loading
+            (listing1.all_load_paths
+              : (Load_path.Dir.t[@sexp.opaque]) Lazy.t Hashtbl.M(Cwdpath).t)];
+    Hashtbl.iter listing1.all_load_paths ~f:(fun (lazy dir) -> Load_path.append_dir dir))
 
 let transform =
   ( "transform"
@@ -649,31 +711,6 @@ let transform =
                            (Build.input_name_matching_compilation_command
                               (force ctx.cmt_infos))
                        |> ctx.diff_or_write ~original_formatting:(Some fm_orig)]) )
-      ; ( "migration-check"
-        , Command.basic
-            ~summary:
-              "turn let _ = foo [@migrate ...] attributes into code that checks that the \
-               replacement code types."
-            ~readme:(fun () ->
-              wrap
-                "For instance, on:\n\n\
-                \  let _ = List.map [@migrate { repl = fun f l -> ListLabel ~f l }]\n\n\
-                 the checking code would be:\n\n\
-                \  let _ = [ List.map; (fun f l -> ListLabel ~f l) ]\n\n")
-            (make_transform
-               [%map_open.Command
-                 let () = return () in
-                 fun ctx ->
-                   transient_line
-                     (Printf.sprintf "processing %s" (Cwdpath.to_string ctx.source_path));
-                   match force ctx.ocamlformat_conf with
-                   | None -> ()
-                   | Some (fmconf, fm_orig) ->
-                       Transform_migration_check.run ~fmconf ~source_path:ctx.source_path
-                         ~input_name_matching_compilation_command:
-                           (Build.input_name_matching_compilation_command
-                              (force ctx.cmt_infos))
-                       |> ctx.diff_or_write ~original_formatting:(Some fm_orig)]) )
       ; ( "migration-to-typed"
         , Command.basic
             ~summary:
@@ -699,6 +736,35 @@ let transform =
                               (force ctx.cmt_infos))
                        |> ctx.diff_or_write ~original_formatting:(Some fm_orig)]) )
       ] )
+
+let check =
+  ( "check"
+  , Command.basic ~summary:"Validates the contents of [@migrate] attributes"
+      ~readme:(fun () ->
+        wrap
+          "For instance, when called on a file containing:\n\n\
+          \  let _ = List.map [@migrate { repl = fun f l -> ListLabel.map ~f l }]\n\n\
+           the check would ensure:\n\
+           - that (fun f l -> ListLabel.ListLabel.map ~f l) typechecks\n\
+           - that its type is compatible with that of List.map\n\n\
+           Currently, there are a few shortcomings of this command:\n\
+           - the location of type errors point only roughly to the right location\n\
+           - replacement code that use the special module Rel will fail\n\
+           - attributes on \"val\" items are not checked")
+      (make_transform ~rewrite_only_in_test:true
+         [%map_open.Command
+           let () = return () in
+           fun ctx ->
+             transient_line
+               (Printf.sprintf "processing %s" (Cwdpath.to_string ctx.source_path));
+             match force ctx.ocamlformat_conf with
+             | None -> ()
+             | Some (fmconf, fm_orig) ->
+                 Transform_check.run ~fmconf ~source_path:ctx.source_path
+                   ~type_index:ctx.type_index ~add_to_load_path:(add_to_load_path ctx)
+                   ~input_name_matching_compilation_command:
+                     (Build.input_name_matching_compilation_command (force ctx.cmt_infos))
+                 |> ctx.diff_or_write ~original_formatting:(Some fm_orig)]) )
 
 let replace =
   ( "replace"
@@ -825,7 +891,7 @@ to search/replace other syntactic categories:
         and source = source_param
         and format = format_param
         and write = write_param
-        and get_ocamlformat_conf = ocamlformat_conf_param in
+        and get_ocamlformat_conf = ocamlformat_conf_param () in
         fun () ->
           with_ocaml_exn (fun report_exn ->
               let source_paths = file_paths_of_source source in
@@ -1048,7 +1114,7 @@ let main () =
   Command_unix.run ~version:"%%VERSION%%"
     (Command.group ~summary:"A tool for rewriting ocaml code"
        (List.concat
-          [ [ migrate; transform ]
+          [ [ migrate; transform; check ]
           ; Option.to_list (hidden replace)
           ; Option.to_list
               (hidden

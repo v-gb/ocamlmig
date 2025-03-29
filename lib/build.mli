@@ -33,6 +33,7 @@ module Listing : sig
   val create : dune_root:Abspath.t -> source_paths:Cwdpath.t list -> t
   val create_without_dune : Abspath.t -> t
   val locate_cmt : t -> source_path:Cwdpath.t -> (Cwdpath.t * one, Sexp.t) Result.t
+  val build_or_wait_for : dune_root:Abspath.t -> target_rel_to_dune_root:string -> unit
 end
 
 module Artifacts : sig

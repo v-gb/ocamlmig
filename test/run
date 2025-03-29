@@ -11,7 +11,7 @@ ocamlmig transform rescope -unqualify Z test_scope_unqualify.ml "$@"
 ocamlmig transform rescope -unopen Z test_scope_unopen.ml "$@"
 ocamlmig transform rescope -open Z test_scope_open.ml "$@"
 ocamlmig transform migration-inverse test_migration_inverse.ml "$@"
-ocamlmig transform migration-check test_migration_check.ml "$@"
+ocamlmig check test_migration_check.ml "$@"
 ocamlmig replace *.ml "$@"
 
 (
@@ -49,9 +49,7 @@ ocamlmig replace *.ml "$@"
     with_preserve_format test_preserve_format_open.ml tr rescope -open Format
     with_preserve_format test_preserve_format_unopen.ml tr rescope -unopen Format
 )
-cp ../examples/stdlib_to_base/stdlib_to_base.ml ../examples/stdlib_to_base_check/stdlib_to_base_check.ml
-sleep 0.1
-ocamlmig transform migration-check ../examples/stdlib_to_base_check/stdlib_to_base_check.ml -w
+ocamlmig check ../examples/stdlib_to_base/stdlib_to_base.ml
 
 if false; then
     unset OCAMLMIG_TEST

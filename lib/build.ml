@@ -283,6 +283,41 @@ module Listing = struct
                   [%sexp
                     ("no type information (.cmt) found. " ^ how_to_build_cmt () : string)]
             | None -> e ()))
+
+  let build_or_wait_for ~dune_root ~target_rel_to_dune_root:target =
+    match
+      run_process Detailed ~cwd:(Abspath.to_string dune_root)
+        (dune_exe ~dune_root @ [ "rpc"; "ping" ])
+    with
+    | Error (WEXITED 1, _) ->
+        ignore
+          (run_process Raise ~cwd:(Abspath.to_string dune_root)
+             (dune_exe ~dune_root @ [ "build"; "--"; target ])
+            : string)
+    | Error (_, sexp) -> raise_s sexp
+    | Ok (_ : string) ->
+        let i = ref 0 in
+        while
+          i := !i + 1;
+          if !i > 50
+          then
+            failwith
+              "timed out waiting for dune to build rules created by ocamlmig. Please \
+               ensure you're building one of @default, @check or @ocamlmig from the root \
+               of the repository (for that last one, you'll want a root dune file \
+               containing (alias (name ocamlmig)) to stop an error saying the ocamlmig \
+               alias is empty)";
+          if
+            Sys.file_exists
+              (Abspath.to_string
+                 (Abspath.concat (Abspath.concat dune_root "_build/default") target))
+          then false
+          else (
+            Unix.sleepf 0.1;
+            true)
+        do
+          ()
+        done
 end
 
 module Artifacts = struct
