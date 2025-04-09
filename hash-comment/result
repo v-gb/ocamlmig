@@ -1,0 +1,2552 @@
+FPauth-core:parsed=31 has_HASH=0 would_break=0
+FrontC:parsed=13 has_HASH=0 would_break=0
+GuaCaml:parsed=145 has_HASH=0 would_break=0
+ISO8601:parsed=7 has_HASH=0 would_break=0
+MlFront_Cache:parsed=345 has_HASH=3 would_break=0
+SZXX:parsed=16 has_HASH=0 would_break=0
+Snowflake:parsed=16 has_HASH=0 would_break=0
+SourceCode_ASCII:parsed=5 has_HASH=0 would_break=0
+aacplus:parsed=4 has_HASH=0 would_break=0
+abella:parsed=43 has_HASH=2 would_break=0
+absolute:parsed=59 has_HASH=0 would_break=0
+aches:parsed=58 has_HASH=0 would_break=0
+acpc:parsed=15 has_HASH=0 would_break=0
+activitypub:parsed=45 has_HASH=22 would_break=0
+adelfa:parsed=50 has_HASH=0 would_break=0
+adobe_font_metrics:parsed=3 has_HASH=0 would_break=0
+afl-persistent:parsed=5 has_HASH=1 would_break=0
+ago:parsed=1 has_HASH=0 would_break=0
+ahrocksdb:parsed=17 has_HASH=0 would_break=0
+alba:parsed=200 has_HASH=2 would_break=0
+algaeff:parsed=29 has_HASH=0 would_break=0
+alonzo:parsed=2 has_HASH=0 would_break=0
+alsa:parsed=7 has_HASH=0 would_break=0
+altgr-ergo:parsed=195 has_HASH=3 would_break=0
+ambient-context:parsed=17 has_HASH=0 would_break=0
+amqp-client:parsed=54 has_HASH=0 would_break=0
+anders:parsed=0 has_HASH=0 would_break=0
+angstrom:parsed=25 has_HASH=2 would_break=0
+ansi-parse:parsed=7 has_HASH=1 would_break=0
+ansicolor:parsed=2 has_HASH=0 would_break=0
+anycache:parsed=15 has_HASH=2 would_break=0
+ao:parsed=4 has_HASH=0 would_break=0
+apron:parsed=19 has_HASH=0 would_break=0
+apronext:parsed=23 has_HASH=0 would_break=0
+archetype:parsed=48 has_HASH=2 would_break=0
+areas-and-adversaries:parsed=6 has_HASH=0 would_break=0
+argsh:parsed=7 has_HASH=0 would_break=0
+arrakis:parsed=50 has_HASH=0 would_break=0
+arrayjit:parsed=65 has_HASH=0 would_break=0
+asai:parsed=58 has_HASH=0 would_break=0
+asak:parsed=20 has_HASH=6 would_break=0
+ascii85:parsed=0 has_HASH=0 would_break=0
+asetmap:parsed=4 has_HASH=1 would_break=0
+assimp:parsed=2 has_HASH=0 would_break=0
+ast_generic:parsed=1092 has_HASH=88 would_break=0
+astring:parsed=19 has_HASH=2 would_break=0
+avro:parsed=21 has_HASH=0 would_break=0
+aws:parsed=1894 has_HASH=0 would_break=0
+aws-config:parsed=4 has_HASH=0 would_break=0
+azblob:parsed=4 has_HASH=1 would_break=0
+azure-cosmos-db:parsed=15 has_HASH=2 would_break=0
+baby:parsed=38 has_HASH=20 would_break=0
+baguette_sharp:parsed=17 has_HASH=3 would_break=0
+bap-emacs-dot:parsed=0 has_HASH=0 would_break=0
+bap-emacs-mode:parsed=0 has_HASH=0 would_break=0
+bap-signatures:parsed=0 has_HASH=0 would_break=0
+base:parsed=447 has_HASH=1 would_break=0
+base32:parsed=2 has_HASH=0 would_break=0
+base58:parsed=4 has_HASH=0 would_break=0
+bastet:parsed=58 has_HASH=0 would_break=0
+bastet_async:parsed=2 has_HASH=0 would_break=0
+bastet_lwt:parsed=2 has_HASH=0 would_break=0
+batch_jaro_winkler:parsed=4 has_HASH=0 would_break=0
+batsat:parsed=11 has_HASH=0 would_break=0
+batteries:build/optcomp/sample.ml:
+batteries:build/optcomp/sample.ml:[31;1m# [39;22m if false
+batteries:---
+batteries:build/optcomp/sample.ml:
+batteries:build/optcomp/sample.ml:[31;1m# [39;22m(* plop *) elif 1 + 1 = 2
+batteries:---
+batteries:build/optcomp/sample.ml:
+batteries:build/optcomp/sample.ml:[31;1m# [39;22m else
+batteries:---
+batteries:build/optcomp/sample.ml:
+batteries:build/optcomp/sample.ml:[31;1m# [39;22m endif
+batteries:---
+batteries:build/optcomp/sample.ml:#if ocaml_version < (3, 0)
+batteries:build/optcomp/sample.ml:[31;1m# [39;22m error "too old ocaml version, minimum is 3.0"
+batteries:build/optcomp/sample.ml:#endif
+batteries:---
+batteries:build/optcomp/sample.ml:#if ocaml_version < (2048, 0)
+batteries:build/optcomp/sample.ml:[31;1m# [39;22m warning "plop!"
+batteries:build/optcomp/sample.ml:#endif
+batteries:---
+batteries:examples/snippets/netchan_cat.ml:	 while true do
+batteries:examples/snippets/netchan_cat.ml:	   oc [31;1m# [39;22moutput_string (ic [31;1m# [39;22minput_line () ^ "\n");
+batteries:examples/snippets/netchan_cat.ml:	   oc [31;1m# [39;22mflush ()
+batteries:examples/snippets/netchan_cat.ml:	 done
+batteries:parsed=303 has_HASH=11 would_break=2
+bddrand:parsed=120 has_HASH=0 would_break=0
+bencode:parsed=10 has_HASH=0 would_break=0
+bestline:parsed=3 has_HASH=0 would_break=0
+bibtex2html:parsed=28 has_HASH=0 would_break=0
+bigstring:parsed=6 has_HASH=0 would_break=0
+bigstringaf:parsed=5 has_HASH=0 would_break=0
+binaryen:parsed=40 has_HASH=0 would_break=0
+binaryen-bin:parsed=0 has_HASH=0 would_break=0
+bindlib:parsed=22 has_HASH=1 would_break=0
+bio_io:parsed=43 has_HASH=0 would_break=0
+bisect_ppx:parsed=50 has_HASH=2 would_break=0
+bitcoin:parsed=11 has_HASH=2 would_break=0
+bitgenerators:parsed=18 has_HASH=0 would_break=0
+bitlib:parsed=4 has_HASH=0 would_break=0
+bitmasks:parsed=5 has_HASH=0 would_break=0
+bitpack_serializer:parsed=9 has_HASH=0 would_break=0
+bitstring:parsed=22 has_HASH=0 would_break=0
+bitv:parsed=7 has_HASH=0 would_break=0
+bjack:parsed=3 has_HASH=0 would_break=0
+blake3:parsed=4 has_HASH=0 would_break=0
+bls12-381-gen:parsed=53 has_HASH=0 would_break=0
+bls12-381-hash:parsed=15 has_HASH=0 would_break=0
+bls12-381-signature:parsed=8 has_HASH=0 would_break=0
+bls12-381-unix:parsed=50 has_HASH=0 would_break=0
+blurhash:parsed=3 has_HASH=1 would_break=0
+bn128:parsed=8 has_HASH=0 would_break=0
+bnfgen:parsed=7 has_HASH=0 would_break=0
+bogue:parsed=56 has_HASH=1 would_break=0
+bogue-tutorials:parsed=7 has_HASH=0 would_break=0
+boltzgen:parsed=31 has_HASH=0 would_break=0
+boulangerie:parsed=6 has_HASH=0 would_break=0
+box:parsed=1 has_HASH=0 would_break=0
+bpf:parsed=4 has_HASH=1 would_break=0
+broken:parsed=5 has_HASH=1 would_break=0
+bsdowl:parsed=27 has_HASH=4 would_break=0
+bst:parsed=5 has_HASH=0 would_break=0
+buffer-pool:parsed=4 has_HASH=0 would_break=0
+bwd:parsed=12 has_HASH=0 would_break=0
+bwrap:parsed=4 has_HASH=1 would_break=0
+bz2:parsed=3 has_HASH=0 would_break=0
+calculon:parsed=37 has_HASH=0 would_break=0
+calendar:parsed=35 has_HASH=1 would_break=0
+calendars:parsed=3 has_HASH=0 would_break=0
+calli:parsed=40 has_HASH=0 would_break=0
+callipyge:parsed=8 has_HASH=0 would_break=0
+camelot:parsed=33 has_HASH=0 would_break=0
+camelsnakekebab:parsed=3 has_HASH=0 would_break=0
+caml-mode:parsed=0 has_HASH=0 would_break=0
+camlgpc:parsed=3 has_HASH=0 would_break=0
+camlidl:parsed=61 has_HASH=3 would_break=0
+camlimages:parsed=142 has_HASH=33 would_break=0
+camlix:parsed=7 has_HASH=0 would_break=0
+camlon:parsed=27 has_HASH=0 would_break=0
+camlp-streams:parsed=8 has_HASH=0 would_break=0
+camlp4:camlp4/Camlp4Parsers/Camlp4OCamlRevisedParser.ml:        | e1 = SELF; "."; e2 = SELF -> <:expr< $e1$ . $e2$ >>
+camlp4:camlp4/Camlp4Parsers/Camlp4OCamlRevisedParser.ml:        | e = SELF; "#"; lab = label -> <:expr< $e$ [31;1m# [39;22m$lab$ >> ]
+camlp4:camlp4/Camlp4Parsers/Camlp4OCamlRevisedParser.ml:      | "~-" NONA
+camlp4:---
+camlp4:camlp4/Camlp4Parsers/Camlp4OCamlRevisedParser.ml:        | "`"; s = a_ident -> <:patt< ` $s$ >>
+camlp4:camlp4/Camlp4Parsers/Camlp4OCamlRevisedParser.ml:        | "#"; i = type_longident -> <:patt< [31;1m# [39;22m$i$ >>
+camlp4:camlp4/Camlp4Parsers/Camlp4OCamlRevisedParser.ml:        | `LABEL i; p = SELF -> <:patt< ~ $i$ : $p$ >>
+camlp4:---
+camlp4:camlp4/Camlp4Parsers/Camlp4OCamlRevisedParser.ml:        | "{"; t = label_declaration_list; "}" -> <:ctyp< { $t$ } >>
+camlp4:camlp4/Camlp4Parsers/Camlp4OCamlRevisedParser.ml:        | "#"; i = class_longident -> <:ctyp< [31;1m# [39;22m$i$ >>
+camlp4:camlp4/Camlp4Parsers/Camlp4OCamlRevisedParser.ml:        | "<"; t = opt_meth_list; ">" -> t
+camlp4:---
+camlp4:camlp4/Camlp4Parsers/Camlp4OCamlParser.ml:        | "`"; s = a_ident -> <:patt< ` $s$ >>
+camlp4:camlp4/Camlp4Parsers/Camlp4OCamlParser.ml:        | "#"; i = type_longident -> <:patt< [31;1m# [39;22m$i$ >> ] ]
+camlp4:camlp4/Camlp4Parsers/Camlp4OCamlParser.ml:    ;
+camlp4:---
+camlp4:camlp4/Camlp4Parsers/Camlp4OCamlParser.ml:        | "("; t = SELF; ")" -> <:ctyp< $t$ >>
+camlp4:camlp4/Camlp4Parsers/Camlp4OCamlParser.ml:        | "#"; i = class_longident -> <:ctyp< [31;1m# [39;22m$i$ >>
+camlp4:camlp4/Camlp4Parsers/Camlp4OCamlParser.ml:        | "<"; t = opt_meth_list; ">" -> t
+camlp4:---
+camlp4:camlp4/unmaintained/scheme/pr_scheme.ml:            fprintf ppf "%a" expr (e, k)
+camlp4:camlp4/unmaintained/scheme/pr_scheme.ml:      | <:str_item< [31;1m# [39;22m$s$ $opt:x$ >> ->
+camlp4:camlp4/unmaintained/scheme/pr_scheme.ml:          fun ppf curr next dg k ->
+camlp4:---
+camlp4:camlp4/unmaintained/lefteval/pa_lefteval.ml:  | <:expr< do { $list:el$ } >> -> <:expr< do { $list:List.map expr el$ } >>
+camlp4:camlp4/unmaintained/lefteval/pa_lefteval.ml:  | <:expr< $e$ [31;1m# [39;22m$s$ >> -> <:expr< $expr e$ [31;1m# [39;22m$s$ >>
+camlp4:camlp4/unmaintained/lefteval/pa_lefteval.ml:  | <:expr< ($e$ : $t$) >> -> <:expr< ($expr e$ : $t$) >>
+camlp4:---
+camlp4:camlp4/unmaintained/lefteval/pa_lefteval.ml:    <:str_item< exception $_$ of $list:_$ = $_$ >> |
+camlp4:camlp4/unmaintained/lefteval/pa_lefteval.ml:    <:str_item< module type $_$ = $_$ >> | <:str_item< [31;1m# [39;22m$_$ $opt:_$ >> ->
+camlp4:camlp4/unmaintained/lefteval/pa_lefteval.ml:      x
+camlp4:---
+camlp4:camlp4/unmaintained/sml/pa_sml.ml:             let loc = MLast.loc_of_patt l in
+camlp4:camlp4/unmaintained/sml/pa_sml.ml:             <:expr< v [31;1m# [39;22m$lid:s$ >>)
+camlp4:camlp4/unmaintained/sml/pa_sml.ml:          lpl
+camlp4:---
+camlp4:camlp4/unmaintained/sml/pa_sml.ml:          if ocaml_records.val then <:expr< $x2$ . $lid:x1$ >>
+camlp4:camlp4/unmaintained/sml/pa_sml.ml:          else <:expr< $x2$ [31;1m# [39;22m$lid:x1$ >>
+camlp4:camlp4/unmaintained/sml/pa_sml.ml:      | x1 = expr; "ocaml_record_access"; x2 = expr -> <:expr< $x1$ . $x2$ >> ]
+camlp4:---
+camlp4:camlp4/Camlp4/Printers/OCaml.ml:        pp f "%a.@[<1>[@,%a@]@,]" o#dot_expr e1 o#expr e2
+camlp4:camlp4/Camlp4/Printers/OCaml.ml:    | <:expr< $e$ [31;1m# [39;22m$s$ >> -> pp f "@[<2>%a#@,%s@]" o#dot_expr e s
+camlp4:camlp4/Camlp4/Printers/OCaml.ml:    | e -> o#simple_expr f e ];
+camlp4:---
+camlp4:camlp4/Camlp4/Printers/OCaml.ml:      <:expr< $_$ . [ $_$ ] >> | <:expr< $_$ := $_$ >> |
+camlp4:camlp4/Camlp4/Printers/OCaml.ml:      <:expr< $_$ [31;1m# [39;22m$_$ >> |
+camlp4:camlp4/Camlp4/Printers/OCaml.ml:      <:expr< fun [ $_$ ] >> | <:expr< fun (type $_$) -> $_$ >> | <:expr< match $_$ with [ $_$ ] >> |
+camlp4:---
+camlp4:camlp4/Camlp4/Printers/OCaml.ml:    | <:patt< ` $uid:s$ >> -> pp f "`%a" o#var s
+camlp4:camlp4/Camlp4/Printers/OCaml.ml:    | <:patt< [31;1m# [39;22m$i$ >> -> pp f "@[<2>#%a@]" o#ident i
+camlp4:camlp4/Camlp4/Printers/OCaml.ml:    | <:patt< [| $p$ |] >> -> pp f "@[<2>[|@ %a@]@ |]" o#patt p
+camlp4:---
+camlp4:camlp4/Camlp4/Printers/OCaml.ml:    | <:ctyp< [ > $t$ ] >> -> pp f "@[<2>[>@ %a@]@,]" o#sum_type t
+camlp4:camlp4/Camlp4/Printers/OCaml.ml:    | <:ctyp< [31;1m# [39;22m$i$ >> -> pp f "@[<2>#%a@]" o#ident i
+camlp4:camlp4/Camlp4/Printers/OCaml.ml:    | <:ctyp< `$s$ >> -> pp f "`%a" o#var s
+camlp4:parsed=252 has_HASH=41 would_break=6
+camlpdf:parsed=91 has_HASH=0 would_break=0
+camlprime:parsed=9 has_HASH=0 would_break=0
+camlrack:parsed=21 has_HASH=0 would_break=0
+camomile:parsed=116 has_HASH=9 would_break=0
+canary:parsed=2 has_HASH=0 would_break=0
+carray:parsed=5 has_HASH=0 would_break=0
+catala-format:parsed=3 has_HASH=0 would_break=0
+catapult:parsed=44 has_HASH=0 would_break=0
+cb-check:parsed=0 has_HASH=0 would_break=0
+cbor:parsed=3 has_HASH=0 would_break=0
+cborl:parsed=4 has_HASH=0 would_break=0
+cdb:parsed=3 has_HASH=0 would_break=0
+cdrom:parsed=3 has_HASH=0 would_break=0
+cfml:parsed=115 has_HASH=0 would_break=0
+cgroups:parsed=19 has_HASH=0 would_break=0
+chacha:parsed=5 has_HASH=0 would_break=0
+chalk:parsed=3 has_HASH=0 would_break=0
+charInfo_width:parsed=9 has_HASH=0 would_break=0
+charset:parsed=9 has_HASH=0 would_break=0
+chase:parsed=57 has_HASH=0 would_break=0
+checked_oint:parsed=3 has_HASH=0 would_break=0
+choice:parsed=5 has_HASH=0 would_break=0
+clap:parsed=3 has_HASH=0 would_break=0
+class_group_vdf:parsed=14 has_HASH=0 would_break=0
+cll:parsed=5 has_HASH=0 would_break=0
+cmarker:parsed=3 has_HASH=0 would_break=0
+cmitomli:parsed=1 has_HASH=0 would_break=0
+coap:parsed=10 has_HASH=0 would_break=0
+cobs:parsed=2 has_HASH=0 would_break=0
+coccinelle:parsed=1624 has_HASH=17 would_break=0
+color:parsed=4 has_HASH=0 would_break=0
+combinaml:parsed=3 has_HASH=0 would_break=0
+comby-semantic:parsed=177 has_HASH=4 would_break=0
+commons:parsed=830 has_HASH=86 would_break=0
+configuration:parsed=6 has_HASH=0 would_break=0
+conformist:parsed=5 has_HASH=0 would_break=0
+containers-thread:parsed=258 has_HASH=2 would_break=0
+coq-core:parsed=1266 has_HASH=30 would_break=0
+coq-shell:parsed=0 has_HASH=0 would_break=0
+coq-waterproof:parsed=23 has_HASH=0 would_break=0
+coqide:parsed=1239 has_HASH=29 would_break=0
+cordova:parsed=0 has_HASH=0 would_break=0
+cordova-plugin-activity-indicator:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-background-mode:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-barcode-scanner:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-battery-status:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-camera:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-clipboard:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-device:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-device-orientation:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-dialogs:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-email-composer:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-fcm:parsed=0 has_HASH=0 would_break=0
+cordova-plugin-file:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-file-opener:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-file-transfer:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-geolocation:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-image-picker:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-inappbrowser:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-insomnia:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-keyboard:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-loading-spinner:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-local-notifications:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-media:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-media-capture:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-network-information:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-progress:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-push-notifications:parsed=0 has_HASH=0 would_break=0
+cordova-plugin-qrscanner:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-screen-orientation:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-sim-card:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-sms:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-social-sharing:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-statusbar:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-toast:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-touch-id:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-vibration:parsed=1 has_HASH=0 would_break=0
+cordova-plugin-videoplayer:parsed=1 has_HASH=0 would_break=0
+core:parsed=533 has_HASH=0 would_break=0
+cpdf:parsed=101 has_HASH=0 would_break=0
+cpm:parsed=7 has_HASH=0 would_break=0
+cppo:parsed=13 has_HASH=2 would_break=0
+cps_toolbox:parsed=23 has_HASH=0 would_break=0
+cpu:parsed=1 has_HASH=0 would_break=0
+cpuid:parsed=3 has_HASH=1 would_break=0
+crontab:parsed=6 has_HASH=0 would_break=0
+crowbar:parsed=10 has_HASH=0 would_break=0
+cry:parsed=3 has_HASH=1 would_break=0
+crypt:parsed=3 has_HASH=0 would_break=0
+cryptoverif:parsed=143 has_HASH=4 would_break=0
+css:parsed=13 has_HASH=3 would_break=0
+ctypes:parsed=223 has_HASH=5 would_break=0
+ctypes-build:parsed=4 has_HASH=0 would_break=0
+cudajit:parsed=9 has_HASH=0 would_break=0
+cudf:parsed=20 has_HASH=0 would_break=0
+current:parsed=154 has_HASH=10 would_break=0
+curses:parsed=5 has_HASH=0 would_break=0
+cvc5:parsed=15 has_HASH=0 would_break=0
+daft:parsed=7 has_HASH=2 would_break=0
+data-encoding:parsed=109 has_HASH=7 would_break=0
+dates_calc:parsed=4 has_HASH=0 would_break=0
+dbase4:parsed=11 has_HASH=0 would_break=0
+dblp:parsed=4 has_HASH=0 would_break=0
+delimcc_of_fxhandler:parsed=3 has_HASH=0 would_break=0
+diff:parsed=8 has_HASH=0 would_break=0
+diffast:parsed=305 has_HASH=155 would_break=0
+diffast-etc:parsed=305 has_HASH=155 would_break=0
+dirsp-exchange:parsed=33 has_HASH=0 would_break=0
+dispatch:parsed=5 has_HASH=1 would_break=0
+dkml-c-probe:parsed=13 has_HASH=3 would_break=0
+dkml-compiler-env:parsed=0 has_HASH=0 would_break=0
+dkml-component-xx-console:parsed=0 has_HASH=0 would_break=0
+dkml-dune-dsl:parsed=23 has_HASH=0 would_break=0
+dkml-install:parsed=84 has_HASH=0 would_break=0
+dkml-runtime-common:parsed=0 has_HASH=0 would_break=0
+dmap:parsed=2 has_HASH=0 would_break=0
+docker_hub:parsed=2 has_HASH=0 would_break=0
+docout:parsed=3 has_HASH=1 would_break=0
+doculib:parsed=31 has_HASH=5 would_break=0
+dokeysto:parsed=21 has_HASH=0 would_break=0
+dokeysto_lz4:parsed=21 has_HASH=0 would_break=0
+dolog:parsed=4 has_HASH=0 would_break=0
+dose3:parsed=135 has_HASH=25 would_break=0
+dream-pure:parsed=167 has_HASH=16 would_break=0
+dream-serve:parsed=3 has_HASH=0 would_break=0
+dssi:parsed=4 has_HASH=0 would_break=0
+dtools:parsed=6 has_HASH=3 would_break=0
+dual:parsed=3 has_HASH=0 would_break=0
+duppy:parsed=4 has_HASH=0 would_break=0
+dynamic_gc:parsed=3 has_HASH=0 would_break=0
+earley:parsed=90 has_HASH=2 would_break=0
+easy_logging:parsed=12 has_HASH=4 would_break=0
+efl:parsed=230 has_HASH=1 would_break=0
+ego:parsed=24 has_HASH=0 would_break=0
+elasticsearch-cli:parsed=4 has_HASH=2 would_break=0
+elina:parsed=2 has_HASH=0 would_break=0
+eliom:parsed=182 has_HASH=21 would_break=0
+elm_core:parsed=33 has_HASH=0 would_break=0
+emoji:parsed=5 has_HASH=0 would_break=0
+encoding:parsed=49 has_HASH=0 would_break=0
+enumerators:parsed=7 has_HASH=1 would_break=0
+epictetus:parsed=16 has_HASH=0 would_break=0
+errpy:parsed=8 has_HASH=0 would_break=0
+erssical:parsed=21 has_HASH=0 would_break=0
+exenum:parsed=21 has_HASH=0 would_break=0
+exn-source:parsed=3 has_HASH=0 would_break=0
+extism:parsed=16 has_HASH=0 would_break=0
+extlib:parsed=58 has_HASH=12 would_break=0
+extprot:parsed=43 has_HASH=5 would_break=0
+ez_api:parsed=136 has_HASH=3 would_break=0
+ez_hash:parsed=4 has_HASH=0 would_break=0
+ezjs_ace:parsed=4 has_HASH=0 would_break=0
+ezjs_blockies:parsed=1 has_HASH=0 would_break=0
+ezjs_cleave:parsed=1 has_HASH=0 would_break=0
+ezjs_crypto:parsed=1 has_HASH=0 would_break=0
+ezjs_cytoscape:parsed=1 has_HASH=0 would_break=0
+ezjs_extension:parsed=51 has_HASH=0 would_break=0
+ezjs_fetch:parsed=4 has_HASH=0 would_break=0
+ezjs_idb:parsed=3 has_HASH=0 would_break=0
+ezjs_jquery:parsed=2 has_HASH=0 would_break=0
+ezjs_min:parsed=8 has_HASH=0 would_break=0
+ezjs_push:parsed=3 has_HASH=0 would_break=0
+ezjs_recaptcha:parsed=1 has_HASH=0 would_break=0
+ezresto:parsed=32 has_HASH=2 would_break=0
+ezsqlite:parsed=4 has_HASH=0 would_break=0
+ezxmlm:parsed=2 has_HASH=0 would_break=0
+faad:parsed=4 has_HASH=0 would_break=0
+fadbadml:parsed=42 has_HASH=0 would_break=0
+faraday:parsed=10 has_HASH=0 would_break=0
+farfadet:parsed=4 has_HASH=1 would_break=0
+farmhash:parsed=2 has_HASH=0 would_break=0
+fdkaac:parsed=5 has_HASH=0 would_break=0
+feat:parsed=29 has_HASH=0 would_break=0
+feather:parsed=6 has_HASH=0 would_break=0
+ff:parsed=7 has_HASH=0 would_break=0
+ffmpeg:parsed=52 has_HASH=0 would_break=0
+fix:parsed=64 has_HASH=0 would_break=0
+flac:parsed=43 has_HASH=0 would_break=0
+flatunionfind:parsed=3 has_HASH=0 would_break=0
+forester:parsed=78 has_HASH=0 would_break=0
+fpath:parsed=9 has_HASH=2 would_break=0
+frama-c-lannotate:parsed=36 has_HASH=10 would_break=0
+frama-c-luncov:parsed=33 has_HASH=5 would_break=0
+frama-c-metacsl:meta_annotate.ml:  ignore (Visitor.visitFramacPredicate (vis :> Visitor.frama_c_visitor) p);
+frama-c-metacsl:meta_annotate.ml:  vis [31;1m# [39;22mget ()
+frama-c-metacsl:---
+frama-c-metacsl:meta_annotate.ml:  method! vfunc f =
+frama-c-metacsl:meta_annotate.ml:    self [31;1m# [39;22mfill_todo f.svar.vname;
+frama-c-metacsl:meta_annotate.ml:    if mp_todo = [] then Cil.SkipChildren
+frama-c-metacsl:---
+frama-c-metacsl:meta_annotate.ml:    let loc = Property.location ump.ump_ip in
+frama-c-metacsl:meta_annotate.ml:    let kf = Option.get self [31;1m# [39;22mcurrent_kf in
+frama-c-metacsl:meta_annotate.ml:    let vf = Kernel_function.get_vi kf in
+frama-c-metacsl:---
+frama-c-metacsl:meta_annotate.ml:        let annot_stmt = if will_be_after then
+frama-c-metacsl:meta_annotate.ml:            self [31;1m# [39;22mcreate_next_stmt stmt else stmt
+frama-c-metacsl:meta_annotate.ml:        in
+frama-c-metacsl:---
+frama-c-metacsl:meta_annotate.ml:  method add_to_contract ump =
+frama-c-metacsl:meta_annotate.ml:    let kf = Option.get self [31;1m# [39;22mcurrent_kf in
+frama-c-metacsl:meta_annotate.ml:    let pred = ump.ump_property kf [] in
+frama-c-metacsl:---
+frama-c-metacsl:meta_annotate.ml:  method! vfunc f =
+frama-c-metacsl:meta_annotate.ml:    self [31;1m# [39;22mfill_todo f.svar.vname;
+frama-c-metacsl:meta_annotate.ml:    List.iter (self [31;1m# [39;22madd_to_contract) mp_todo;
+frama-c-metacsl:meta_annotate.ml:    Cil.SkipChildren
+frama-c-metacsl:---
+frama-c-metacsl:meta_annotate.ml:    in
+frama-c-metacsl:meta_annotate.ml:    List.iter (self [31;1m# [39;22minstantiate stmt assoc_list) mp_todo
+frama-c-metacsl:---
+frama-c-metacsl:meta_annotate.ml:      let lv = match fexpr.enode with Lval lv -> lv | _ -> assert false in
+frama-c-metacsl:meta_annotate.ml:      let stmt = Option.get self [31;1m# [39;22mcurrent_stmt in
+frama-c-metacsl:meta_annotate.ml:      let called_kf = Kernel_function.get_called fexpr in
+frama-c-metacsl:---
+frama-c-metacsl:meta_annotate.ml:      in
+frama-c-metacsl:meta_annotate.ml:      List.iter (self [31;1m# [39;22minstantiate ~post stmt assoc_list) mp_todo
+frama-c-metacsl:---
+frama-c-metacsl:meta_annotate.ml:          let tl = Logic_utils.lval_to_term_lval lval in
+frama-c-metacsl:meta_annotate.ml:          self [31;1m# [39;22mwriting_instance stmt tl ;
+frama-c-metacsl:meta_annotate.ml:          Cil.SkipChildren
+frama-c-metacsl:---
+frama-c-metacsl:meta_annotate.ml:    if in_exp && not (Cil.isFunctionType typ) then begin
+frama-c-metacsl:meta_annotate.ml:      if Option.is_some (self [31;1m# [39;22mcurrent_stmt) then
+frama-c-metacsl:meta_annotate.ml:        let stmt = Option.get (self [31;1m# [39;22mcurrent_stmt) in
+frama-c-metacsl:meta_annotate.ml:        begin match stmt.skind with
+frama-c-metacsl:---
+frama-c-metacsl:meta_annotate.ml:    if cond then
+frama-c-metacsl:meta_annotate.ml:      inspect_contract self [31;1m# [39;22mpassthrough_from stmt kf args
+frama-c-metacsl:---
+frama-c-metacsl:meta_annotate.ml:    let tlval = Logic_utils.lval_to_term_lval lval in
+frama-c-metacsl:meta_annotate.ml:    let kf = Option.get (self [31;1m# [39;22mcurrent_kf) in
+frama-c-metacsl:meta_annotate.ml:    let pred = ump.ump_property kf [] in
+frama-c-metacsl:---
+frama-c-metacsl:meta_annotate.ml:          | None -> false
+frama-c-metacsl:meta_annotate.ml:          | Some m -> self [31;1m# [39;22mpossible_interference m ump
+frama-c-metacsl:meta_annotate.ml:      in
+frama-c-metacsl:---
+frama-c-metacsl:meta_annotate.ml:      | Loop _ ->
+frama-c-metacsl:meta_annotate.ml:        let kf = Option.get (self [31;1m# [39;22mcurrent_kf) in
+frama-c-metacsl:meta_annotate.ml:        List.iter (fun ump ->
+frama-c-metacsl:---
+frama-c-metacsl:meta_annotate.ml:  method! vfunc f =
+frama-c-metacsl:meta_annotate.ml:    self [31;1m# [39;22mfill_todo f.svar.vname;
+frama-c-metacsl:meta_annotate.ml:    List.iter (self [31;1m# [39;22madd_to_contract) mp_todo;
+frama-c-metacsl:meta_annotate.ml:    if mp_todo = [] then Cil.SkipChildren
+frama-c-metacsl:---
+frama-c-metacsl:meta_dispatch.ml:            (vis :> Visitor.frama_c_visitor) (Ast.get ()));
+frama-c-metacsl:meta_dispatch.ml:  vis [31;1m# [39;22mget ()
+frama-c-metacsl:parsed=19 has_HASH=4 would_break=2
+frama-clang:parsed=27 has_HASH=2 would_break=0
+fred:parsed=57 has_HASH=0 would_break=0
+freetds:examples/dbi_example.ml:
+freetds:examples/dbi_example.ml:    if !debug then conn [31;1m# [39;22mset_debug true;
+freetds:examples/dbi_example.ml:    (* Cant just conn#set_debug !debug because it has output *)
+freetds:---
+freetds:examples/dbi_example.ml:
+freetds:examples/dbi_example.ml:    let sth = conn [31;1m# [39;22mex_multi !sql [] in
+freetds:---
+freetds:examples/dbi_example.ml:        printf "\n")
+freetds:examples/dbi_example.ml:      sth [31;1m# [39;22mrs_fetch_all;
+freetds:examples/dbi_example.ml:
+freetds:examples/dbi_example.ml:    conn [31;1m# [39;22mclose ()
+freetds:examples/dbi_example.ml:  with
+freetds:parsed=9 has_HASH=1 would_break=1
+frei0r:parsed=4 has_HASH=0 would_break=0
+fstar:parsed=464 has_HASH=1 would_break=0
+fswatch:parsed=7 has_HASH=0 would_break=0
+fswatch_async:parsed=7 has_HASH=0 would_break=0
+fswatch_lwt:parsed=5 has_HASH=0 would_break=0
+funfields:parsed=3 has_HASH=0 would_break=0
+fuzzy_compare:parsed=4 has_HASH=0 would_break=0
+gadelac:parsed=99 has_HASH=0 would_break=0
+gapi-ocaml:src/netsys/netsys_win32.ml:let proxies = ref (H.create 41)
+gapi-ocaml:src/netsys/netsys_win32.ml:let proxies_mutex = !Netsys_oothr.provider [31;1m# [39;22mcreate_mutex()
+gapi-ocaml:src/netsys/netsys_win32.ml:let proxies_gc_flag = ref false
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:      psrv_proxy_handle = p_event;
+gapi-ocaml:src/netsys/netsys_win32.ml:      psrv_mutex = !Netsys_oothr.provider [31;1m# [39;22mcreate_mutex();
+gapi-ocaml:src/netsys/netsys_win32.ml:    } in
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:let counter = ref 0
+gapi-ocaml:src/netsys/netsys_win32.ml:let counter_mutex = !Netsys_oothr.provider [31;1m# [39;22mcreate_mutex()
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:  let n = (
+gapi-ocaml:src/netsys/netsys_win32.ml:    counter_mutex [31;1m# [39;22mlock();
+gapi-ocaml:src/netsys/netsys_win32.ml:    let n = !counter in
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:    incr counter;
+gapi-ocaml:src/netsys/netsys_win32.ml:    counter_mutex [31;1m# [39;22munlock();
+gapi-ocaml:src/netsys/netsys_win32.ml:    n
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:	       (int64_of_file_descr ithr.ithr_descr));
+gapi-ocaml:src/netsys/netsys_win32.ml:    ithr.ithr_cmd_mutex [31;1m# [39;22mlock();
+gapi-ocaml:src/netsys/netsys_win32.ml:    while ithr.ithr_cmd = None && not ithr.ithr_cancel_cmd do
+gapi-ocaml:src/netsys/netsys_win32.ml:      ithr.ithr_cmd_cond [31;1m# [39;22mwait ithr.ithr_cmd_mutex
+gapi-ocaml:src/netsys/netsys_win32.ml:    done;
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:    set_event ithr.ithr_event;
+gapi-ocaml:src/netsys/netsys_win32.ml:    ithr.ithr_cmd_mutex [31;1m# [39;22munlock();
+gapi-ocaml:src/netsys/netsys_win32.ml:    if continue then 
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:    ithr.ithr_cancel_cmd <- true;  (* don't mess with locks here *)
+gapi-ocaml:src/netsys/netsys_win32.ml:    ithr.ithr_cmd_cond [31;1m# [39;22msignal();
+gapi-ocaml:src/netsys/netsys_win32.ml:    (* This is clearly a race condition... The thread may terminate
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:    let _ =
+gapi-ocaml:src/netsys/netsys_win32.ml:      oothr [31;1m# [39;22mcreate_thread
+gapi-ocaml:src/netsys/netsys_win32.ml:	(fun () ->
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:	   ithr.ithr_thread <- get_current_thread_id();
+gapi-ocaml:src/netsys/netsys_win32.ml:	   init_cond [31;1m# [39;22msignal();
+gapi-ocaml:src/netsys/netsys_win32.ml:	   thread_body ithr
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:	() in
+gapi-ocaml:src/netsys/netsys_win32.ml:    init_cond [31;1m# [39;22mwait init_mutex;
+gapi-ocaml:src/netsys/netsys_win32.ml:    let f = f_cancel_input_thread ithr in
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:	   if b then (
+gapi-ocaml:src/netsys/netsys_win32.ml:	     ithr.ithr_cmd_mutex [31;1m# [39;22mlock();
+gapi-ocaml:src/netsys/netsys_win32.ml:	   (* Look at what we have: *)
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:	     | `EOF ->
+gapi-ocaml:src/netsys/netsys_win32.ml:		 ithr.ithr_cmd_mutex [31;1m# [39;22munlock();
+gapi-ocaml:src/netsys/netsys_win32.ml:		 0
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:	     | `Exception e ->
+gapi-ocaml:src/netsys/netsys_win32.ml:		 ithr.ithr_cmd_mutex [31;1m# [39;22munlock();
+gapi-ocaml:src/netsys/netsys_win32.ml:		 raise e
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:	     | `Cancelled ->
+gapi-ocaml:src/netsys/netsys_win32.ml:		 ithr.ithr_cmd_mutex [31;1m# [39;22munlock();
+gapi-ocaml:src/netsys/netsys_win32.ml:		 raise(Unix.Unix_error(Unix.EPERM, 
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:		   ithr.ithr_cmd <- Some `Read;
+gapi-ocaml:src/netsys/netsys_win32.ml:		   ithr.ithr_cmd_cond [31;1m# [39;22msignal();
+gapi-ocaml:src/netsys/netsys_win32.ml:		   reset_event ithr.ithr_event;
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:		 );
+gapi-ocaml:src/netsys/netsys_win32.ml:		 ithr.ithr_cmd_mutex [31;1m# [39;22munlock();
+gapi-ocaml:src/netsys/netsys_win32.ml:		 n
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:	       (int64_of_file_descr othr.othr_descr));
+gapi-ocaml:src/netsys/netsys_win32.ml:    othr.othr_cmd_mutex [31;1m# [39;22mlock();
+gapi-ocaml:src/netsys/netsys_win32.ml:    while othr.othr_cmd = None && not othr.othr_cancel_cmd do
+gapi-ocaml:src/netsys/netsys_win32.ml:      othr.othr_cmd_cond [31;1m# [39;22mwait othr.othr_cmd_mutex
+gapi-ocaml:src/netsys/netsys_win32.ml:    done;
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:    set_event othr.othr_event;
+gapi-ocaml:src/netsys/netsys_win32.ml:    othr.othr_cmd_mutex [31;1m# [39;22munlock();
+gapi-ocaml:src/netsys/netsys_win32.ml:    if continue then 
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:    othr.othr_cancel_cmd <- true;  (* don't mess with locks here *)
+gapi-ocaml:src/netsys/netsys_win32.ml:    othr.othr_cmd_cond [31;1m# [39;22msignal();
+gapi-ocaml:src/netsys/netsys_win32.ml:    (* This is clearly a race condition... The thread may terminate
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:    let _ =
+gapi-ocaml:src/netsys/netsys_win32.ml:      oothr [31;1m# [39;22mcreate_thread
+gapi-ocaml:src/netsys/netsys_win32.ml:	(fun () ->
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:	   othr.othr_thread <- get_current_thread_id();
+gapi-ocaml:src/netsys/netsys_win32.ml:	   init_cond [31;1m# [39;22msignal();
+gapi-ocaml:src/netsys/netsys_win32.ml:	   thread_body othr
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:	() in
+gapi-ocaml:src/netsys/netsys_win32.ml:    init_cond [31;1m# [39;22mwait init_mutex;
+gapi-ocaml:src/netsys/netsys_win32.ml:    let f = f_cancel_output_thread othr in
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:	   if b then (
+gapi-ocaml:src/netsys/netsys_win32.ml:	     othr.othr_cmd_mutex [31;1m# [39;22mlock();
+gapi-ocaml:src/netsys/netsys_win32.ml:	     (* Look at what we have: *)
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:	       | Some(`Exception e) ->
+gapi-ocaml:src/netsys/netsys_win32.ml:		   othr.othr_cmd_mutex [31;1m# [39;22munlock();
+gapi-ocaml:src/netsys/netsys_win32.ml:		   raise e
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:	       | Some `Cancelled ->
+gapi-ocaml:src/netsys/netsys_win32.ml:		   othr.othr_cmd_mutex [31;1m# [39;22munlock();
+gapi-ocaml:src/netsys/netsys_win32.ml:		   raise(Unix.Unix_error(Unix.EPERM, 
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:		   othr.othr_cmd <- Some `Write;
+gapi-ocaml:src/netsys/netsys_win32.ml:		   othr.othr_cmd_cond [31;1m# [39;22msignal();
+gapi-ocaml:src/netsys/netsys_win32.ml:		   reset_event othr.othr_event;
+gapi-ocaml:src/netsys/netsys_win32.ml:		   othr.othr_cmd_mutex [31;1m# [39;22munlock();
+gapi-ocaml:src/netsys/netsys_win32.ml:		   n
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:	 if b then (
+gapi-ocaml:src/netsys/netsys_win32.ml:	   othr.othr_cmd_mutex [31;1m# [39;22mlock();
+gapi-ocaml:src/netsys/netsys_win32.ml:	   (* Look at what we have: *)
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:	     | Some(`Exception e) ->
+gapi-ocaml:src/netsys/netsys_win32.ml:		 othr.othr_cmd_mutex [31;1m# [39;22munlock();
+gapi-ocaml:src/netsys/netsys_win32.ml:		 raise e
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:	     | Some `Cancelled ->
+gapi-ocaml:src/netsys/netsys_win32.ml:		 othr.othr_cmd_mutex [31;1m# [39;22munlock();
+gapi-ocaml:src/netsys/netsys_win32.ml:		 raise(Unix.Unix_error(Unix.EPERM, 
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_win32.ml:		 othr.othr_cmd <- Some `Close;
+gapi-ocaml:src/netsys/netsys_win32.ml:		 othr.othr_cmd_cond [31;1m# [39;22msignal();
+gapi-ocaml:src/netsys/netsys_win32.ml:		 reset_event othr.othr_event;
+gapi-ocaml:src/netsys/netsys_win32.ml:		 othr.othr_cmd_mutex [31;1m# [39;22munlock();
+gapi-ocaml:src/netsys/netsys_win32.ml:	 )
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netlog.ml:              (Unix.getpid())
+gapi-ocaml:src/netsys/netlog.ml:              (!Netsys_oothr.provider [31;1m# [39;22mself [31;1m# [39;22mid)
+gapi-ocaml:src/netsys/netlog.ml:          | _ -> ""
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netlog.ml:  let fd_tab = Hashtbl.create 50
+gapi-ocaml:src/netsys/netlog.ml:  let fd_tab_mutex = !Netsys_oothr.provider [31;1m# [39;22mcreate_mutex()
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_mem.ml:    invalid_arg "Netsys_mem.create_pool";
+gapi-ocaml:src/netsys/netsys_mem.ml:  let m = !Netsys_oothr.provider [31;1m# [39;22mcreate_mutex() in
+gapi-ocaml:src/netsys/netsys_mem.ml:  { pool_block_size = bsize;
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_posix.ml:let modify_fd_event_source es req =
+gapi-ocaml:src/netsys/netsys_posix.ml:  es [31;1m# [39;22mmodify_fd_event_source req
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_posix.ml:let get_fd_of_event_source es =
+gapi-ocaml:src/netsys/netsys_posix.ml:  match es [31;1m# [39;22mevent_tag with
+gapi-ocaml:src/netsys/netsys_posix.ml:  | EV_FD fd -> fd
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_posix.ml:let act_events_of_event_source es =
+gapi-ocaml:src/netsys/netsys_posix.ml:  es [31;1m# [39;22mact_events
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_posix.ml:      check_up();
+gapi-ocaml:src/netsys/netsys_posix.ml:      es [31;1m# [39;22mset_post_modify_callback self#post_modify_callback;
+gapi-ocaml:src/netsys/netsys_posix.ml:      try
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_posix.ml:      | error ->
+gapi-ocaml:src/netsys/netsys_posix.ml:        es [31;1m# [39;22mclear_post_modify_callback();
+gapi-ocaml:src/netsys/netsys_posix.ml:        raise error
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_posix.ml:      netsys_del_event_source netsys es#event_id es#event_tag;
+gapi-ocaml:src/netsys/netsys_posix.ml:      es [31;1m# [39;22mclear_post_modify_callback();
+gapi-ocaml:src/netsys/netsys_posix.ml:      Hashtbl.remove all_sources es#event_id;
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_posix.ml:          (fun _ es acc -> 
+gapi-ocaml:src/netsys/netsys_posix.ml:             if es [31;1m# [39;22mneed_push then
+gapi-ocaml:src/netsys/netsys_posix.ml:               let p = es#push_record in
+gapi-ocaml:src/netsys/netsys_posix.ml:               es [31;1m# [39;22mupd_kernel_events p.event_api_req;
+gapi-ocaml:src/netsys/netsys_posix.ml:               p :: acc
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_posix.ml:    method poll_event_sources tmo =
+gapi-ocaml:src/netsys/netsys_posix.ml:      self [31;1m# [39;22mpush_event_updates();
+gapi-ocaml:src/netsys/netsys_posix.ml:      let v =
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_posix.ml:let create_event_aggregator = new event_aggregator
+gapi-ocaml:src/netsys/netsys_posix.ml:let add_event_source ea = ea [31;1m# [39;22madd_event_source
+gapi-ocaml:src/netsys/netsys_posix.ml:let del_event_source ea = ea [31;1m# [39;22mdel_event_source
+gapi-ocaml:src/netsys/netsys_posix.ml:let push_event_updates ea = ea [31;1m# [39;22mpush_event_updates()
+gapi-ocaml:src/netsys/netsys_posix.ml:let poll_event_sources (ea : event_aggregator) = ea [31;1m# [39;22mpoll_event_sources
+gapi-ocaml:src/netsys/netsys_posix.ml:let event_aggregator_fd ea = ea [31;1m# [39;22mevent_aggregator_fd
+gapi-ocaml:src/netsys/netsys_posix.ml:let destroy_event_aggregator ea = ea [31;1m# [39;22mdestroy_event_aggregator()
+gapi-ocaml:src/netsys/netsys_posix.ml:let interrupt_event_aggregator ea = ea [31;1m# [39;22minterrupt_event_aggregator()
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_posix.ml:let post_fork_registry = ref PFH_Set.empty
+gapi-ocaml:src/netsys/netsys_posix.ml:let post_fork_mutex = !Netsys_oothr.provider [31;1m# [39;22mcreate_mutex()
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_posix.ml:let register_post_fork_handler pfh =
+gapi-ocaml:src/netsys/netsys_posix.ml:  post_fork_mutex [31;1m# [39;22mlock();
+gapi-ocaml:src/netsys/netsys_posix.ml:  post_fork_registry := PFH_Set.add pfh !post_fork_registry;
+gapi-ocaml:src/netsys/netsys_posix.ml:  post_fork_mutex [31;1m# [39;22munlock()
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_posix.ml:let remove_post_fork_handler pfh =
+gapi-ocaml:src/netsys/netsys_posix.ml:  post_fork_mutex [31;1m# [39;22mlock();
+gapi-ocaml:src/netsys/netsys_posix.ml:  post_fork_registry := PFH_Set.remove pfh !post_fork_registry;
+gapi-ocaml:src/netsys/netsys_posix.ml:  post_fork_mutex [31;1m# [39;22munlock()
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_tmp.ml:
+gapi-ocaml:src/netsys/netsys_tmp.ml:let tmp_dir_mutex = !Netsys_oothr.provider [31;1m# [39;22mcreate_mutex()
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_oothr.ml:    if not !st_init then (
+gapi-ocaml:src/netsys/netsys_oothr.ml:      single_threaded := !provider [31;1m# [39;22msingle_threaded;
+gapi-ocaml:src/netsys/netsys_oothr.ml:      st_init := true
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_oothr.ml:    );
+gapi-ocaml:src/netsys/netsys_oothr.ml:    mutex [31;1m# [39;22mlock();
+gapi-ocaml:src/netsys/netsys_oothr.ml:    let r = 
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_oothr.ml:      try f arg
+gapi-ocaml:src/netsys/netsys_oothr.ml:      with e -> mutex [31;1m# [39;22munlock(); raise e in
+gapi-ocaml:src/netsys/netsys_oothr.ml:    mutex [31;1m# [39;22munlock();
+gapi-ocaml:src/netsys/netsys_oothr.ml:    r
+gapi-ocaml:---
+gapi-ocaml:src/netsys/netsys_signal.ml:
+gapi-ocaml:src/netsys/netsys_signal.ml:let mutex = otp [31;1m# [39;22mcreate_mutex()
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:    let rec read p =
+gapi-ocaml:src/netstring/netstream.ml:      let l = self [31;1m# [39;22minput buf (pos+p) (len-p) in
+gapi-ocaml:src/netstring/netstream.ml:      let p' = p + l in
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:    in
+gapi-ocaml:src/netstring/netstream.ml:    self [31;1m# [39;22mwant len;  (* may raise Buffer_underrun *)
+gapi-ocaml:src/netstring/netstream.ml:    read 0
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:    let buf = Bytes.create len in
+gapi-ocaml:src/netstring/netstream.ml:    self [31;1m# [39;22mreally_input buf 0 len;
+gapi-ocaml:src/netstring/netstream.ml:    Bytes.unsafe_to_string buf
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:    let s = Bytes.create 1 in
+gapi-ocaml:src/netstring/netstream.ml:    self [31;1m# [39;22mreally_input s 0 1;
+gapi-ocaml:src/netstring/netstream.ml:    Bytes.get s 0
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:    let s = Bytes.create 1 in
+gapi-ocaml:src/netstring/netstream.ml:    self [31;1m# [39;22mreally_input s 0 1;
+gapi-ocaml:src/netstring/netstream.ml:    int_of_char (Bytes.get s 0)
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:	    if not s_at_eof then begin
+gapi-ocaml:src/netstring/netstream.ml:	      self [31;1m# [39;22mwant_another_block();  (* may raise Buffer_underrun *)
+gapi-ocaml:src/netstring/netstream.ml:	      find_eol()
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:    try
+gapi-ocaml:src/netstring/netstream.ml:      self [31;1m# [39;22mwant_minimum()   (* may raise Buffer_underrun *)
+gapi-ocaml:src/netstring/netstream.ml:    with
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:	      s_netbuf 
+gapi-ocaml:src/netstring/netstream.ml:	      (s_channel [31;1m# [39;22minput)    
+gapi-ocaml:src/netstring/netstream.ml:	        (* may raise End_of_file, Buffer_underrun *)
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:    while not s_at_eof && Netbuffer.length s_netbuf < n do
+gapi-ocaml:src/netstring/netstream.ml:      self [31;1m# [39;22mwant_another_block()
+gapi-ocaml:src/netstring/netstream.ml:    done
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:  method private want_minimum() =
+gapi-ocaml:src/netstring/netstream.ml:    self [31;1m# [39;22mwant s_blocksize
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:	s_pos <- s_pos + k;
+gapi-ocaml:src/netstring/netstream.ml:	self [31;1m# [39;22mwant_minimum();    (* may raise Buffer_underrun *)
+gapi-ocaml:src/netstring/netstream.ml:	if k > 0 then read (len - k)
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:    if s_underrun then (
+gapi-ocaml:src/netstring/netstream.ml:      self [31;1m# [39;22mwant_minimum();  (* may raise Buffer_underrun *)
+gapi-ocaml:src/netstring/netstream.ml:      s_underrun <- false;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:    ( try 
+gapi-ocaml:src/netstring/netstream.ml:	self [31;1m# [39;22mwant_minimum();  (* may raise Buffer_underrun *)
+gapi-ocaml:src/netstring/netstream.ml:      with
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:    if not s_closed then (
+gapi-ocaml:src/netstring/netstream.ml:      s_channel [31;1m# [39;22mclose_in();
+gapi-ocaml:src/netstring/netstream.ml:      s_closed <- true;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:
+gapi-ocaml:src/netstring/netstream.ml:  inherit input_methods (in_stream [31;1m# [39;22mwindow)
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:    try
+gapi-ocaml:src/netstring/netstream.ml:      self [31;1m# [39;22mwant_minimum()
+gapi-ocaml:src/netstring/netstream.ml:    with
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:
+gapi-ocaml:src/netstring/netstream.ml:  method block_size = s [31;1m# [39;22mblock_size
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:    if s_closed then raise Netchannels.Closed_channel;
+gapi-ocaml:src/netstring/netstream.ml:    s [31;1m# [39;22mwant_another_block();   (* may raise Buffer_underrun *)
+gapi-ocaml:src/netstring/netstream.ml:    while self [31;1m# [39;22mcompute_winlen() do
+gapi-ocaml:src/netstring/netstream.ml:      s [31;1m# [39;22mwant_another_block(); (* may raise Buffer_underrun *)
+gapi-ocaml:src/netstring/netstream.ml:    done
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:    while not s_at_eof && s_winlen < n do
+gapi-ocaml:src/netstring/netstream.ml:      self [31;1m# [39;22mwant_another_block()   (* may raise Buffer_underrun *)
+gapi-ocaml:src/netstring/netstream.ml:    done
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:  method private want_minimum() =
+gapi-ocaml:src/netstring/netstream.ml:    if self [31;1m# [39;22mcompute_winlen() then
+gapi-ocaml:src/netstring/netstream.ml:      self [31;1m# [39;22mwant_another_block();   (* may raise Buffer_underrun *)
+gapi-ocaml:src/netstring/netstream.ml:    self [31;1m# [39;22mwant s#block_size
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:	let k = min s_winlen len in
+gapi-ocaml:src/netstring/netstream.ml:	s [31;1m# [39;22mskip k;              (* may raise Buffer_underrun *)
+gapi-ocaml:src/netstring/netstream.ml:	s_pos <- s_pos + k;
+gapi-ocaml:src/netstring/netstream.ml:	self [31;1m# [39;22mwant_minimum();   (* may raise Buffer_underrun *)
+gapi-ocaml:src/netstring/netstream.ml:	if k > 0 then read (len - k)
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:    if s_underrun then (
+gapi-ocaml:src/netstring/netstream.ml:      self [31;1m# [39;22mwant_minimum();  (* may raise Buffer_underrun *)
+gapi-ocaml:src/netstring/netstream.ml:      s_underrun <- false;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:    Netbuffer.blit s_netbuf 0 buf pos len';
+gapi-ocaml:src/netstring/netstream.ml:    s [31;1m# [39;22mskip len';              (* never raises Buffer_underrun *)
+gapi-ocaml:src/netstring/netstream.ml:    s_pos <- s_pos + len';
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:    ( try
+gapi-ocaml:src/netstring/netstream.ml:	self [31;1m# [39;22mwant_minimum();
+gapi-ocaml:src/netstring/netstream.ml:      with
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstream.ml:    if not s_closed then (
+gapi-ocaml:src/netstring/netstream.ml:      s [31;1m# [39;22mclose_in();
+gapi-ocaml:src/netstring/netstream.ml:      s_closed <- true;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netencoding.ml:  let regexp_ht = Hashtbl.create 7
+gapi-ocaml:src/netstring/netencoding.ml:  let regexp_ht_mutex = !Netsys_oothr.provider [31;1m# [39;22mcreate_mutex()
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netascii_armor.ml:  let rec next_begin_boundary() =
+gapi-ocaml:src/netstring/netascii_armor.ml:    let line_opt = try Some(ch [31;1m# [39;22minput_line()) with End_of_file -> None in
+gapi-ocaml:src/netstring/netascii_armor.ml:    match line_opt with
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netascii_armor.ml:      let body = new Netmime.memory_mime_body "" in
+gapi-ocaml:src/netstring/netascii_armor.ml:      let body_ch = body [31;1m# [39;22mopen_value_wr() in
+gapi-ocaml:src/netstring/netascii_armor.ml:      match armor_type with
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netascii_armor.ml:             let followup code =
+gapi-ocaml:src/netstring/netascii_armor.ml:               body_ch [31;1m# [39;22mclose_out();
+gapi-ocaml:src/netstring/netascii_armor.ml:               match code with
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netascii_armor.ml:             let followup code =
+gapi-ocaml:src/netstring/netascii_armor.ml:               base64_ch [31;1m# [39;22mclose_out();
+gapi-ocaml:src/netstring/netascii_armor.ml:               body_ch [31;1m# [39;22mclose_out();
+gapi-ocaml:src/netstring/netascii_armor.ml:               match code with
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netascii_armor.ml:      let rec parse() =
+gapi-ocaml:src/netstring/netascii_armor.ml:        let line_opt = try Some(ch [31;1m# [39;22minput_line()) with End_of_file -> None in
+gapi-ocaml:src/netstring/netascii_armor.ml:        match line_opt with
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netascii_armor.ml:                      else (
+gapi-ocaml:src/netstring/netascii_armor.ml:                        out_ch [31;1m# [39;22moutput_string line;
+gapi-ocaml:src/netstring/netascii_armor.ml:                        out_ch [31;1m# [39;22moutput_string "\n";
+gapi-ocaml:src/netstring/netascii_armor.ml:                        parse()
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netascii_armor.ml:                      let line_opt = 
+gapi-ocaml:src/netstring/netascii_armor.ml:                        try Some(ch [31;1m# [39;22minput_line()) with End_of_file -> None in
+gapi-ocaml:src/netstring/netascii_armor.ml:                      ( match line_opt with
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netmime.ml:    initializer
+gapi-ocaml:src/netstring/netmime.ml:      self [31;1m# [39;22mdo_set_fields h
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netmime.ml:      if self#ro then raise (Immutable "set_fields");
+gapi-ocaml:src/netstring/netmime.ml:      self [31;1m# [39;22mdo_set_fields h
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netmime.ml:      if self#ro then raise (Immutable "update_field");
+gapi-ocaml:src/netstring/netmime.ml:      self [31;1m# [39;22mupdate_multiple_field n [v]
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netmime.ml:    method value = 
+gapi-ocaml:src/netstring/netmime.ml:      if finalized then self [31;1m# [39;22mfinalized();
+gapi-ocaml:src/netstring/netmime.ml:      value
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netmime.ml:    method open_value_rd() = 
+gapi-ocaml:src/netstring/netmime.ml:      if finalized then self [31;1m# [39;22mfinalized();
+gapi-ocaml:src/netstring/netmime.ml:      new input_string value
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netmime.ml:      if self#ro then raise (Immutable "set_value");
+gapi-ocaml:src/netstring/netmime.ml:      if finalized then self [31;1m# [39;22mfinalized();
+gapi-ocaml:src/netstring/netmime.ml:      value <- s;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netmime.ml:      if self#ro then raise (Immutable "open_value_wr");
+gapi-ocaml:src/netstring/netmime.ml:      if finalized then self [31;1m# [39;22mfinalized();
+gapi-ocaml:src/netstring/netmime.ml:      let b = Netbuffer.create 60 in
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netmime.ml:    method value =
+gapi-ocaml:src/netstring/netmime.ml:      if finalized then self [31;1m# [39;22mfinalized();
+gapi-ocaml:src/netstring/netmime.ml:      match Weak.get cached_value 0 with
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netmime.ml:    method open_value_rd() =
+gapi-ocaml:src/netstring/netmime.ml:      if finalized then self [31;1m# [39;22mfinalized();
+gapi-ocaml:src/netstring/netmime.ml:      new input_channel (open_in_bin filename)
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netmime.ml:      if self#ro then raise (Immutable "set_value");
+gapi-ocaml:src/netstring/netmime.ml:      if finalized then self [31;1m# [39;22mfinalized();
+gapi-ocaml:src/netstring/netmime.ml:      with_out_obj_channel 
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netmime.ml:        (new output_channel (open_out_bin filename))
+gapi-ocaml:src/netstring/netmime.ml:        (fun ch -> ch [31;1m# [39;22moutput_string s);
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netmime.ml:      if self#ro then raise (Immutable "open_value_wr");
+gapi-ocaml:src/netstring/netmime.ml:      if finalized then self [31;1m# [39;22mfinalized();
+gapi-ocaml:src/netstring/netmime.ml:      new output_channel (open_out_bin filename)
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netmappings.ml:let omtp = !Netsys_oothr.provider
+gapi-ocaml:src/netstring/netmappings.ml:let mutex = omtp [31;1m# [39;22mcreate_mutex()
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method input buf pos len = 
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      try
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method really_input buf pos len = 
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      really_input ch buf pos len 
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method really_input_string len = 
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      #ifdef HAVE_BYTES
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:method input_char () =
+gapi-ocaml:src/netstring/netchannels.ml:  if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:  input_char ch 
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:method input_line () =
+gapi-ocaml:src/netstring/netchannels.ml:  if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:  input_line ch 
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:method input_byte () =
+gapi-ocaml:src/netstring/netchannels.ml:  if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:  input_byte ch 
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:method pos_in =
+gapi-ocaml:src/netstring/netchannels.ml:  if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:  pos_in ch 
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method input buf pos len =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      if pos < 0 || len < 0 || pos+len > Bytes.length buf then
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method really_input buf pos len =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      if pos < 0 || len < 0 || pos+len > Bytes.length buf then
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:
+gapi-ocaml:src/netstring/netchannels.ml:      let n = self [31;1m# [39;22minput buf pos len in
+gapi-ocaml:src/netstring/netchannels.ml:      if n <> len then raise End_of_file;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method really_input_string len =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      if len < 0 then
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      let buf = Bytes.create len in
+gapi-ocaml:src/netstring/netchannels.ml:      let n = self [31;1m# [39;22minput buf 0 len in
+gapi-ocaml:src/netstring/netchannels.ml:      if n <> len then raise End_of_file;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method input_char() =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      if str_pos >= str_len then raise End_of_file;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method input_line() =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      try
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method input_byte() =
+gapi-ocaml:src/netstring/netchannels.ml:      Char.code (self [31;1m# [39;22minput_char())
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method pos_in = 
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      str_pos
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method input buf pos len =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      if pos < 0 || len < 0 || pos > Bytes.length buf - len then
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:
+gapi-ocaml:src/netstring/netchannels.ml:      self [31;1m# [39;22minput_into
+gapi-ocaml:src/netstring/netchannels.ml:        (fun b_offs n ->
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method really_input buf pos len =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      if pos < 0 || len < 0 || pos+len > Bytes.length buf then
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:
+gapi-ocaml:src/netstring/netchannels.ml:      let n = self [31;1m# [39;22minput buf pos len in
+gapi-ocaml:src/netstring/netchannels.ml:      if n <> len then raise End_of_file;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method really_input_string len =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      if len < 0 then
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:
+gapi-ocaml:src/netstring/netchannels.ml:      self [31;1m# [39;22minput_into
+gapi-ocaml:src/netstring/netchannels.ml:        (fun b_offs n ->
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method input_char() =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      let s = Bytes.create 1 in
+gapi-ocaml:src/netstring/netchannels.ml:      match self [31;1m# [39;22minput s 0 1 with
+gapi-ocaml:src/netstring/netchannels.ml:      | 1 -> Bytes.get s 0
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method input_line() =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      try
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method input_byte() =
+gapi-ocaml:src/netstring/netchannels.ml:      Char.code (self [31;1m# [39;22minput_char())
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method pos_in = 
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      ch_pos
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:  let ch = new input_netbuffer ?keep_data b in
+gapi-ocaml:src/netstring/netchannels.ml:  (ch :> in_obj_channel), (ch [31;1m# [39;22mshutdown)
+gapi-ocaml:src/netstring/netchannels.ml:;;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    try
+gapi-ocaml:src/netstring/netchannels.ml:      let n = objch [31;1m# [39;22minput buf 0 len in
+gapi-ocaml:src/netstring/netchannels.ml:      if n=0 then failwith "Netchannels.lexbuf_of_in_obj_channel: No data (non-blocking I/O?)";
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      let s = Bytes.create slen in
+gapi-ocaml:src/netstring/netchannels.ml:      let n = objch [31;1m# [39;22minput s 0 slen in
+gapi-ocaml:src/netstring/netchannels.ml:      if n = 0 then 
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    let result = f ch in
+gapi-ocaml:src/netstring/netchannels.ml:    ( try ch [31;1m# [39;22mclose_in() with Closed_channel -> ());
+gapi-ocaml:src/netstring/netchannels.ml:    result
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    e ->
+gapi-ocaml:src/netstring/netchannels.ml:    ( try ch [31;1m# [39;22mclose_in() with Closed_channel -> ());
+gapi-ocaml:src/netstring/netchannels.ml:    raise e
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:        if n < len then
+gapi-ocaml:src/netstring/netchannels.ml:          let m = self [31;1m# [39;22minput s (pos+n) (len-n) in
+gapi-ocaml:src/netstring/netchannels.ml:          if m = 0 then raise Sys_blocked_io;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      let s = Bytes.create 1 in
+gapi-ocaml:src/netstring/netchannels.ml:      self [31;1m# [39;22mreally_input s 0 1;
+gapi-ocaml:src/netstring/netchannels.ml:      Bytes.get s 0
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      let s = Bytes.create 1 in
+gapi-ocaml:src/netstring/netchannels.ml:      self [31;1m# [39;22mreally_input s 0 1;
+gapi-ocaml:src/netstring/netchannels.ml:      Char.code (Bytes.get s 0)
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      let b = Buffer.create 80 in
+gapi-ocaml:src/netstring/netchannels.ml:      let m = self [31;1m# [39;22minput s 0 1 in
+gapi-ocaml:src/netstring/netchannels.ml:      if m = 0 then raise Sys_blocked_io;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:        try
+gapi-ocaml:src/netstring/netchannels.ml:          let m = self [31;1m# [39;22minput s 0 1 in
+gapi-ocaml:src/netstring/netchannels.ml:          if m = 0 then raise Sys_blocked_io;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method input s p l =
+gapi-ocaml:src/netstring/netchannels.ml:      r [31;1m# [39;22minput s p l
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method close_in () =
+gapi-ocaml:src/netstring/netchannels.ml:      r [31;1m# [39;22mclose_in()
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method pos_in =
+gapi-ocaml:src/netstring/netchannels.ml:      r [31;1m# [39;22mpos_in
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then raise Closed_channel;
+gapi-ocaml:src/netstring/netchannels.ml:      let n = r [31;1m# [39;22minput s p l in
+gapi-ocaml:src/netstring/netchannels.ml:      pos_in <- pos_in + n;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:        closed <- true;
+gapi-ocaml:src/netstring/netchannels.ml:        r [31;1m# [39;22mclose_in()
+gapi-ocaml:src/netstring/netchannels.ml:      )
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:            else
+gapi-ocaml:src/netstring/netchannels.ml:              self [31;1m# [39;22mrefill();
+gapi-ocaml:src/netstring/netchannels.ml:          );
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      with Pass_through ->
+gapi-ocaml:src/netstring/netchannels.ml:        ch [31;1m# [39;22minput s pos len
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:        assert(bufsize > buflen);  (* otherwise problems... *)
+gapi-ocaml:src/netstring/netchannels.ml:        let n = ch [31;1m# [39;22minput buf buflen (bufsize-buflen) in  (* or End_of_file *)
+gapi-ocaml:src/netstring/netchannels.ml:        if n = 0 then raise Sys_blocked_io;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      if not closed then (
+gapi-ocaml:src/netstring/netchannels.ml:        ch [31;1m# [39;22mclose_in();
+gapi-ocaml:src/netstring/netchannels.ml:        closed <- true
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method pos_in =
+gapi-ocaml:src/netstring/netchannels.ml:      (ch [31;1m# [39;22mpos_in) - (buflen - bufpos)
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:        if bufpos = buflen then (
+gapi-ocaml:src/netstring/netchannels.ml:          self [31;1m# [39;22mrefill(); (* may raise End_of_file *)
+gapi-ocaml:src/netstring/netchannels.ml:        );
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:        while !result = None do
+gapi-ocaml:src/netstring/netchannels.ml:          let best = self [31;1m# [39;22mfind_eol() in
+gapi-ocaml:src/netstring/netchannels.ml:          match best with
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:            if p = bufpos then (
+gapi-ocaml:src/netstring/netchannels.ml:              try self [31;1m# [39;22mrefill()
+gapi-ocaml:src/netstring/netchannels.ml:              with End_of_file -> ()
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      if bufpos = buflen then (
+gapi-ocaml:src/netstring/netchannels.ml:        self [31;1m# [39;22mrefill();  (* may raise End_of_file *)
+gapi-ocaml:src/netstring/netchannels.ml:      );
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      while not !eol_found do
+gapi-ocaml:src/netstring/netchannels.ml:        let best = self [31;1m# [39;22mfind_eol() in
+gapi-ocaml:src/netstring/netchannels.ml:        try
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:            bufpos <- buflen;
+gapi-ocaml:src/netstring/netchannels.ml:            self [31;1m# [39;22mrefill();     (* may raise End_of_file *)
+gapi-ocaml:src/netstring/netchannels.ml:          | EOL_partially_found pos ->
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:            bufpos <- pos;
+gapi-ocaml:src/netstring/netchannels.ml:            self [31;1m# [39;22mrefill();     (* may raise End_of_file *)
+gapi-ocaml:src/netstring/netchannels.ml:          | EOL_found(pos,len) ->
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method input_line () =
+gapi-ocaml:src/netstring/netchannels.ml:      self [31;1m# [39;22menhanced_input_line()
+gapi-ocaml:src/netstring/netchannels.ml:  end;;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      if m <= 0 then raise No_end_of_file;
+gapi-ocaml:src/netstring/netchannels.ml:      let n = src_ch [31;1m# [39;22minput buf 0 m in
+gapi-ocaml:src/netstring/netchannels.ml:      if n = 0 then raise Sys_blocked_io;
+gapi-ocaml:src/netstring/netchannels.ml:      dest_ch [31;1m# [39;22mreally_output buf 0 n;
+gapi-ocaml:src/netstring/netchannels.ml:      k := !k + n
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output buf pos len =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      (* output does not support non-blocking I/O directly.
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method really_output buf pos len =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      monitored (output ch buf pos) len
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method really_output_string buf pos len =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      #ifdef HAVE_BYTES
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:method output_char c =
+gapi-ocaml:src/netstring/netchannels.ml:  if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:  monitored (output_char ch) c
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:method output_string s =
+gapi-ocaml:src/netstring/netchannels.ml:  if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:  monitored (output_string ch) s
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:method output_bytes s =
+gapi-ocaml:src/netstring/netchannels.ml:  if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:  #ifdef HAVE_BYTES
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:method output_byte b =
+gapi-ocaml:src/netstring/netchannels.ml:  if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:  monitored (output_byte ch) b
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:method output_buffer b =
+gapi-ocaml:src/netstring/netchannels.ml:  if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:  monitored(Buffer.output_buffer ch) b
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:method output_channel ?len ch =
+gapi-ocaml:src/netstring/netchannels.ml:  if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:  ignore
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:method flush() =
+gapi-ocaml:src/netstring/netchannels.ml:  if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:  monitored flush ch
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:method pos_out = 
+gapi-ocaml:src/netstring/netchannels.ml:  if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:  pos_out ch
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output buf pos len =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      #ifdef HAVE_BYTES
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:method really_output buf pos len =
+gapi-ocaml:src/netstring/netchannels.ml:  if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:  #ifdef HAVE_BYTES
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:method really_output_string buf pos len =
+gapi-ocaml:src/netstring/netchannels.ml:  if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:  Buffer.add_substring buffer buf pos len;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:method output_char c =
+gapi-ocaml:src/netstring/netchannels.ml:  if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:  Buffer.add_char buffer c
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:method output_string s =
+gapi-ocaml:src/netstring/netchannels.ml:  if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:  Buffer.add_string buffer s
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:method output_bytes s =
+gapi-ocaml:src/netstring/netchannels.ml:  if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:  #ifdef HAVE_BYTES
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:method output_byte b =
+gapi-ocaml:src/netstring/netchannels.ml:  if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:  Buffer.add_char buffer (Char.chr b)
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:method output_buffer b =
+gapi-ocaml:src/netstring/netchannels.ml:  if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:  Buffer.add_buffer buffer b
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:method output_channel ?len ch =
+gapi-ocaml:src/netstring/netchannels.ml:  if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:  ignore(copy_channel ?len ch (self : #out_obj_channel :> out_obj_channel))
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:method flush() = 
+gapi-ocaml:src/netstring/netchannels.ml:  if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:  ()
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:method pos_out = 
+gapi-ocaml:src/netstring/netchannels.ml:  if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:  Buffer.length buffer
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output buf pos len =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      Netbuffer.add_subbytes buffer buf pos len;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method really_output buf pos len =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      Netbuffer.add_subbytes buffer buf pos len;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method really_output_string buf pos len =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      Netbuffer.add_substring buffer buf pos len;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output_char c =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      Netbuffer.add_string buffer (String.make 1 c);
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output_string s =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      Netbuffer.add_string buffer s;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output_bytes s =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      Netbuffer.add_bytes buffer s;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output_byte b =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      Netbuffer.add_string buffer (String.make 1 (Char.chr b));
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output_buffer b =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      Netbuffer.add_string buffer (Buffer.contents b);
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output_channel ?len ch =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      ignore(copy_channel ?len ch (self : #out_obj_channel :> out_obj_channel))
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method flush() = 
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      ()
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method pos_out = 
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      ch_pos
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output s start len =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      pos <- pos + len; len
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method really_output s start len =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      pos <- pos + len
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method really_output_string s start len =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      pos <- pos + len
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output_char _ =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      pos <- pos + 1
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output_string s =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      pos <- pos + String.length s
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output_bytes s =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      pos <- pos + Bytes.length s
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output_byte _ =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      pos <- pos + 1
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output_buffer b =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      pos <- pos + Buffer.length b
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output_channel ?len ch =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      ignore(copy_channel ?len ch (self : #out_obj_channel :> out_obj_channel))
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method flush() = 
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:    method close_out() =
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method pos_out =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      pos
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    *)
+gapi-ocaml:src/netstring/netchannels.ml:    ( try ch [31;1m# [39;22mflush() with Closed_channel -> ());
+gapi-ocaml:src/netstring/netchannels.ml:    ( try ch [31;1m# [39;22mclose_out() with Closed_channel -> ());
+gapi-ocaml:src/netstring/netchannels.ml:    result
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    e ->
+gapi-ocaml:src/netstring/netchannels.ml:    ( try ch [31;1m# [39;22mclose_out() with Closed_channel -> ());
+gapi-ocaml:src/netstring/netchannels.ml:    raise e
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:        if n < len then
+gapi-ocaml:src/netstring/netchannels.ml:          let m = self [31;1m# [39;22moutput s (pos+n) (len-n) in
+gapi-ocaml:src/netstring/netchannels.ml:          if m=0 then raise Sys_blocked_io;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method really_output_string s pos len =
+gapi-ocaml:src/netstring/netchannels.ml:      self [31;1m# [39;22mreally_output (Bytes.unsafe_of_string s) pos len
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output_char c =
+gapi-ocaml:src/netstring/netchannels.ml:      ignore(self [31;1m# [39;22moutput (Bytes.make 1 c) 0 1)
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output_byte n =
+gapi-ocaml:src/netstring/netchannels.ml:      ignore(self [31;1m# [39;22moutput (Bytes.make 1 (Char.chr n)) 0 1)
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output_string s =
+gapi-ocaml:src/netstring/netchannels.ml:      self [31;1m# [39;22mreally_output_string s 0 (String.length s)
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output_bytes s =
+gapi-ocaml:src/netstring/netchannels.ml:      self [31;1m# [39;22mreally_output s 0 (Bytes.length s)
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output_buffer b =
+gapi-ocaml:src/netstring/netchannels.ml:      self [31;1m# [39;22moutput_string (Buffer.contents b)
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output s p l =
+gapi-ocaml:src/netstring/netchannels.ml:      r [31;1m# [39;22moutput s p l
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method flush () =
+gapi-ocaml:src/netstring/netchannels.ml:      r [31;1m# [39;22mflush()
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method close_out () =
+gapi-ocaml:src/netstring/netchannels.ml:      r [31;1m# [39;22mclose_out()
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method pos_out =
+gapi-ocaml:src/netstring/netchannels.ml:      r [31;1m# [39;22mpos_out
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then raise Closed_channel;
+gapi-ocaml:src/netstring/netchannels.ml:      let n = r [31;1m# [39;22moutput s p l in
+gapi-ocaml:src/netstring/netchannels.ml:      pos_out <- pos_out + n;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      if closed then raise Closed_channel;
+gapi-ocaml:src/netstring/netchannels.ml:      r [31;1m# [39;22mflush();
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:        closed <- true;
+gapi-ocaml:src/netstring/netchannels.ml:        r [31;1m# [39;22mclose_out()
+gapi-ocaml:src/netstring/netchannels.ml:      )
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      if bufpos=0 && len >= pass_through then
+gapi-ocaml:src/netstring/netchannels.ml:        ch [31;1m# [39;22moutput s pos len
+gapi-ocaml:src/netstring/netchannels.ml:      else
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:        if bufpos = bufsize then
+gapi-ocaml:src/netstring/netchannels.ml:          self [31;1m# [39;22mflush();
+gapi-ocaml:src/netstring/netchannels.ml:        n
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      while !k < bufpos do
+gapi-ocaml:src/netstring/netchannels.ml:        k := !k + (ch [31;1m# [39;22moutput buf !k (bufpos - !k))
+gapi-ocaml:src/netstring/netchannels.ml:      done;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      bufpos <- 0;
+gapi-ocaml:src/netstring/netchannels.ml:      ch [31;1m# [39;22mflush()
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:        ( try
+gapi-ocaml:src/netstring/netchannels.ml:            self [31;1m# [39;22mflush()
+gapi-ocaml:src/netstring/netchannels.ml:          with
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:        );
+gapi-ocaml:src/netstring/netchannels.ml:        ch [31;1m# [39;22mclose_out();
+gapi-ocaml:src/netstring/netchannels.ml:        closed <- true
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method pos_out =
+gapi-ocaml:src/netstring/netchannels.ml:      (ch [31;1m# [39;22mpos_out) + bufpos
+gapi-ocaml:src/netstring/netchannels.ml:  end
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method input buf pos len =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed_in then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      wrapper `R fd_style fd
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method pos_in =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed_in then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      pos_in
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method output buf pos len =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed_out then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      wrapper `W fd_style fd
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method pos_out =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed_out then self [31;1m# [39;22mcomplain_closed();
+gapi-ocaml:src/netstring/netchannels.ml:      pos_out
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method flush () =
+gapi-ocaml:src/netstring/netchannels.ml:      if closed_out then self [31;1m# [39;22mcomplain_closed()
+gapi-ocaml:src/netstring/netchannels.ml:  end
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:        if closed_out then
+gapi-ocaml:src/netstring/netchannels.ml:          self [31;1m# [39;22mgen_close Unix.SHUTDOWN_ALL
+gapi-ocaml:src/netstring/netchannels.ml:        else
+gapi-ocaml:src/netstring/netchannels.ml:          self [31;1m# [39;22mgen_close Unix.SHUTDOWN_RECEIVE
+gapi-ocaml:src/netstring/netchannels.ml:      )
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:        if closed_in then
+gapi-ocaml:src/netstring/netchannels.ml:          self [31;1m# [39;22mgen_close Unix.SHUTDOWN_ALL
+gapi-ocaml:src/netstring/netchannels.ml:        else
+gapi-ocaml:src/netstring/netchannels.ml:          self [31;1m# [39;22mgen_close Unix.SHUTDOWN_SEND
+gapi-ocaml:src/netstring/netchannels.ml:      )
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:
+gapi-ocaml:src/netstring/netchannels.ml:    method output         = !trans [31;1m# [39;22moutput
+gapi-ocaml:src/netstring/netchannels.ml:    method really_output  = !trans [31;1m# [39;22mreally_output
+gapi-ocaml:src/netstring/netchannels.ml:    method really_output_string = !trans [31;1m# [39;22mreally_output_string
+gapi-ocaml:src/netstring/netchannels.ml:    method output_char    = !trans [31;1m# [39;22moutput_char
+gapi-ocaml:src/netstring/netchannels.ml:    method output_string  = !trans [31;1m# [39;22moutput_string
+gapi-ocaml:src/netstring/netchannels.ml:    method output_bytes   = !trans [31;1m# [39;22moutput_bytes
+gapi-ocaml:src/netstring/netchannels.ml:    method output_byte    = !trans [31;1m# [39;22moutput_byte
+gapi-ocaml:src/netstring/netchannels.ml:    method output_buffer  = !trans [31;1m# [39;22moutput_buffer
+gapi-ocaml:src/netstring/netchannels.ml:    method output_channel = !trans [31;1m# [39;22moutput_channel
+gapi-ocaml:src/netstring/netchannels.ml:    method flush          = !trans [31;1m# [39;22mflush
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:            ( match close_mode with
+gapi-ocaml:src/netstring/netchannels.ml:                `Commit   -> self [31;1m# [39;22mcommit_work()
+gapi-ocaml:src/netstring/netchannels.ml:              | `Rollback -> self [31;1m# [39;22mrollback_work()
+gapi-ocaml:src/netstring/netchannels.ml:            )
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:        );
+gapi-ocaml:src/netstring/netchannels.ml:        !trans [31;1m# [39;22mclose_out();
+gapi-ocaml:src/netstring/netchannels.ml:        out [31;1m# [39;22mclose_out();
+gapi-ocaml:src/netstring/netchannels.ml:        closed := true
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method pos_out =
+gapi-ocaml:src/netstring/netchannels.ml:      out [31;1m# [39;22mpos_out + !trans [31;1m# [39;22mpos_out
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:        reset();
+gapi-ocaml:src/netstring/netchannels.ml:        out [31;1m# [39;22moutput_buffer b;
+gapi-ocaml:src/netstring/netchannels.ml:        out [31;1m# [39;22mflush();
+gapi-ocaml:src/netstring/netchannels.ml:      with
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:        err ->
+gapi-ocaml:src/netstring/netchannels.ml:        self [31;1m# [39;22mrollback_work();   (* reset anyway *)
+gapi-ocaml:src/netstring/netchannels.ml:        raise err
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:
+gapi-ocaml:src/netstring/netchannels.ml:    method output         = if need_clear then self#clear(); trans [31;1m# [39;22moutput
+gapi-ocaml:src/netstring/netchannels.ml:    method really_output  = if need_clear then self#clear(); trans [31;1m# [39;22mreally_output
+gapi-ocaml:src/netstring/netchannels.ml:    method really_output_string =
+gapi-ocaml:src/netstring/netchannels.ml:      if need_clear then self#clear(); trans [31;1m# [39;22mreally_output_string
+gapi-ocaml:src/netstring/netchannels.ml:    method output_char    = if need_clear then self#clear(); trans [31;1m# [39;22moutput_char
+gapi-ocaml:src/netstring/netchannels.ml:    method output_string  = if need_clear then self#clear(); trans [31;1m# [39;22moutput_string
+gapi-ocaml:src/netstring/netchannels.ml:    method output_bytes   = if need_clear then self#clear(); trans [31;1m# [39;22moutput_bytes
+gapi-ocaml:src/netstring/netchannels.ml:    method output_byte    = if need_clear then self#clear(); trans [31;1m# [39;22moutput_byte
+gapi-ocaml:src/netstring/netchannels.ml:    method output_buffer  = if need_clear then self#clear(); trans [31;1m# [39;22moutput_buffer
+gapi-ocaml:src/netstring/netchannels.ml:    method output_channel = if need_clear then self#clear(); trans #output_channel
+gapi-ocaml:src/netstring/netchannels.ml:    method flush          = if need_clear then self#clear(); trans [31;1m# [39;22mflush
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:            ( match close_mode with
+gapi-ocaml:src/netstring/netchannels.ml:                `Commit   -> self [31;1m# [39;22mcommit_work()
+gapi-ocaml:src/netstring/netchannels.ml:              | `Rollback -> self [31;1m# [39;22mrollback_work()
+gapi-ocaml:src/netstring/netchannels.ml:            )
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:        close_in transch_in;
+gapi-ocaml:src/netstring/netchannels.ml:        trans [31;1m# [39;22mclose_out();      (* closes transch_out *)
+gapi-ocaml:src/netstring/netchannels.ml:        out [31;1m# [39;22mclose_out();
+gapi-ocaml:src/netstring/netchannels.ml:        closed := true
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      if need_clear then self#clear(); 
+gapi-ocaml:src/netstring/netchannels.ml:      out [31;1m# [39;22mpos_out + trans [31;1m# [39;22mpos_out
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      need_clear <- true;
+gapi-ocaml:src/netstring/netchannels.ml:      let len = trans [31;1m# [39;22mpos_out in
+gapi-ocaml:src/netstring/netchannels.ml:      trans [31;1m# [39;22mflush();
+gapi-ocaml:src/netstring/netchannels.ml:      seek_in transch_in 0;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      ( try 
+gapi-ocaml:src/netstring/netchannels.ml:          out [31;1m# [39;22moutput_channel ~len trans';
+gapi-ocaml:src/netstring/netchannels.ml:          out [31;1m# [39;22mflush();
+gapi-ocaml:src/netstring/netchannels.ml:        with
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:          err -> 
+gapi-ocaml:src/netstring/netchannels.ml:          self [31;1m# [39;22mrollback_work();
+gapi-ocaml:src/netstring/netchannels.ml:          raise err
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      );
+gapi-ocaml:src/netstring/netchannels.ml:      self [31;1m# [39;22mclear()
+gapi-ocaml:src/netstring/netchannels.ml:
+gapi-ocaml:src/netstring/netchannels.ml:    method rollback_work() = self [31;1m# [39;22mclear()
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      conv incoming incoming_eof outgoing;
+gapi-ocaml:src/netstring/netchannels.ml:      if incoming_eof then input_super [31;1m# [39;22mshutdown()
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method input_line() =
+gapi-ocaml:src/netstring/netchannels.ml:      let p = input_super [31;1m# [39;22mpos_in in
+gapi-ocaml:src/netstring/netchannels.ml:      let line = call_input self#refill (input_super#input_line) () in
+gapi-ocaml:src/netstring/netchannels.ml:      let p' = input_super [31;1m# [39;22mpos_in in
+gapi-ocaml:src/netstring/netchannels.ml:      pos_in <- pos_in + (p' - p);
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      if not output_closed then (
+gapi-ocaml:src/netstring/netchannels.ml:        output_super [31;1m# [39;22mclose_out();
+gapi-ocaml:src/netstring/netchannels.ml:        output_closed <- true;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      );
+gapi-ocaml:src/netstring/netchannels.ml:      input_super [31;1m# [39;22mclose_in()
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      if not output_closed then (
+gapi-ocaml:src/netstring/netchannels.ml:        output_super [31;1m# [39;22mclose_out();
+gapi-ocaml:src/netstring/netchannels.ml:        output_closed <- true;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      if p_closed then raise Closed_channel;
+gapi-ocaml:src/netstring/netchannels.ml:      let n = p [31;1m# [39;22moutput s pos len in
+gapi-ocaml:src/netstring/netchannels.ml:      self [31;1m# [39;22mtransfer();
+gapi-ocaml:src/netstring/netchannels.ml:      n
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      if p_closed then raise Closed_channel;
+gapi-ocaml:src/netstring/netchannels.ml:      p [31;1m# [39;22mreally_output s pos len;
+gapi-ocaml:src/netstring/netchannels.ml:      self [31;1m# [39;22mtransfer();
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      if p_closed then raise Closed_channel;
+gapi-ocaml:src/netstring/netchannels.ml:      p [31;1m# [39;22mreally_output_string s pos len;
+gapi-ocaml:src/netstring/netchannels.ml:      self [31;1m# [39;22mtransfer();
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      if p_closed then raise Closed_channel;
+gapi-ocaml:src/netstring/netchannels.ml:      p [31;1m# [39;22moutput_char c;
+gapi-ocaml:src/netstring/netchannels.ml:      self [31;1m# [39;22mtransfer();
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      if p_closed then raise Closed_channel;
+gapi-ocaml:src/netstring/netchannels.ml:      p [31;1m# [39;22moutput_string s;
+gapi-ocaml:src/netstring/netchannels.ml:      self [31;1m# [39;22mtransfer();
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      if p_closed then raise Closed_channel;
+gapi-ocaml:src/netstring/netchannels.ml:      p [31;1m# [39;22moutput_bytes s;
+gapi-ocaml:src/netstring/netchannels.ml:      self [31;1m# [39;22mtransfer();
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      if p_closed then raise Closed_channel;
+gapi-ocaml:src/netstring/netchannels.ml:      p [31;1m# [39;22moutput_byte b;
+gapi-ocaml:src/netstring/netchannels.ml:      self [31;1m# [39;22mtransfer();
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      if p_closed then raise Closed_channel;
+gapi-ocaml:src/netstring/netchannels.ml:      p [31;1m# [39;22moutput_buffer b;
+gapi-ocaml:src/netstring/netchannels.ml:      self [31;1m# [39;22mtransfer();
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:          (len_to_do := !len_to_do - n; assert(!len_to_do >= 0));
+gapi-ocaml:src/netstring/netchannels.ml:        self [31;1m# [39;22mtransfer();
+gapi-ocaml:src/netstring/netchannels.ml:      done
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:    method flush() =
+gapi-ocaml:src/netstring/netchannels.ml:      p [31;1m# [39;22mflush();
+gapi-ocaml:src/netstring/netchannels.ml:      self [31;1m# [39;22mtransfer();
+gapi-ocaml:src/netstring/netchannels.ml:      out [31;1m# [39;22mflush()
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:      if not p_closed then (
+gapi-ocaml:src/netstring/netchannels.ml:        p [31;1m# [39;22mclose_out();
+gapi-ocaml:src/netstring/netchannels.ml:        p_closed <- true;
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:        ( try
+gapi-ocaml:src/netstring/netchannels.ml:            self [31;1m# [39;22mtransfer()
+gapi-ocaml:src/netstring/netchannels.ml:          with
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:
+gapi-ocaml:src/netstring/netchannels.ml:    method pos_out = p [31;1m# [39;22mpos_out
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:        ignore(copy_channel ~buf (p :> in_obj_channel) out);
+gapi-ocaml:src/netstring/netchannels.ml:        out [31;1m# [39;22mflush();
+gapi-ocaml:src/netstring/netchannels.ml:      with
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netchannels.ml:        copy_channel ~len:(Bytes.length buf) ~buf inp (p :> out_obj_channel) in
+gapi-ocaml:src/netstring/netchannels.ml:      if eof then p [31;1m# [39;22mclose_out();
+gapi-ocaml:---
+gapi-ocaml:src/netstring/netstring_str.ml:
+gapi-ocaml:src/netstring/netstring_str.ml:let mutex = (!Netsys_oothr.provider) [31;1m# [39;22mcreate_mutex()
+gapi-ocaml:parsed=236 has_HASH=27 would_break=14
+gavl:parsed=3 has_HASH=0 would_break=0
+gccjit:parsed=8 has_HASH=0 would_break=0
+gd:parsed=4 has_HASH=2 would_break=0
+gdbprofiler:parsed=12 has_HASH=2 would_break=0
+gedcom:parsed=2 has_HASH=0 would_break=0
+gen:parsed=16 has_HASH=1 would_break=0
+gen_js_api:ppx-driver/gen_js_api_ppx_driver.ml:    ~rules:[module_expr_ext; ext_of; ext_to; attr_typ ]
+gen_js_api:ppx-driver/gen_js_api_ppx_driver.ml:    ~impl:(mapper_for_str [31;1m# [39;22mstructure)
+gen_js_api:ppx-driver/gen_js_api_ppx_driver.ml:    ~intf:(mapper_for_sig [31;1m# [39;22msignature)
+gen_js_api:---
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:let rewrite_typ_decl t =
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:  let t = clear_attr_mapper [31;1m# [39;22mtype_declaration {t with ptype_private = Public} in
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:  match t.ptype_manifest, t.ptype_kind with
+gen_js_api:---
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:  | Implem str ->
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:      (Lazy.force mapper) [31;1m# [39;22mstructure str
+gen_js_api:---
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:    (Mod.structure ~attrs:[ merlin_hide ] str)
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:    (Mty.signature ~loc ~attrs (clear_attr_mapper [31;1m# [39;22msignature sg))
+gen_js_api:---
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:    method! module_expr mexp =
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:      let mexp = super [31;1m# [39;22mmodule_expr mexp in
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:      match mexp.pmod_desc with
+gen_js_api:---
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:    method! structure_item str =
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:      let str = super [31;1m# [39;22mstructure_item str in
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:      let global_attrs = [] in
+gen_js_api:---
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:    method! expression e =
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:      let e = super [31;1m# [39;22mexpression e in
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:      match e.pexp_desc with
+gen_js_api:---
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:      ignore (filter_attr_name "js.dummy" a : bool);
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:      super [31;1m# [39;22mattribute a
+gen_js_api:---
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:  let str = str_of_sg ~global_attrs:[] sg in
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:  ignore (check_loc_mapper [31;1m# [39;22msignature sg);
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:  let str = clear_attr_mapper [31;1m# [39;22mstructure str in
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:  Format.fprintf (Format.formatter_of_out_channel oc) "%a@." Pprintast.structure str;
+gen_js_api:---
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:    method! structure str =
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:      check_loc_mapper [31;1m# [39;22mstructure (super#structure str)
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:  end
+gen_js_api:---
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:      super [31;1m# [39;22mattribute attr
+gen_js_api:ppx-lib/gen_js_api_ppx.ml:  end
+gen_js_api:---
+gen_js_api:examples/test/main.ml:  let string_of_person x = string_of_name_foo (Person.name x) (Person.foo x) in
+gen_js_api:examples/test/main.ml:  let string_of_person_obj x = string_of_name_foo (x [31;1m# [39;22mname) (x [31;1m# [39;22mfoo) in
+gen_js_api:examples/test/main.ml:  let hack_person x =
+gen_js_api:---
+gen_js_api:examples/test/main.ml:
+gen_js_api:examples/test/main.ml:  let s = (new Str.str "") [31;1m# [39;22mconcat [Str.create "Hello"; Str.create ", "; Str.create "world"; Str.create "!"] in
+gen_js_api:examples/test/main.ml:  Console.log_string console (s [31;1m# [39;22mto_string);
+gen_js_api:parsed=67 has_HASH=3 would_break=3
+genspio:parsed=19 has_HASH=9 would_break=0
+genspir:parsed=3 has_HASH=0 would_break=0
+geoml:parsed=39 has_HASH=0 would_break=0
+get_line:parsed=1 has_HASH=0 would_break=0
+getopt:parsed=3 has_HASH=0 would_break=0
+git-split:parsed=23 has_HASH=0 would_break=0
+gitlab_pipeline_notifier:parsed=6 has_HASH=1 would_break=0
+glfw-ocaml:parsed=4 has_HASH=0 would_break=0
+glical:parsed=5 has_HASH=0 would_break=0
+globlon:parsed=5 has_HASH=0 would_break=0
+glpk:parsed=3 has_HASH=0 would_break=0
+gmp-xen:parsed=0 has_HASH=0 would_break=0
+gnuplot:parsed=10 has_HASH=0 would_break=0
+gospel:parsed=228 has_HASH=1 would_break=0
+gperftools:parsed=2 has_HASH=0 would_break=0
+gpiod:parsed=4 has_HASH=0 would_break=0
+gpx:parsed=2 has_HASH=0 would_break=0
+gradescope_submit:parsed=9 has_HASH=0 would_break=0
+grain_dypgen:parsed=42 has_HASH=0 would_break=0
+graphicspdf:parsed=0 has_HASH=0 would_break=0
+graphql_jsoo_client:parsed=9 has_HASH=0 would_break=0
+graphql_ppx:parsed=0 has_HASH=0 would_break=0
+grpc:parsed=45 has_HASH=1 would_break=0
+gstreamer:parsed=11 has_HASH=0 would_break=0
+guardian:parsed=26 has_HASH=0 would_break=0
+guile:parsed=9 has_HASH=0 would_break=0
+gxl-light:parsed=3 has_HASH=0 would_break=0
+hachis:parsed=6 has_HASH=3 would_break=0
+hacl-star:parsed=204 has_HASH=1 would_break=0
+hacl_func:parsed=3 has_HASH=0 would_break=0
+hashset:parsed=0 has_HASH=0 would_break=0
+hector:parsed=13 has_HASH=5 would_break=0
+herdtools7:parsed=867 has_HASH=2 would_break=0
+heroicons-reason-react:parsed=1 has_HASH=0 would_break=0
+higher:parsed=9 has_HASH=4 would_break=0
+highlexer:parsed=5 has_HASH=0 would_break=0
+higlo:parsed=12 has_HASH=0 would_break=0
+hiredis:parsed=9 has_HASH=0 would_break=0
+hl_yaml:parsed=13 has_HASH=0 would_break=0
+hll:parsed=1 has_HASH=0 would_break=0
+hmap:parsed=4 has_HASH=1 would_break=0
+hol_light:parsed=134 has_HASH=15 would_break=0
+hol_light_module:parsed=0 has_HASH=0 would_break=0
+htmlfromtexbooks:parsed=6 has_HASH=0 would_break=0
+hts_shrink:parsed=20 has_HASH=0 would_break=0
+http-cookie:parsed=3 has_HASH=0 would_break=0
+http-date:parsed=2 has_HASH=0 would_break=0
+http-multipart-formdata:parsed=4 has_HASH=1 would_break=0
+httpaf:parsed=42 has_HASH=5 would_break=0
+httph:parsed=3 has_HASH=0 would_break=0
+hyper:parsed=25 has_HASH=0 would_break=0
+idd:parsed=14 has_HASH=0 would_break=0
+inferno:parsed=58 has_HASH=0 would_break=0
+influxdb:parsed=8 has_HASH=0 would_break=0
+inquirer_oc:parsed=11 has_HASH=0 would_break=0
+inspect:parsed=8 has_HASH=2 would_break=0
+integers:parsed=11 has_HASH=0 would_break=0
+integers_stubs_js:parsed=1 has_HASH=0 would_break=0
+interface-prime:parsed=4 has_HASH=0 would_break=0
+inuit:parsed=16 has_HASH=0 would_break=0
+ip2location:parsed=3 has_HASH=0 would_break=0
+ip2locationio:parsed=3 has_HASH=0 would_break=0
+ip2proxy:parsed=3 has_HASH=0 would_break=0
+ip2whois:parsed=3 has_HASH=0 would_break=0
+iri:parsed=7 has_HASH=0 would_break=0
+itv-tree:parsed=3 has_HASH=0 would_break=0
+javalib:parsed=56 has_HASH=2 would_break=0
+jemalloc:parsed=2 has_HASH=0 would_break=0
+jext:parsed=13 has_HASH=0 would_break=0
+jhupllib:parsed=0 has_HASH=0 would_break=0
+jingoo:parsed=20 has_HASH=0 would_break=0
+jsonschema2atd:parsed=17 has_HASH=0 would_break=0
+jsoo_broadcastchannel:parsed=5 has_HASH=0 would_break=0
+jsoo_storage:parsed=4 has_HASH=0 would_break=0
+jupyter-kernel:parsed=16 has_HASH=0 would_break=0
+kcas:parsed=78 has_HASH=0 would_break=0
+kind2:parsed=323 has_HASH=0 would_break=0
+kinetic-client:src/kinetic.ml:  let h = Cryptokit.MAC.hmac_sha1 secret in
+kinetic-client:src/kinetic.ml:  let () = h [31;1m# [39;22madd_substring sx0 0 4 in
+kinetic-client:src/kinetic.ml:  let () = h [31;1m# [39;22madd_substring msg 0 msg_len in
+kinetic-client:src/kinetic.ml:  h [31;1m# [39;22mresult |> Bytes.of_string
+kinetic-client:---
+kinetic-client:src/kinetic_integration.ml:    let h = Cryptokit.Hash.sha1() in
+kinetic-client:src/kinetic_integration.ml:    let () = h [31;1m# [39;22madd_substring v_buff v_off v_len in
+kinetic-client:src/kinetic_integration.ml:    let hrs = h [31;1m# [39;22mresult in
+kinetic-client:src/kinetic_integration.ml:    let hr = Bytes.of_string hrs in
+kinetic-client:parsed=10 has_HASH=2 would_break=2
+kkmarkdown:parsed=47 has_HASH=0 would_break=0
+kmt:parsed=21 has_HASH=0 would_break=0
+kuznechik:parsed=8 has_HASH=0 would_break=0
+lablgl:parsed=114 has_HASH=22 would_break=0
+lablgtk:applications/camlirc/general_channel.ml:	    match Ctcp.check_ctcp mes with 
+lablgtk:applications/camlirc/general_channel.ml:	      None -> privmsg_signal [31;1m# [39;22mcall (f, chan)
+lablgtk:applications/camlirc/general_channel.ml:	    | Some(ctcp, arg) ->
+lablgtk:---
+lablgtk:src/gToolbox.ml:    end;
+lablgtk:src/gToolbox.ml:  fs [31;1m# [39;22mcancel_button [31;1m# [39;22mconnect#clicked ~callback:fs#destroy;
+lablgtk:src/gToolbox.ml:  fs [31;1m# [39;22mshow ();
+lablgtk:src/gToolbox.ml:  GMain.Main.main ();
+lablgtk:---
+lablgtk:examples/testgtk.ml:      ~title:"This is a modal color selection dialog" () in
+lablgtk:examples/testgtk.ml:  csd [31;1m# [39;22mset_transient_for parent#as_window;
+lablgtk:examples/testgtk.ml:  csd [31;1m# [39;22mconnect#destroy ~callback:cmw_destroy_cb;
+lablgtk:examples/testgtk.ml:  csd [31;1m# [39;22mok_button [31;1m# [39;22mconnect#clicked ~callback:csd#destroy;
+lablgtk:examples/testgtk.ml:  csd [31;1m# [39;22mcancel_button [31;1m# [39;22mconnect#clicked ~callback:csd#destroy;
+lablgtk:examples/testgtk.ml:  csd [31;1m# [39;22mshow ();
+lablgtk:examples/testgtk.ml:  Main.main ()
+lablgtk:---
+lablgtk:examples/testgtk.ml:      ~title:"This is a modal file selection dialog" () in
+lablgtk:examples/testgtk.ml:  fs [31;1m# [39;22mset_transient_for parent#as_window;
+lablgtk:examples/testgtk.ml:  fs [31;1m# [39;22mconnect#destroy ~callback:cmw_destroy_cb;
+lablgtk:examples/testgtk.ml:  fs [31;1m# [39;22mok_button [31;1m# [39;22mconnect#clicked ~callback:fs#destroy;
+lablgtk:examples/testgtk.ml:  fs [31;1m# [39;22mcancel_button [31;1m# [39;22mconnect#clicked ~callback:fs#destroy;
+lablgtk:examples/testgtk.ml:  fs [31;1m# [39;22mshow ();
+lablgtk:examples/testgtk.ml:  Main.main ()
+lablgtk:---
+lablgtk:examples/testgtk.ml:  btnFile #connect#clicked ~callback: (cmw_file window);
+lablgtk:examples/testgtk.ml:  window [31;1m# [39;22mshow ();
+lablgtk:examples/testgtk.ml:  Main.main ()
+lablgtk:---
+lablgtk:examples/testgtk.ml:	    ~col_spacings:10 ~packing:scrolled_window#add_with_viewport () in
+lablgtk:examples/testgtk.ml:	table #focus#set_hadjustment (Some scrolled_window [31;1m# [39;22mhadjustment);
+lablgtk:examples/testgtk.ml:	table #focus#set_vadjustment (Some scrolled_window [31;1m# [39;22mvadjustment);
+lablgtk:---
+lablgtk:examples/testgtk.ml:  let item_new = GBroken.tree_item ~packing:(subtree#insert ~pos:0)
+lablgtk:examples/testgtk.ml:      ~label:("item add " ^ string_of_int treeb [31;1m# [39;22mnb_item_add) () in
+lablgtk:examples/testgtk.ml:  treeb #incr_nb_item_add
+lablgtk:---
+lablgtk:examples/testgtk.ml:  if nb_selected = 0 then begin
+lablgtk:examples/testgtk.ml:    treeb [31;1m# [39;22mremove_button #misc#set_sensitive false;
+lablgtk:examples/testgtk.ml:    treeb [31;1m# [39;22msubtree_button #misc#set_sensitive false;
+lablgtk:examples/testgtk.ml:  end else begin
+lablgtk:examples/testgtk.ml:    treeb [31;1m# [39;22mremove_button #misc#set_sensitive true;
+lablgtk:examples/testgtk.ml:    treeb [31;1m# [39;22msubtree_button #misc#set_sensitive (nb_selected = 1);
+lablgtk:examples/testgtk.ml:    treeb [31;1m# [39;22madd_button #misc#set_sensitive (nb_selected = 1);
+lablgtk:examples/testgtk.ml:  end
+lablgtk:---
+lablgtk:examples/testgtk.ml:    done;
+lablgtk:examples/testgtk.ml:    item [31;1m# [39;22mset_subtree item_subtree
+lablgtk:examples/testgtk.ml:  end
+lablgtk:parsed=282 has_HASH=173 would_break=3
+lablgtk3-extras:parsed=21 has_HASH=9 would_break=0
+labltk:parsed=192 has_HASH=10 would_break=0
+ladspa:parsed=6 has_HASH=0 would_break=0
+lambda:parsed=11 has_HASH=0 would_break=0
+lambda_streams:parsed=19 has_HASH=0 would_break=0
+lame:parsed=4 has_HASH=0 would_break=0
+landmarks:tests/ppx/test.ml:    initializer
+landmarks:tests/ppx/test.ml:      self [31;1m# [39;22mm1;
+landmarks:tests/ppx/test.ml:      self [31;1m# [39;22mm2 ();
+landmarks:tests/ppx/test.ml:      let _ : _ -> _ = self [31;1m# [39;22mm3 in
+landmarks:tests/ppx/test.ml:      ignore variable;
+landmarks:---
+landmarks:tests/ppx/test.ml:
+landmarks:tests/ppx/test.ml:    (object method[@landmark] immediate () = print "immediate" end) [31;1m# [39;22mimmediate ();
+landmarks:---
+landmarks:tests/poly/test.ml:  let obj = object method[@landmark] test3 x = x end
+landmarks:tests/poly/test.ml:  in obj [31;1m# [39;22mtest3 "marc", obj [31;1m# [39;22mtest3 2
+landmarks:---
+landmarks:ppx/mapper.ml:                let value_binding vb =
+landmarks:ppx/mapper.ml:                  fst (self [31;1m# [39;22mvalue_binding vb (auto, ctx))
+landmarks:ppx/mapper.ml:                in
+landmarks:---
+landmarks:ppx/mapper.ml:            | sti ->
+landmarks:ppx/mapper.ml:                let sti, _ = super [31;1m# [39;22mstructure_item sti (auto, ctx) in
+landmarks:ppx/mapper.ml:                auto, sti :: acc) (auto, []) l
+landmarks:---
+landmarks:ppx/mapper.ml:            | None ->
+landmarks:ppx/mapper.ml:                super [31;1m# [39;22mclass_field class_field acc
+landmarks:ppx/mapper.ml:            | Some landmark ->
+landmarks:---
+landmarks:ppx/mapper.ml:                let expr =
+landmarks:ppx/mapper.ml:                  wrap_landmark_method ctx landmark pcf_loc (fst (self [31;1m# [39;22mexpression expr acc))
+landmarks:ppx/mapper.ml:                in
+landmarks:---
+landmarks:ppx/mapper.ml:          end
+landmarks:ppx/mapper.ml:      | _ -> super [31;1m# [39;22mclass_field class_field acc
+landmarks:---
+landmarks:ppx/mapper.ml:            let value_binding vb =
+landmarks:ppx/mapper.ml:              fst (self [31;1m# [39;22mvalue_binding vb acc)
+landmarks:ppx/mapper.ml:            in
+landmarks:---
+landmarks:ppx/mapper.ml:          in
+landmarks:ppx/mapper.ml:          let body, _ = self [31;1m# [39;22mclass_expr body acc in
+landmarks:ppx/mapper.ml:          let body =
+landmarks:---
+landmarks:ppx/mapper.ml:          { class_expr with pcl_desc = Pcl_let (rec_flag, vbs, body) }, acc
+landmarks:ppx/mapper.ml:      | _ -> super [31;1m# [39;22mclass_expr class_expr acc
+landmarks:---
+landmarks:ppx/mapper.ml:              let value_binding vb =
+landmarks:ppx/mapper.ml:                fst (self [31;1m# [39;22mvalue_binding vb acc)
+landmarks:ppx/mapper.ml:              in
+landmarks:---
+landmarks:ppx/mapper.ml:            in
+landmarks:ppx/mapper.ml:            let body = fst (self [31;1m# [39;22mexpression body acc) in
+landmarks:ppx/mapper.ml:            let body =
+landmarks:---
+landmarks:ppx/mapper.ml:            { expr with pexp_desc = Pexp_let (rec_flag, vbs, body) }
+landmarks:ppx/mapper.ml:        | expr -> fst (super [31;1m# [39;22mexpression expr acc)
+landmarks:ppx/mapper.ml:      in
+landmarks:---
+landmarks:ppx/mapper.ml:      in
+landmarks:ppx/mapper.ml:      super [31;1m# [39;22mstructure l
+landmarks:---
+landmarks:ppx/mapper.ml:    method! attributes attributes =
+landmarks:ppx/mapper.ml:      super [31;1m# [39;22mattributes
+landmarks:ppx/mapper.ml:        (match has_landmark_attribute attributes with
+landmarks:---
+landmarks:ppx/mapper.ml:          let ctx = [String.capitalize_ascii module_name] in
+landmarks:ppx/mapper.ml:          let l, _ = mapper [31;1m# [39;22mstructure l (auto, ctx) in
+landmarks:ppx/mapper.ml:          let landmark_name = Printf.sprintf "load(%s)" module_name in
+landmarks:---
+landmarks:ppx/register.ml:    else
+landmarks:ppx/register.ml:      (Mapper.toplevel_mapper !auto) [31;1m# [39;22mstructure str
+landmarks:ppx/register.ml:  in
+landmarks:---
+landmarks:ppx/register.ml:    if !remove then
+landmarks:ppx/register.ml:      Mapper.remove_attributes [31;1m# [39;22mstructure str
+landmarks:ppx/register.ml:    else
+landmarks:---
+landmarks:ppx/register.ml:    if !remove then
+landmarks:ppx/register.ml:      Mapper.remove_attributes [31;1m# [39;22msignature sg
+landmarks:ppx/register.ml:    else
+landmarks:parsed=27 has_HASH=4 would_break=4
+lastfm:parsed=8 has_HASH=2 would_break=0
+lazy-trie:parsed=2 has_HASH=0 would_break=0
+lbvs_consent:parsed=42 has_HASH=0 would_break=0
+ldp:parsed=48 has_HASH=2 would_break=0
+leaflet:parsed=20 has_HASH=0 would_break=0
+lem:parsed=122 has_HASH=0 would_break=0
+lens:parsed=7 has_HASH=1 would_break=0
+letters:parsed=6 has_HASH=0 would_break=0
+libabsolute:parsed=59 has_HASH=0 would_break=0
+libbinaryen:parsed=3 has_HASH=0 would_break=0
+libdash:parsed=6 has_HASH=0 would_break=0
+libevent:parsed=6 has_HASH=0 would_break=0
+libwasmer:parsed=0 has_HASH=0 would_break=0
+lilac:parsed=3 has_HASH=0 would_break=0
+lilv:parsed=5 has_HASH=0 would_break=0
+line_oriented:parsed=3 has_HASH=0 would_break=0
+linksem:parsed=167 has_HASH=0 would_break=0
+linwrap:parsed=5 has_HASH=0 would_break=0
+lipsum:parsed=0 has_HASH=0 would_break=0
+liquid_interpreter:parsed=33 has_HASH=0 would_break=0
+liquidsoap:parsed=539 has_HASH=216 would_break=0
+liquidsoap-core:parsed=538 has_HASH=219 would_break=0
+liquidsoap-daemon:parsed=0 has_HASH=0 would_break=0
+little_logger:parsed=5 has_HASH=0 would_break=0
+llama-cpp-ocaml:parsed=11 has_HASH=0 would_break=0
+llvm:parsed=38 has_HASH=0 would_break=0
+lmdb:parsed=10 has_HASH=1 would_break=0
+lo:parsed=5 has_HASH=0 would_break=0
+logger-p5:parsed=0 has_HASH=0 would_break=0
+logical:parsed=18 has_HASH=0 would_break=0
+lp:parsed=42 has_HASH=0 would_break=0
+lpd:parsed=6 has_HASH=0 would_break=0
+lpi:parsed=10 has_HASH=0 would_break=0
+lreplay:parsed=18 has_HASH=0 would_break=0
+lru-cache:parsed=3 has_HASH=0 would_break=0
+lru_cache:parsed=3 has_HASH=0 would_break=0
+lua-ml:parsed=26 has_HASH=0 would_break=0
+lua_parser:parsed=11 has_HASH=0 would_break=0
+lua_pattern:parsed=9 has_HASH=0 would_break=0
+lucid:parsed=2 has_HASH=0 would_break=0
+lustre-v6:parsed=151 has_HASH=0 would_break=0
+lutils:parsed=13 has_HASH=0 would_break=0
+luv_unix:parsed=105 has_HASH=0 would_break=0
+lwt:parsed=96 has_HASH=8 would_break=0
+lwt-canceler:parsed=5 has_HASH=0 would_break=0
+lwt-exit:parsed=16 has_HASH=0 would_break=0
+lwt-parallel:parsed=3 has_HASH=1 would_break=0
+lwt-watcher:parsed=2 has_HASH=0 would_break=0
+lwt_domain:parsed=6 has_HASH=0 would_break=0
+lwt_glib:parsed=3 has_HASH=1 would_break=0
+lwt_log:parsed=7 has_HASH=0 would_break=0
+lwt_react:parsed=117 has_HASH=8 would_break=0
+lwt_retry:parsed=96 has_HASH=8 would_break=0
+lz4_chans:parsed=3 has_HASH=0 would_break=0
+macaroons:parsed=5 has_HASH=0 would_break=0
+mad:parsed=7 has_HASH=0 would_break=0
+magic:parsed=4 has_HASH=1 would_break=0
+make-random:parsed=27 has_HASH=0 would_break=0
+malfunction:parsed=17 has_HASH=4 would_break=0
+markup:parsed=63 has_HASH=0 would_break=0
+markup-lwt:parsed=63 has_HASH=0 would_break=0
+mastodon-archive-viewer:parsed=4 has_HASH=0 would_break=0
+matplotlib:parsed=9 has_HASH=0 would_break=0
+mazeppa:parsed=60 has_HASH=0 would_break=0
+mc2:parsed=78 has_HASH=0 would_break=0
+mccs:parsed=8 has_HASH=0 would_break=0
+mec:parsed=146 has_HASH=0 would_break=0
+mehari:parsed=41 has_HASH=4 would_break=0
+mehari-eio-unix:parsed=41 has_HASH=9 would_break=0
+melange-radix-icons:parsed=0 has_HASH=0 would_break=0
+mem_usage:parsed=3 has_HASH=0 would_break=0
+memcpy:parsed=6 has_HASH=0 would_break=0
+menhir:parsed=367 has_HASH=3 would_break=0
+menhir-secondary:parsed=367 has_HASH=3 would_break=0
+mergeable-vector:parsed=4 has_HASH=1 would_break=0
+merlin-of-pds:parsed=0 has_HASH=0 would_break=0
+mesh:parsed=25 has_HASH=18 would_break=0
+metadata:parsed=32 has_HASH=0 would_break=0
+metadb:parsed=10 has_HASH=0 would_break=0
+mew:parsed=7 has_HASH=1 would_break=0
+mew_vi:parsed=9 has_HASH=1 would_break=0
+mikmatch:common/global_def.ml:    in
+mikmatch:common/global_def.ml:    map [31;1m# [39;22mstr_item si0
+mikmatch:common/global_def.ml:  in
+mikmatch:---
+mikmatch:pcre/test.ml:RE space = [' ' '\t' '\n' '\r']
+mikmatch:pcre/test.ml:RE not_space = _ [31;1m# [39;22mspace
+mikmatch:pcre/test.ml:RE digit = ['0'-'9']
+mikmatch:---
+mikmatch:str/test1.ml:RE space = [' ' '\t' '\n' '\r']
+mikmatch:str/test1.ml:RE not_space = _ [31;1m# [39;22mspace
+mikmatch:str/test1.ml:RE digit = ['0'-'9']
+mikmatch:parsed=22 has_HASH=3 would_break=3
+minicli:parsed=3 has_HASH=0 would_break=0
+minilight:parsed=11 has_HASH=0 would_break=0
+minima-theme:parsed=8 has_HASH=1 would_break=0
+minios-xen:parsed=0 has_HASH=0 would_break=0
+minivpt:parsed=3 has_HASH=0 would_break=0
+mirage-block-lwt:parsed=12 has_HASH=2 would_break=0
+mirage-bootvar-unix:parsed=2 has_HASH=0 would_break=0
+mirage-channel-lwt:parsed=5 has_HASH=0 would_break=0
+mirage-clock-lwt:parsed=12 has_HASH=0 would_break=0
+mirage-clock-xen:parsed=7 has_HASH=0 would_break=0
+mirage-fs-lwt:parsed=4 has_HASH=2 would_break=0
+mirage-fs-mem:parsed=3 has_HASH=1 would_break=0
+mirage-kv-lwt:parsed=4 has_HASH=1 would_break=0
+mirage-net-lwt:parsed=3 has_HASH=1 would_break=0
+mirage-os-shim:parsed=5 has_HASH=1 would_break=0
+mirage-stack-lwt:parsed=2 has_HASH=0 would_break=0
+mirage-xen-minios:parsed=0 has_HASH=0 would_break=0
+mirage-xen-posix:parsed=0 has_HASH=0 would_break=0
+misuja:parsed=2 has_HASH=0 would_break=0
+mkocaml:parsed=5 has_HASH=0 would_break=0
+mlbdd:parsed=3 has_HASH=0 would_break=0
+mlfenv:parsed=5 has_HASH=0 would_break=0
+mlgmpidl:parsed=8 has_HASH=0 would_break=0
+mlmpfr:parsed=18 has_HASH=0 would_break=0
+mlx:parsed=202 has_HASH=4 would_break=0
+mm:parsed=57 has_HASH=20 would_break=0
+mmo:parsed=63 has_HASH=1 would_break=0
+mnd:parsed=3 has_HASH=0 would_break=0
+mock:parsed=5 has_HASH=0 would_break=0
+monaco_jsoo:parsed=20 has_HASH=0 would_break=0
+monolith:parsed=201 has_HASH=0 would_break=0
+monomorphic:parsed=3 has_HASH=2 would_break=0
+mopsa:parsed=471 has_HASH=0 would_break=0
+morbig:src/aliases.ml:        incr level;
+morbig:src/aliases.ml:        super [31;1m# [39;22mvisit_compound_command env cmd;
+morbig:src/aliases.ml:        decr level
+morbig:parsed=41 has_HASH=1 would_break=1
+more-ocaml:parsed=2 has_HASH=0 would_break=0
+moss:parsed=4 has_HASH=1 would_break=0
+mparser:parsed=11 has_HASH=0 would_break=0
+mpg123:parsed=10 has_HASH=0 would_break=0
+mpi:parsed=5 has_HASH=0 would_break=0
+mpp:parsed=10 has_HASH=0 would_break=0
+mpris:parsed=10 has_HASH=0 would_break=0
+mqtt:parsed=11 has_HASH=0 would_break=0
+msat:parsed=33 has_HASH=0 would_break=0
+mugen:parsed=20 has_HASH=0 would_break=0
+multipart-form-data:parsed=3 has_HASH=0 would_break=0
+murmur3:parsed=2 has_HASH=0 would_break=0
+mutaml:parsed=21 has_HASH=2 would_break=0
+mwt:parsed=2 has_HASH=0 would_break=0
+mysql:parsed=5 has_HASH=0 would_break=0
+mysql8:parsed=3 has_HASH=0 would_break=0
+mysql_protocol:parsed=63 has_HASH=0 would_break=0
+naboris:parsed=1 has_HASH=0 would_break=0
+namespaces:parsed=25 has_HASH=0 would_break=0
+nanoid:parsed=11 has_HASH=1 would_break=0
+netlink:parsed=2 has_HASH=0 would_break=0
+nice_parser:parsed=5 has_HASH=0 would_break=0
+ninja_utils:parsed=2 has_HASH=0 would_break=0
+nlopt:parsed=4 has_HASH=0 would_break=0
+nlp:parsed=3 has_HASH=1 would_break=0
+nmea:parsed=7 has_HASH=0 would_break=0
+nocrypto:parsed=32 has_HASH=1 would_break=0
+node_of_ocaml:parsed=4 has_HASH=0 would_break=0
+npy:parsed=4 has_HASH=0 would_break=0
+num:parsed=25 has_HASH=0 would_break=0
+obuild:parsed=94 has_HASH=0 would_break=0
+obus:parsed=149 has_HASH=3 would_break=0
+ocal:parsed=6 has_HASH=1 would_break=0
+ocaml-buddy:parsed=5 has_HASH=0 would_break=0
+ocaml-canvas:parsed=27 has_HASH=0 would_break=0
+ocaml-compiler-libs:parsed=4 has_HASH=0 would_break=0
+ocaml-expat:parsed=3 has_HASH=0 would_break=0
+ocaml-inifiles:parsed=2 has_HASH=1 would_break=0
+ocaml-lua:parsed=12 has_HASH=0 would_break=0
+ocaml-makefile:parsed=7 has_HASH=1 would_break=0
+ocaml-monadic:parsed=0 has_HASH=0 would_break=0
+ocaml-top:parsed=16 has_HASH=6 would_break=0
+ocaml-version:parsed=4 has_HASH=0 would_break=0
+ocaml_intrinsics_kernel:parsed=27 has_HASH=0 would_break=0
+ocamlbuild-atdgen:parsed=3 has_HASH=0 would_break=0
+ocamlbuild-protoc:parsed=0 has_HASH=0 would_break=0
+ocamldiff:parsed=6 has_HASH=0 would_break=0
+ocamldot:parsed=11 has_HASH=2 would_break=0
+ocamlfind:parsed=39 has_HASH=1 would_break=0
+ocamlfind-secondary:parsed=38 has_HASH=1 would_break=0
+ocamlformat-mlx:bench/test/source.ml:      fun (type a) (Refl : (a, < >) eq) (s : < >) -> (s :> a) in
+ocamlformat-mlx:bench/test/source.ml:    (downcast bad_proof ((object method m = x end) :> < >)) [31;1m# [39;22mm
+ocamlformat-mlx:bench/test/source.ml:;;
+ocamlformat-mlx:---
+ocamlformat-mlx:test/failing/tests/unit_expr.ml:let e =
+ocamlformat-mlx:test/failing/tests/unit_expr.ml:  foo[31;1m#
+ocamlformat-mlx:test/failing/tests/unit_expr.ml:[39;22m    bar1
+ocamlformat-mlx:---
+ocamlformat-mlx:test/passing/tests/source.ml:      fun (type a) (Refl : (a, < >) eq) (s : < >) -> (s :> a) in
+ocamlformat-mlx:test/passing/tests/source.ml:    (downcast bad_proof ((object method m = x end) :> < >)) [31;1m# [39;22mm
+ocamlformat-mlx:test/passing/tests/source.ml:;;
+ocamlformat-mlx:---
+ocamlformat-mlx:test/passing/tests/repl.ml:[31;1m# [39;22mlet x = 2;;
+ocamlformat-mlx:test/passing/tests/repl.ml:val x : int = 2
+ocamlformat-mlx:test/passing/tests/repl.ml:[31;1m# [39;22mx + 2;;
+ocamlformat-mlx:test/passing/tests/repl.ml:- : int = 4
+ocamlformat-mlx:test/passing/tests/repl.ml:[31;1m# [39;22mlet x = 2 and y = 3 in x+y;;
+ocamlformat-mlx:---
+ocamlformat-mlx:test/passing/tests/object_expr.ml:object method one = 1 end [31;1m# [39;22mone;;
+ocamlformat-mlx:test/passing/tests/object_expr.ml:Some object method one = 1 end;;
+ocamlformat-mlx:---
+ocamlformat-mlx:test/passing/tests/js_source.ml:      fun (type a) (Refl : (a, < >) eq) (s : < >) -> (s :> a) in
+ocamlformat-mlx:test/passing/tests/js_source.ml:    (downcast bad_proof ((object method m = x end) :> < >)) [31;1m# [39;22mm
+ocamlformat-mlx:test/passing/tests/js_source.ml:;;
+ocamlformat-mlx:parsed=416 has_HASH=21 would_break=6
+ocamline:parsed=5 has_HASH=0 would_break=0
+ocamlog:parsed=6 has_HASH=0 would_break=0
+ocamlscript:parsed=17 has_HASH=1 would_break=0
+ocamlsdl2:parsed=91 has_HASH=1 would_break=0
+ocamlsdl2-image:parsed=7 has_HASH=0 would_break=0
+ocamlsdl2-ttf:parsed=4 has_HASH=0 would_break=0
+ocamlwc:parsed=0 has_HASH=0 would_break=0
+ocamlyices:parsed=3 has_HASH=0 would_break=0
+ocannl_npy:parsed=51 has_HASH=0 would_break=0
+ocb-stubblr:parsed=5 has_HASH=1 would_break=0
+ocf:parsed=6 has_HASH=1 would_break=0
+ockt:parsed=4 has_HASH=0 would_break=0
+oclock:parsed=4 has_HASH=0 would_break=0
+ocolor:parsed=22 has_HASH=4 would_break=0
+ocp-browser:parsed=24 has_HASH=6 would_break=0
+ocp-indent:tests/passing/unit-expr.ml:let e =
+ocp-indent:tests/passing/unit-expr.ml:  foo[31;1m#
+ocp-indent:tests/passing/unit-expr.ml:[39;22m    bar1
+ocp-indent:parsed=131 has_HASH=4 would_break=1
+ocp-indent-nlfork:tests/passing/unit-expr.ml:let e =
+ocp-indent-nlfork:tests/passing/unit-expr.ml:  foo[31;1m#
+ocp-indent-nlfork:tests/passing/unit-expr.ml:[39;22m    bar1
+ocp-indent-nlfork:parsed=123 has_HASH=5 would_break=1
+ocp-ocamlres:parsed=11 has_HASH=0 would_break=0
+ocp-reloc:parsed=3 has_HASH=0 would_break=0
+ocplib-endian:parsed=17 has_HASH=4 would_break=0
+ocplib-json-typed:parsed=12 has_HASH=1 would_break=0
+ocsigen-i18n:parsed=3 has_HASH=1 would_break=0
+ocsigen-ppx-rpc:parsed=1 has_HASH=0 would_break=0
+ocsigen-start:parsed=13 has_HASH=3 would_break=0
+ocsigen-toolkit:parsed=0 has_HASH=0 would_break=0
+ocsigenserver:parsed=67 has_HASH=2 would_break=0
+ocsipersist:parsed=19 has_HASH=0 would_break=0
+octavius:parsed=11 has_HASH=0 would_break=0
+ocurl:parsed=18 has_HASH=1 would_break=0
+odbc:Biniki/biniki_misc.ml:  window#set_position `CENTER;
+odbc:Biniki/biniki_misc.ml:  window [31;1m# [39;22mshow ();
+odbc:Biniki/biniki_misc.ml:  GMain.Main.main ();
+odbc:parsed=16 has_HASH=5 would_break=1
+odds:parsed=6 has_HASH=0 would_break=0
+odnnr:parsed=4 has_HASH=0 would_break=0
+odoc-depgraph:parsed=5 has_HASH=1 would_break=0
+oframl:parsed=6 has_HASH=0 would_break=0
+ofx:parsed=0 has_HASH=0 would_break=0
+ohex:parsed=3 has_HASH=0 would_break=0
+ojo:parsed=10 has_HASH=0 would_break=0
+ojs_base:parsed=39 has_HASH=11 would_break=0
+ollvm:parsed=10 has_HASH=0 would_break=0
+ollvm-tapir:parsed=11 has_HASH=0 would_break=0
+oma:parsed=6 has_HASH=1 would_break=0
+omake:parsed=226 has_HASH=3 would_break=0
+ometrics:parsed=23 has_HASH=0 would_break=0
+oml:parsed=79 has_HASH=1 would_break=0
+omlr:parsed=4 has_HASH=0 would_break=0
+omtl:parsed=7 has_HASH=0 would_break=0
+opam-0install-cudf:parsed=6 has_HASH=0 would_break=0
+opam-build:parsed=8 has_HASH=0 would_break=0
+opam-client:parsed=228 has_HASH=31 would_break=0
+opam-custom-install:parsed=1 has_HASH=0 would_break=0
+opam-depext:parsed=3 has_HASH=0 would_break=0
+opam-ed:parsed=1 has_HASH=0 would_break=0
+opam-file-format:parsed=13 has_HASH=0 would_break=0
+opam-grep:parsed=5 has_HASH=0 would_break=0
+opam-publish:parsed=4 has_HASH=0 would_break=0
+opamconfig:parsed=0 has_HASH=0 would_break=0
+openapi:parsed=8 has_HASH=0 would_break=0
+openbsd:parsed=5 has_HASH=0 would_break=0
+opencc0:parsed=2 has_HASH=0 would_break=0
+opencc1:parsed=2 has_HASH=0 would_break=0
+opencc1_1:parsed=2 has_HASH=0 would_break=0
+operf-micro:parsed=82 has_HASH=0 would_break=0
+opine:parsed=7 has_HASH=0 would_break=0
+oplot:parsed=34 has_HASH=10 would_break=0
+oplsr:parsed=5 has_HASH=0 would_break=0
+opomodoro:parsed=7 has_HASH=0 would_break=0
+opti:parsed=18 has_HASH=0 would_break=0
+optimization1d:parsed=7 has_HASH=0 would_break=0
+optiml-transport:parsed=3 has_HASH=0 would_break=0
+oraft:parsed=32 has_HASH=0 would_break=0
+oranger:parsed=8 has_HASH=0 would_break=0
+order-i3-xfce:parsed=2 has_HASH=0 would_break=0
+ordinal:parsed=2 has_HASH=0 would_break=0
+orgeat:parsed=17 has_HASH=0 would_break=0
+orocksdb:parsed=7 has_HASH=0 would_break=0
+orrandomForest:parsed=7 has_HASH=0 would_break=0
+orsvm_e1071:parsed=7 has_HASH=0 would_break=0
+ortac-core:parsed=186 has_HASH=0 would_break=0
+orxgboost:parsed=8 has_HASH=0 would_break=0
+osnap:parsed=17 has_HASH=0 would_break=0
+otf:parsed=1 has_HASH=0 would_break=0
+otfm:parsed=5 has_HASH=2 would_break=0
+otoml:parsed=11 has_HASH=0 would_break=0
+owl-opt:parsed=35 has_HASH=0 would_break=0
+ozulip:parsed=10 has_HASH=0 would_break=0
+p4pp:parsed=5 has_HASH=0 would_break=0
+p5scm:parsed=62 has_HASH=4 would_break=0
+packstream:parsed=3 has_HASH=0 would_break=0
+pacomb:parsed=63 has_HASH=1 would_break=0
+pancake:parsed=0 has_HASH=0 would_break=0
+pandoc:parsed=9 has_HASH=0 would_break=0
+par_incr:parsed=16 has_HASH=0 would_break=0
+parany:parsed=4 has_HASH=0 would_break=0
+pardi:parsed=12 has_HASH=1 would_break=0
+pari:parsed=10 has_HASH=0 would_break=0
+parmap:parsed=18 has_HASH=1 would_break=0
+parsley:parsed=4 has_HASH=0 would_break=0
+patch:parsed=9 has_HASH=0 would_break=0
+pbkdf:parsed=3 has_HASH=0 would_break=0
+pds:parsed=8 has_HASH=0 would_break=0
+pds-reachability:parsed=0 has_HASH=0 would_break=0
+petrol:parsed=13 has_HASH=1 would_break=0
+pgocaml:parsed=13 has_HASH=1 would_break=0
+phonetic:parsed=5 has_HASH=0 would_break=0
+picasso:parsed=23 has_HASH=1 would_break=0
+pla:parsed=5 has_HASH=0 would_break=0
+plato:parsed=27 has_HASH=1 would_break=0
+plotly:parsed=14 has_HASH=1 would_break=0
+polyglot:parsed=5 has_HASH=0 would_break=0
+polynomial:parsed=8 has_HASH=0 would_break=0
+popper:parsed=48 has_HASH=0 would_break=0
+portaudio:parsed=4 has_HASH=0 would_break=0
+portia:parsed=0 has_HASH=0 would_break=0
+portmidi:parsed=14 has_HASH=0 would_break=0
+posix-base:parsed=72 has_HASH=0 would_break=0
+pprint:parsed=14 has_HASH=1 would_break=0
+ppx_catch:parsed=2 has_HASH=0 would_break=0
+ppx_const:parsed=3 has_HASH=1 would_break=0
+ppx_counters:parsed=1 has_HASH=0 would_break=0
+ppx_derivers:parsed=3 has_HASH=1 would_break=0
+ppx_deriving_decoders:parsed=9 has_HASH=1 would_break=0
+ppx_deriving_encoding:parsed=3 has_HASH=0 would_break=0
+ppx_deriving_jsoo:parsed=9 has_HASH=3 would_break=0
+ppx_deriving_madcast:parsed=26 has_HASH=0 would_break=0
+ppx_deriving_qcheck:parsed=47 has_HASH=1 would_break=0
+ppx_dream_eml:parsed=2 has_HASH=1 would_break=0
+ppx_expect:parsed=112 has_HASH=1 would_break=0
+ppx_inline_alcotest:parsed=5 has_HASH=1 would_break=0
+ppx_jsobject_conv:parsed=7 has_HASH=3 would_break=0
+ppx_make:parsed=22 has_HASH=0 would_break=0
+ppx_map:parsed=2 has_HASH=0 would_break=0
+ppx_matches:parsed=4 has_HASH=0 would_break=0
+ppx_mica:parsed=49 has_HASH=0 would_break=0
+ppx_minidebug:parsed=35 has_HASH=1 would_break=0
+ppx_monad:parsed=45 has_HASH=0 would_break=0
+ppx_monoid:parsed=2 has_HASH=0 would_break=0
+ppx_pyformat:parsed=20 has_HASH=0 would_break=0
+ppx_rapper:parsed=16 has_HASH=0 would_break=0
+ppx_seq:parsed=3 has_HASH=0 would_break=0
+ppx_string_interpolation:parsed=5 has_HASH=0 would_break=0
+ppx_subliner:parsed=28 has_HASH=0 would_break=0
+ppx_system:parsed=7 has_HASH=0 would_break=0
+ppx_test:parsed=12 has_HASH=1 would_break=0
+ppx_ts:parsed=17 has_HASH=3 would_break=0
+ppx_units:parsed=6 has_HASH=0 would_break=0
+ppx_update:parsed=3 has_HASH=0 would_break=0
+ppxlib_jane:parsed=15 has_HASH=0 would_break=0
+ppxx:parsed=7 has_HASH=0 would_break=0
+prbnmcn-basic-structures:parsed=25 has_HASH=0 would_break=0
+prbnmcn-cgrph:parsed=7 has_HASH=0 would_break=0
+prbnmcn-clustering:parsed=12 has_HASH=0 would_break=0
+prbnmcn-dagger:parsed=42 has_HASH=0 would_break=0
+prbnmcn-gnuplot:parsed=4 has_HASH=0 would_break=0
+prbnmcn-linalg:parsed=10 has_HASH=0 would_break=0
+prbnmcn-mcts:parsed=8 has_HASH=0 would_break=0
+prbnmcn-proptest:parsed=4 has_HASH=0 would_break=0
+prbnmcn-stats:parsed=36 has_HASH=0 would_break=0
+prbnmcn-ucb1:parsed=3 has_HASH=0 would_break=0
+primes:parsed=2 has_HASH=0 would_break=0
+pringo:parsed=6 has_HASH=0 would_break=0
+proc-smaps:parsed=3 has_HASH=0 would_break=0
+process:parsed=10 has_HASH=0 would_break=0
+process_limits:parsed=827 has_HASH=86 would_break=0
+profiling:parsed=829 has_HASH=86 would_break=0
+prometheus-liquidsoap:parsed=524 has_HASH=217 would_break=0
+promise:parsed=0 has_HASH=0 would_break=0
+prooftree:parsed=19 has_HASH=10 would_break=0
+proverif:parsed=98 has_HASH=3 would_break=0
+proverifdoc:parsed=0 has_HASH=0 would_break=0
+prr:parsed=9 has_HASH=0 would_break=0
+psyche:parsed=13 has_HASH=0 would_break=0
+pulseaudio:parsed=6 has_HASH=0 would_break=0
+pvec:parsed=4 has_HASH=0 would_break=0
+pvem:parsed=3 has_HASH=1 would_break=0
+pyml_bindgen:parsed=63 has_HASH=0 would_break=0
+qcheck-lin:parsed=119 has_HASH=0 would_break=0
+qcstm:parsed=10 has_HASH=0 would_break=0
+qiskit:parsed=5 has_HASH=0 would_break=0
+qtest:parsed=8 has_HASH=0 would_break=0
+queenshead:parsed=9 has_HASH=0 would_break=0
+quests:parsed=18 has_HASH=0 would_break=0
+quick_print:parsed=2 has_HASH=0 would_break=0
+r2pipe:parsed=0 has_HASH=0 would_break=0
+radamsa:parsed=2 has_HASH=0 would_break=0
+radare2:parsed=2 has_HASH=0 would_break=0
+randii:parsed=20 has_HASH=0 would_break=0
+range:parsed=4 has_HASH=0 would_break=0
+rangeSet:parsed=8 has_HASH=0 would_break=0
+rankers:parsed=14 has_HASH=0 would_break=0
+rdbg:parsed=57 has_HASH=7 would_break=0
+rdf:parsed=169 has_HASH=23 would_break=0
+rea:parsed=22 has_HASH=9 would_break=0
+readline:parsed=3 has_HASH=0 would_break=0
+reanalyze:parsed=97 has_HASH=9 would_break=0
+records:parsed=4 has_HASH=0 would_break=0
+red-black-tree:parsed=4 has_HASH=0 would_break=0
+reedsolomon:parsed=14 has_HASH=0 would_break=0
+remu_ts:parsed=0 has_HASH=0 would_break=0
+resource-pooling:parsed=5 has_HASH=0 would_break=0
+resto:parsed=27 has_HASH=2 would_break=0
+result:parsed=4 has_HASH=0 would_break=0
+revops:parsed=10 has_HASH=0 would_break=0
+rfsm:parsed=148 has_HASH=0 would_break=0
+rhythm:parsed=0 has_HASH=0 would_break=0
+roman:parsed=3 has_HASH=0 would_break=0
+root1d:parsed=6 has_HASH=0 would_break=0
+rosa:parsed=7 has_HASH=0 would_break=0
+rpmfile:parsed=24 has_HASH=2 would_break=0
+rpmfile-cli:parsed=22 has_HASH=2 would_break=0
+rss:parsed=7 has_HASH=0 would_break=0
+safa:parsed=28 has_HASH=0 would_break=0
+safepass:parsed=2 has_HASH=0 would_break=0
+salsa20:parsed=3 has_HASH=0 would_break=0
+salsa20-core:parsed=3 has_HASH=0 would_break=0
+samplerate:parsed=4 has_HASH=0 would_break=0
+sarif:parsed=9 has_HASH=0 would_break=0
+satex:parsed=4 has_HASH=0 would_break=0
+sattools:parsed=33 has_HASH=3 would_break=0
+sawja:parsed=104 has_HASH=0 would_break=0
+scgi:parsed=24 has_HASH=0 would_break=0
+scrypt:parsed=2 has_HASH=0 would_break=0
+scrypt-kdf:parsed=3 has_HASH=0 would_break=0
+searchTree:parsed=2 has_HASH=0 would_break=0
+secp256k1-internal:parsed=9 has_HASH=0 would_break=0
+sedlex:parsed=24 has_HASH=1 would_break=0
+sek:parsed=70 has_HASH=3 would_break=0
+semver2:parsed=3 has_HASH=0 would_break=0
+sendmsg:parsed=9 has_HASH=1 would_break=0
+seqes:parsed=29 has_HASH=0 would_break=0
+session:parsed=29 has_HASH=5 would_break=0
+setcore:parsed=1 has_HASH=0 would_break=0
+sexp_decode:parsed=2 has_HASH=0 would_break=0
+sexplib0:parsed=19 has_HASH=0 would_break=0
+sfml:parsed=108 has_HASH=7 would_break=0
+shades:parsed=3 has_HASH=0 would_break=0
+shapefile:parsed=16 has_HASH=0 would_break=0
+shared-secret:lib/shared_secret.ml:    let revoke instance =
+shared-secret:lib/shared_secret.ml:      instance [31;1m# [39;22mrescind ( )
+shared-secret:---
+shared-secret:lib/shared_secret.ml:    let revoked instance =
+shared-secret:lib/shared_secret.ml:      instance [31;1m# [39;22mrescinded ( )
+shared-secret:parsed=6 has_HASH=1 would_break=1
+shine:parsed=4 has_HASH=0 would_break=0
+sifun:parsed=28 has_HASH=0 would_break=0
+signal:parsed=3 has_HASH=0 would_break=0
+sihl:parsed=128 has_HASH=0 would_break=0
+simlog:parsed=7 has_HASH=0 would_break=0
+simple-diff:parsed=4 has_HASH=1 would_break=0
+slack:parsed=16 has_HASH=5 would_break=0
+slug:parsed=5 has_HASH=0 would_break=0
+smaws-clients:parsed=445 has_HASH=0 would_break=0
+smol:parsed=18 has_HASH=0 would_break=0
+smtml:parsed=93 has_HASH=0 would_break=0
+smtp:parsed=10 has_HASH=1 would_break=0
+snappy:parsed=3 has_HASH=0 would_break=0
+snoke:parsed=3 has_HASH=0 would_break=0
+solo5-kernel-muen:parsed=0 has_HASH=0 would_break=0
+sortedseq_intersect:parsed=2 has_HASH=0 would_break=0
+soundtouch:parsed=4 has_HASH=0 would_break=0
+soupault:parsed=33 has_HASH=0 would_break=0
+spdx_licenses:parsed=11 has_HASH=0 would_break=0
+spectrum:parsed=6 has_HASH=0 would_break=0
+speed:parsed=22 has_HASH=1 would_break=0
+spelll:parsed=3 has_HASH=0 would_break=0
+spirv:parsed=4 has_HASH=0 would_break=0
+spotify-web-api:parsed=5 has_HASH=0 would_break=0
+sqids:parsed=8 has_HASH=0 would_break=0
+sqlgg:parsed=30 has_HASH=1 would_break=0
+sqlite3_utils:parsed=3 has_HASH=0 would_break=0
+squirrel:parsed=97 has_HASH=12 would_break=0
+srt:parsed=11 has_HASH=0 would_break=0
+ssl:parsed=17 has_HASH=0 would_break=0
+starpath:parsed=3 has_HASH=0 would_break=0
+stb_image:parsed=2 has_HASH=0 would_break=0
+stb_image_write:parsed=2 has_HASH=0 would_break=0
+stb_truetype:parsed=3 has_HASH=0 would_break=0
+stdint-literals:parsed=2 has_HASH=0 would_break=0
+stdlib-diff:parsed=0 has_HASH=0 would_break=0
+stdlib-random:parsed=17 has_HASH=5 would_break=0
+stk:parsed=132 has_HASH=82 would_break=0
+stog:parsed=146 has_HASH=6 would_break=0
+strymonas-pure:parsed=41 has_HASH=1 would_break=0
+sturgeon:parsed=18 has_HASH=1 would_break=0
+subtype-refinement:parsed=3 has_HASH=0 would_break=0
+sundialsml:parsed=272 has_HASH=3 would_break=0
+svmwrap:parsed=4 has_HASH=0 would_break=0
+swipl:parsed=11 has_HASH=0 would_break=0
+symkat:parsed=16 has_HASH=0 would_break=0
+syncweb:parsed=40 has_HASH=0 would_break=0
+sys-socket:parsed=19 has_HASH=0 would_break=0
+syslog:parsed=2 has_HASH=0 would_break=0
+systemverilog:parsed=5 has_HASH=0 would_break=0
+tablecloth-base:parsed=53 has_HASH=0 would_break=0
+taglib:parsed=6 has_HASH=0 would_break=0
+tcx:parsed=5 has_HASH=0 would_break=0
+tdigest:parsed=7 has_HASH=0 would_break=0
+tensorboard:parsed=46 has_HASH=0 would_break=0
+term-indexing:parsed=25 has_HASH=0 would_break=0
+term-tools:parsed=21 has_HASH=0 would_break=0
+terml:parsed=23 has_HASH=0 would_break=0
+testu01:parsed=14 has_HASH=0 would_break=0
+tezos-bls12-381-polynomial:parsed=70 has_HASH=0 would_break=0
+tezt:parsed=54 has_HASH=1 would_break=0
+tidy_email:parsed=15 has_HASH=0 would_break=0
+timed:parsed=10 has_HASH=0 would_break=0
+timmy:parsed=61 has_HASH=1 would_break=0
+tip-parser:parsed=5 has_HASH=0 would_break=0
+tjr_simple_earley:parsed=21 has_HASH=0 would_break=0
+tldr:parsed=6 has_HASH=0 would_break=0
+tofn:parsed=2 has_HASH=0 would_break=0
+togglelog:parsed=8 has_HASH=0 would_break=0
+topiary:parsed=51 has_HASH=0 would_break=0
+torch:parsed=162 has_HASH=0 would_break=0
+tplib:parsed=53 has_HASH=0 would_break=0
+tqdm:parsed=11 has_HASH=0 would_break=0
+transept:parsed=46 has_HASH=0 would_break=0
+trax:parsed=4 has_HASH=0 would_break=0
+trexio:parsed=3 has_HASH=0 would_break=0
+trie:parsed=2 has_HASH=0 would_break=0
+tsdl-image:parsed=5 has_HASH=1 would_break=0
+tsdl-mixer:parsed=4 has_HASH=1 would_break=0
+tsdl-ttf:parsed=5 has_HASH=1 would_break=0
+tsort:parsed=4 has_HASH=0 would_break=0
+tuareg:parsed=0 has_HASH=0 would_break=0
+tube:parsed=2 has_HASH=0 would_break=0
+twostep:parsed=10 has_HASH=0 would_break=0
+typeid:parsed=10 has_HASH=0 would_break=0
+typerep:parsed=19 has_HASH=0 would_break=0
+typeset:parsed=8 has_HASH=0 would_break=0
+ubase:parsed=6 has_HASH=0 would_break=0
+uchar:parsed=8 has_HASH=3 would_break=0
+uint:parsed=13 has_HASH=0 would_break=0
+ulid:parsed=3 has_HASH=0 would_break=0
+unidecode:parsed=6 has_HASH=0 would_break=0
+unionFind:parsed=15 has_HASH=0 would_break=0
+unison:parsed=149 has_HASH=7 would_break=0
+universal-portal:parsed=0 has_HASH=0 would_break=0
+unix-dirent:parsed=13 has_HASH=0 would_break=0
+unix-unistd:parsed=11 has_HASH=0 would_break=0
+uritemplate:parsed=16 has_HASH=0 would_break=0
+urn:parsed=4 has_HASH=0 would_break=0
+user-setup:parsed=16 has_HASH=1 would_break=0
+varray:parsed=10 has_HASH=0 would_break=0
+vcardgen:parsed=2 has_HASH=0 would_break=0
+vdom:parsed=14 has_HASH=0 would_break=0
+vec:parsed=3 has_HASH=0 would_break=0
+vector3:parsed=2 has_HASH=0 would_break=0
+vendredi:parsed=6 has_HASH=0 would_break=0
+visitors:runtime/VisitorsRuntime.ml:          f env x;
+visitors:runtime/VisitorsRuntime.ml:          self [31;1m# [39;22mvisit_list f env xs
+visitors:---
+visitors:runtime/VisitorsRuntime.ml:          let x = f env x in
+visitors:runtime/VisitorsRuntime.ml:          x :: self [31;1m# [39;22mvisit_list f env xs
+visitors:---
+visitors:runtime/VisitorsRuntime.ml:          let x' = f env x in
+visitors:runtime/VisitorsRuntime.ml:          let xs' = self [31;1m# [39;22mvisit_list f env xs in
+visitors:runtime/VisitorsRuntime.ml:          if x == x' && xs == xs' then
+visitors:---
+visitors:runtime/VisitorsRuntime.ml:  = fun f env xs ->
+visitors:runtime/VisitorsRuntime.ml:      self [31;1m# [39;22mlist_fold_left f env self#zero xs
+visitors:runtime/VisitorsRuntime.ml:      (* The above line is equivalent to the following: *)
+visitors:---
+visitors:runtime/VisitorsRuntime.ml:        let s = self#plus s (f env x) in
+visitors:runtime/VisitorsRuntime.ml:        self [31;1m# [39;22mlist_fold_left f env s xs
+visitors:---
+visitors:runtime/VisitorsRuntime.ml:          let x, sx = f env x in
+visitors:runtime/VisitorsRuntime.ml:          let xs, sxs = self [31;1m# [39;22mvisit_list f env xs in
+visitors:runtime/VisitorsRuntime.ml:          x :: xs, self#plus sx sxs
+visitors:---
+visitors:runtime/VisitorsRuntime.ml:          f env x1 x2;
+visitors:runtime/VisitorsRuntime.ml:          self [31;1m# [39;22mvisit_list f env xs1 xs2
+visitors:runtime/VisitorsRuntime.ml:      | _, _ ->
+visitors:---
+visitors:runtime/VisitorsRuntime.ml:          let x = f env x1 x2 in
+visitors:runtime/VisitorsRuntime.ml:          x :: self [31;1m# [39;22mvisit_list f env xs1 xs2
+visitors:runtime/VisitorsRuntime.ml:      | _, _ ->
+visitors:---
+visitors:test/polyclass.ml:let b : bool =
+visitors:test/polyclass.ml:  new c [31;1m# [39;22midentity true
+visitors:test/polyclass.ml:let i : int =
+visitors:test/polyclass.ml:  new c [31;1m# [39;22midentity 0
+visitors:---
+visitors:test/expr_info_polymorphic_use.ml:  fun e ->
+visitors:test/expr_info_polymorphic_use.ml:    v [31;1m# [39;22mvisit_expr visit_'info () e
+visitors:---
+visitors:test/expr_info_polymorphic_use.ml:    let count = ref 0 in
+visitors:test/expr_info_polymorphic_use.ml:    v [31;1m# [39;22mvisit_expr visit_'info count e
+visitors:---
+visitors:test/expr05lexico.ml:let compare (e1 : expr) (e2 : expr) : int =
+visitors:test/expr05lexico.ml:  try new compare [31;1m# [39;22mvisit_expr () e1 e2; 0 with Different c -> c
+visitors:---
+visitors:test/fold.ml:  end
+visitors:test/fold.ml:  in v [31;1m# [39;22mvisit_crowd ()
+visitors:---
+visitors:test/expr01use.ml:  end in
+visitors:test/expr01use.ml:  o [31;1m# [39;22mvisit_expr ()
+visitors:---
+visitors:test/expr08double.ml:  end in
+visitors:test/expr08double.ml:  v [31;1m# [39;22mvisit_'expr ()
+visitors:---
+visitors:test/expr05.ml:let equal : expr -> expr -> bool =
+visitors:test/expr05.ml:  VisitorsRuntime.wrap2 (new iter2 [31;1m# [39;22mvisit_expr ())
+visitors:---
+visitors:test/delayed_tree.ml:let sometree_to_delayed_tree (t : 'a sometree) =
+visitors:test/delayed_tree.ml:  new verbose_reduce [31;1m# [39;22mvisit_mytree_delay yield () t
+visitors:test/delayed_tree.ml:    (* We use [visit_mytree_delay], even though [visit_mytree] would work
+visitors:---
+visitors:test/delayed_tree.ml:  let sometree_to_delayed_tree (t : 'a sometree) =
+visitors:test/delayed_tree.ml:    new verbose_reduce [31;1m# [39;22mvisit_sometree yield () t
+visitors:---
+visitors:test/delayed_tree.ml:  let sometree_to_delayed_tree (t : 'a sometree) =
+visitors:test/delayed_tree.ml:    new verbose_reduce [31;1m# [39;22mvisit_sometree yield () t
+visitors:---
+visitors:test/oexpr_polymorphic.ml:  end in
+visitors:test/oexpr_polymorphic.ml:  v [31;1m# [39;22mvisit_expr ()
+visitors:---
+visitors:test/test07.ml:    let o = new map in
+visitors:test/test07.ml:    o [31;1m# [39;22mvisit_foo () p
+visitors:---
+visitors:test/test07.ml:    end in
+visitors:test/test07.ml:    o [31;1m# [39;22mvisit_foo () p
+visitors:---
+visitors:test/test07.ml:  try
+visitors:test/test07.ml:    new iter2 [31;1m# [39;22mfail_condition () Vrai Faux;
+visitors:test/test07.ml:    assert false
+visitors:---
+visitors:test/expr_info_use.ml:  end in
+visitors:test/expr_info_use.ml:  v [31;1m# [39;22mvisit_expr () e
+visitors:---
+visitors:test/expr_info_use.ml:  end in
+visitors:test/expr_info_use.ml:  v [31;1m# [39;22mvisit_expr () e
+visitors:---
+visitors:test/expr13double.ml:  end in
+visitors:test/expr13double.ml:  v [31;1m# [39;22mvisit_'expr ()
+visitors:---
+visitors:test/expr14.ml:  end in
+visitors:test/expr14.ml:  v [31;1m# [39;22mvisit_'expr ()
+visitors:---
+visitors:test/expr14.ml:  end in
+visitors:test/expr14.ml:  v [31;1m# [39;22mvisit_'expr ()
+visitors:---
+visitors:test/expr15b.ml:    method! visit_expr env e =
+visitors:test/expr15b.ml:      1 + super [31;1m# [39;22mvisit_expr env e
+visitors:test/expr15b.ml:  end in
+visitors:test/expr15b.ml:  v [31;1m# [39;22mvisit_expr ()
+visitors:---
+visitors:test/prefixes.ml:    method! err_inttree () _l _r = 0
+visitors:test/prefixes.ml:    method! on_inttree = super [31;1m# [39;22mon_inttree
+visitors:test/prefixes.ml:  end
+visitors:test/prefixes.ml:  in v [31;1m# [39;22mon_inttree ()
+visitors:---
+visitors:test/test06.ml:  end in
+visitors:test/test06.ml:  o [31;1m# [39;22mvisit_foo () x
+visitors:---
+visitors:test/test06.ml:  end in
+visitors:test/test06.ml:  o [31;1m# [39;22mvisit_foo () x
+visitors:---
+visitors:test/bench.ml:let iter : expr -> unit =
+visitors:test/bench.ml:  new iter [31;1m# [39;22mvisit_expr ()
+visitors:---
+visitors:test/bench.ml:  method! visit_expr () e =
+visitors:test/bench.ml:    1 + super [31;1m# [39;22mvisit_expr () e
+visitors:test/bench.ml:end
+visitors:---
+visitors:test/bench.ml:let size : expr -> int =
+visitors:test/bench.ml:  new size [31;1m# [39;22mvisit_expr ()
+visitors:---
+visitors:test/expr13extra.ml:    end in
+visitors:test/expr13extra.ml:    v [31;1m# [39;22mvisit_oexpr () e
+visitors:---
+visitors:test/expr01use_variant.ml:  end in
+visitors:test/expr01use_variant.ml:  o [31;1m# [39;22mvisit_expr ()
+visitors:---
+visitors:test/hexpr_polymorphic.ml:  end in
+visitors:test/hexpr_polymorphic.ml:  o [31;1m# [39;22mvisit_hexpr ()
+visitors:---
+visitors:test/expr08extra.ml:let e1 : hexpr = eadd (econst 0) (econst 1)
+visitors:test/expr08extra.ml:let e2 : hexpr = new hmap [31;1m# [39;22mvisit_'expr () e1 (* identity *)
+visitors:test/expr08extra.ml:let () =
+visitors:---
+visitors:test/expr_info_mapreduce_use.ml:  end in
+visitors:test/expr_info_mapreduce_use.ml:  let e, _ = v [31;1m# [39;22mvisit_expr () e in
+visitors:test/expr_info_mapreduce_use.ml:  e
+visitors:parsed=97 has_HASH=41 would_break=23
+vlt:parsed=93 has_HASH=5 would_break=0
+voaacenc:parsed=2 has_HASH=0 would_break=0
+vocal:parsed=22 has_HASH=0 would_break=0
+vpt:parsed=4 has_HASH=0 would_break=0
+vscoq-language-server:parsed=46 has_HASH=0 would_break=0
+vue-jsoo:parsed=21 has_HASH=1 would_break=0
+vue-ppx:parsed=3 has_HASH=1 would_break=0
+wasm:parsed=0 has_HASH=0 would_break=0
+wasmer:parsed=7 has_HASH=0 would_break=0
+wasmtime:parsed=26 has_HASH=0 would_break=0
+waylaunch:parsed=3 has_HASH=0 would_break=0
+webidl:parsed=0 has_HASH=0 would_break=0
+webmachine:parsed=16 has_HASH=5 would_break=0
+websocketml:parsed=11 has_HASH=0 would_break=0
+webtest:parsed=12 has_HASH=0 would_break=0
+why3:parsed=534 has_HASH=8 would_break=0
+why3find:parsed=87 has_HASH=1 would_break=0
+wikitext:parsed=10 has_HASH=0 would_break=0
+win-error:parsed=7 has_HASH=0 would_break=0
+ws-server:parsed=3 has_HASH=0 would_break=0
+wtr:parsed=8 has_HASH=0 would_break=0
+xapi-backtrace:parsed=2 has_HASH=0 would_break=0
+xen-evtchn:parsed=5 has_HASH=0 would_break=0
+xenstore_transport:parsed=8 has_HASH=0 would_break=0
+xlsx2csv:parsed=7 has_HASH=0 would_break=0
+xmelly:parsed=3 has_HASH=0 would_break=0
+xmldiff:parsed=5 has_HASH=0 would_break=0
+xmlplaylist:parsed=2 has_HASH=0 would_break=0
+xtmpl:parsed=20 has_HASH=0 would_break=0
+yosqlite:parsed=3 has_HASH=0 would_break=0
+yurt:parsed=12 has_HASH=0 would_break=0
+yuujinchou:parsed=23 has_HASH=0 would_break=0
+zarith-xen:parsed=15 has_HASH=0 would_break=0
+zarr:parsed=51 has_HASH=1 would_break=0
+zeit:parsed=20 has_HASH=0 would_break=0
+zelus:parsed=140 has_HASH=14 would_break=0
+zenon:parsed=73 has_HASH=0 would_break=0
+zenon_modulo:parsed=111 has_HASH=0 would_break=0

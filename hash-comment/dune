@@ -1,0 +1,3 @@
+(executable
+ (name hash_comment)
+ (libraries base ocamlformat_parser_extended))
