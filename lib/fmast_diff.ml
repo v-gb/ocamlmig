@@ -84,7 +84,7 @@ let children (ctx : Ocamlformat_lib.Ast.t) meth v =
                 ; pexp_loc_stack = []
                 }
               in
-              children := (Exp (Ast_helper.Exp.tuple [ e ]), `Expr e) :: !children
+              children := (Exp (Ast_helper.Exp.tuple [ e; e ]), `Expr e) :: !children
           | _ -> ());
           super.expr self v)
     ; pat =
@@ -98,7 +98,7 @@ let children (ctx : Ocamlformat_lib.Ast.t) meth v =
                 ; ppat_loc_stack = []
                 }
               in
-              children := (Pat (Ast_helper.Pat.tuple [ p ]), `Pat p) :: !children
+              children := (Pat (Ast_helper.Pat.tuple [ p; p ]), `Pat p) :: !children
           | _ -> ());
           super.pat self v)
     }
