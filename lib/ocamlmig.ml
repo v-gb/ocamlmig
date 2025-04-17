@@ -896,8 +896,12 @@ to search/replace other syntactic categories:
           with_ocaml_exn (fun report_exn ->
               let source_paths = file_paths_of_source source in
               transient_line "preparing artifacts";
-              let dune_root = find_dune_root () |> Result.ok_or_failwith in
-              let listing = Build.Listing.create ~dune_root ~source_paths in
+              let dune_root = find_dune_root () in
+              let listing =
+                match dune_root with
+                | Ok dune_root -> Build.Listing.create ~dune_root ~source_paths
+                | Error _ -> Build.Listing.create_without_dune (Abspath.cwd ())
+              in
               let _artifacts_cache = Build.Artifacts.create_cache () in
               let transform_replace =
                 Transform_replace.run ~listing patterns_and_repls ()
@@ -928,7 +932,14 @@ to search/replace other syntactic categories:
                           | Ok (_cmt_path, dirs), Some cmt_infos ->
                               Some (Build.Type_index.create_from_cmt_infos cmt_infos dirs))
                       in
-                      match get_ocamlformat_conf ~dune_root source_path with
+                      let dune_root_or_root =
+                        match dune_root with
+                        | Error _ -> Abspath.create_exn (Vcs.root_exn ()).abs
+                        | Ok p -> p
+                      in
+                      match
+                        get_ocamlformat_conf ~dune_root:dune_root_or_root source_path
+                      with
                       | None -> ()
                       | Some (fmconf, fm_orig) ->
                           with_reported_ocaml_exn report_exn None (fun () ->
