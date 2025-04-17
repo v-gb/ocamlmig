@@ -16,6 +16,7 @@ let dummy_pat = Ast_helper.Pat.any ()
 let dummy_stri = Ast_helper.Str.eval dummy_expr
 let dummy_sigi = Ast_helper.Sig.extension dummy_ext
 let dummy_me = Ast_helper.Mod.ident dummy_lidloc
+let dummy_mty = Ast_helper.Mty.ident dummy_lidloc
 let dummy_typ = Ast_helper.Typ.any ()
 let dummy_class_field = Ast_helper.Cf.extension dummy_ext
 let dummy_class_type = Ast_helper.Cty.extension dummy_ext
@@ -50,6 +51,7 @@ let shallow_equality =
     ; structure_item = (fun _ _ -> dummy_stri)
     ; signature_item = (fun _ _ -> dummy_sigi)
     ; module_expr = (fun _ _ -> dummy_me)
+    ; module_type = (fun _ _ -> dummy_mty)
     ; typ = (fun _ _ -> dummy_typ)
     ; class_field = (fun _ _ -> dummy_class_field)
     ; class_type = (fun _ _ -> dummy_class_type)
@@ -125,7 +127,7 @@ let children (ctx : Ocamlformat_lib.Ast.t) meth v =
     | Mb _ -> `Ref
     | Md _ -> `Ref
     | Cl _ -> `Ref
-    | Mty _ -> `Ref
+    | Mty _ -> `Child
     | Mod _ -> `Child
     | Sig _ -> `Child
     | Str _ -> `Child
@@ -157,6 +159,10 @@ let children (ctx : Ocamlformat_lib.Ast.t) meth v =
     ; module_expr =
         (fun _ v ->
           children := (!ctx, `Me v) :: !children;
+          v)
+    ; module_type =
+        (fun _ v ->
+          children := (!ctx, `Mty v) :: !children;
           v)
     ; typ =
         (fun _ v ->
@@ -208,9 +214,6 @@ let children (ctx : Ocamlformat_lib.Ast.t) meth v =
     ; class_expr =
         (fun self v ->
           Ref.set_temporarily ctx (Cl v) ~f:(fun () -> super.class_expr self v))
-    ; module_type =
-        (fun self v ->
-          Ref.set_temporarily ctx (Mty v) ~f:(fun () -> super.module_type self v))
     ; class_type_field =
         (fun self v ->
           Ref.set_temporarily ctx (Ctf v) ~f:(fun () -> super.class_type_field self v))
@@ -229,6 +232,7 @@ type diff =
   [ `Expr of expression * expression xt
   | `Pat of pattern * pattern xt
   | `Me of module_expr * module_expr xt
+  | `Mty of module_type * module_type xt
   | `Stri of structure_item * structure_item xt
   | `Sigi of signature_item * signature_item xt
   | `Typ of core_type * core_type xt
@@ -287,6 +291,14 @@ let rec diff2 ~source (vs : diff) (f : diff_out -> unit) =
           | `Whole_structure ->
               diff2_meth ~source __.module_expr vs v1 v2.ast (Mod v2.ast) f)
       | _ -> diff2_meth ~source __.module_expr vs v1 v2.ast (Mod v2.ast) f)
+  | `Mty (v1, v2) -> (
+      match (v1.pmty_desc, v2.ast.pmty_desc) with
+      | Pmty_signature l1, Pmty_signature l2 when List.length l1 <> List.length l2 -> (
+          match diff_str_sig ~file_type:Intf T ~source l1 l2 f with
+          | `Ok -> ()
+          | `Whole_structure ->
+              diff2_meth ~source __.module_type vs v1 v2.ast (Mty v2.ast) f)
+      | _ -> diff2_meth ~source __.module_type vs v1 v2.ast (Mty v2.ast) f)
   | `Typ (v1, v2) -> diff2_meth ~source __.typ vs v1 v2.ast (Typ v2.ast) f
   | `Cf (v1, v2) -> diff2_meth ~source __.class_field vs v1 v2.ast (Clf v2.ast) f
   | `Cty (v1, v2) -> diff2_meth ~source __.class_type vs v1 v2.ast (Cty v2.ast) f
@@ -395,10 +407,13 @@ and diff2_meth : type a.
         | `Stri v1, `Stri v2 -> diff2 ~source (`Stri (v1, Ast.sub_str ~ctx v2)) f
         | `Sigi v1, `Sigi v2 -> diff2 ~source (`Sigi (v1, Ast.sub_sig ~ctx v2)) f
         | `Me v1, `Me v2 -> diff2 ~source (`Me (v1, Ast.sub_mod ~ctx v2)) f
+        | `Mty v1, `Mty v2 -> diff2 ~source (`Mty (v1, Ast.sub_mty ~ctx v2)) f
         | `Typ v1, `Typ v2 -> diff2 ~source (`Typ (v1, Ast.sub_typ ~ctx v2)) f
         | `Cf v1, `Cf v2 -> diff2 ~source (`Cf (v1, Ast.sub_cf ~ctx v2)) f
         | `Cty v1, `Cty v2 -> diff2 ~source (`Cty (v1, Ast.sub_cty ~ctx v2)) f
-        | (`Expr _ | `Pat _ | `Stri _ | `Sigi _ | `Me _ | `Typ _ | `Cf _ | `Cty _), _ ->
+        | ( ( `Expr _ | `Pat _ | `Stri _ | `Sigi _ | `Me _ | `Mty _ | `Typ _ | `Cf _
+            | `Cty _ )
+          , _ ) ->
             assert false)
   else f (vs : diff :> diff_out)
 
@@ -761,6 +776,7 @@ let print ~ocaml_version ~debug_diff ~source_contents file_type ast1 ast2 =
     | `Stri (si, _) -> si.pstr_loc
     | `Sigi (si, _) -> si.psig_loc
     | `Me (me, _) -> me.pmod_loc
+    | `Mty (mty, _) -> mty.pmty_loc
     | `Typ (t, _) -> t.ptyp_loc
     | `Cf (v, _) -> v.pcf_loc
     | `Cty (v, _) -> v.pcty_loc
@@ -842,6 +858,13 @@ let print ~ocaml_version ~debug_diff ~source_contents file_type ast1 ast2 =
                   { unambiguous =
                       String.lstrip
                         (printed_ast add_comments v1.pmod_loc Module_expr v2.ast)
+                  ; ambiguous = None
+                  }
+            | `Mty (v1, v2) ->
+                f v1.pmty_loc
+                  { unambiguous =
+                      String.lstrip
+                        (printed_ast add_comments v1.pmty_loc Module_type v2.ast)
                   ; ambiguous = None
                   }
             | `Typ (t1, t2) ->
