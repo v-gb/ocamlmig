@@ -1590,7 +1590,9 @@ end = struct
       | Ptyp_tuple _ -> Some (InfixOp3, Non)
       | Ptyp_alias _ -> Some (As, Non)
       | Ptyp_constr (_, _ :: _ :: _) -> Some (Comma, Non)
-      | Ptyp_constr _ -> Some (Apply, Non)
+      | Ptyp_constr _ ->
+          Some
+            ((if Option.is_some (Sys.getenv "Z") then Comma else Apply), Non)
       | Ptyp_any | Ptyp_var _ | Ptyp_object _ | Ptyp_class _
        |Ptyp_variant _ | Ptyp_poly _ | Ptyp_package _ | Ptyp_extension _
        |Ptyp_open _ ->

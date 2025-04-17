@@ -285,7 +285,7 @@ let format (type ext std) (ext_fg : ext Extended_ast.t)
             { conf.opr_opts with
               quiet= {v= true; from= conf.opr_opts.quiet.from} } }
     in
-    if String.equal prev_source fmted then (
+    if true || String.equal prev_source fmted then (
       if conf.opr_opts.debug.v then
         check_all_locations Format.err_formatter cmts_t ;
       if conf.opr_opts.margin_check.v then

@@ -903,6 +903,14 @@ and fmt_core_type c ?(box = true) ?pro ?(pro_space = true) ?constraint_ctx
       fmt_arrow_type c ~ctx ?indent ~parens:parenze_constraint_ctx
         ~parent_has_parens:parens args (Some fmt_ret_typ)
   | Ptyp_constr (lid, []) -> fmt_longident_loc c lid
+  | Ptyp_constr (lid, t1N) when Option.is_some (Sys.getenv "Z") ->
+      Cmts.relocate c.cmts ~src:lid.loc ~before:lid.loc ~after:ptyp_loc ;
+      hvbox
+        (Params.Indent.type_constr c.conf)
+        ( fmt_longident_loc c lid
+        $ wrap_fits_breaks c.conf "(" ")"
+            (list t1N (Params.comma_sep c.conf)
+               (sub_typ ~ctx >> fmt_core_type c) ) )
   | Ptyp_constr (lid, [t1]) ->
       hvbox
         (Params.Indent.type_constr c.conf)
@@ -3335,7 +3343,8 @@ and fmt_tydcl_params c ctx params =
   fmt_if
     (not (List.is_empty params))
     ( wrap_fits_breaks_if ~space:false c.conf
-        (List.length params > 1)
+        ( List.length params
+        > if Option.is_some (Sys.getenv "Z") then 0 else 1 )
         "(" ")"
         (list params (Params.comma_sep c.conf) (fun (ty, vc) ->
              fmt_variance_injectivity c vc
@@ -3403,9 +3412,14 @@ and fmt_type_declaration c ?(pre = "") ?name ?(eq = "=") {ast= decl; _} =
       $ hvbox_if
           (not (List.is_empty ptype_params))
           0
-          ( fmt_tydcl_params c ctx ptype_params
-          $ Option.value_map name ~default:(str txt) ~f:(fmt_longident_loc c)
-          )
+          ( if Option.is_some (Sys.getenv "Z") then
+              Option.value_map name ~default:(str txt)
+                ~f:(fmt_longident_loc c)
+              $ fmt_tydcl_params c ctx ptype_params
+            else
+              fmt_tydcl_params c ctx ptype_params
+              $ Option.value_map name ~default:(str txt)
+                  ~f:(fmt_longident_loc c) )
       $ k )
   in
   let fmt_manifest_kind =

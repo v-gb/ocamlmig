@@ -57,10 +57,10 @@ let shallow_equality =
     ; class_type = (fun _ _ -> dummy_class_type)
     }
   in
-  fun meth v1 v2 ->
+  fun ?(eq = Poly.( = )) meth v1 v2 ->
     (* Crucially, we call self1 here, not self2, so we hide children, but not the root
        node. *)
-    Poly.( = ) ((meth self1) self2 v1) ((meth self1) self2 v2)
+    eq ((meth self1) self2 v1) ((meth self1) self2 v2)
 
 let children (ctx : Ocamlformat_lib.Ast.t) meth v =
   let children : (Ocamlformat_lib.Ast.t * _) list ref = ref [] in
@@ -300,7 +300,13 @@ let rec diff2 ~source (vs : diff) (f : diff_out -> unit) =
           | `Whole_structure ->
               diff2_meth ~source __.module_type vs v1 v2.ast (Mty v2.ast) f)
       | _ -> diff2_meth ~source __.module_type vs v1 v2.ast (Mty v2.ast) f)
-  | `Typ (v1, v2) -> diff2_meth ~source __.typ vs v1 v2.ast (Typ v2.ast) f
+  | `Typ (v1, v2) ->
+      diff2_meth ~source __.typ
+        ~eq:(fun ty1 ty2 ->
+          match (ty1.ptyp_desc, ty2.ptyp_desc) with
+          | Ptyp_constr (_, _ :: _), _ | _, Ptyp_constr (_, _ :: _) -> false
+          | _ -> Poly.( = ) ty1 ty2)
+        vs v1 v2.ast (Typ v2.ast) f
   | `Cf (v1, v2) -> diff2_meth ~source __.class_field vs v1 v2.ast (Clf v2.ast) f
   | `Cty (v1, v2) -> diff2_meth ~source __.class_type vs v1 v2.ast (Cty v2.ast) f
 
@@ -392,13 +398,14 @@ and diff_str_sig : type a elt.
 and diff2_meth : type a.
        source:_
     -> (Ast_mapper.mapper -> Ast_mapper.mapper -> a -> a)
+    -> ?eq:(a -> a -> bool)
     -> _
     -> a
     -> a
     -> Ast.t
     -> _ =
- fun ~source meth vs v1 v2 ctx f ->
-  if shallow_equality meth v1 v2
+ fun ~source meth ?eq vs v1 v2 ctx f ->
+  if shallow_equality ?eq meth v1 v2
   then
     List.iter2_exn (children Top meth v1) (children ctx meth v2)
       ~f:(fun (_, c1) (ctx, c2) ->
@@ -667,9 +674,12 @@ let choose_repl_text file_type repl_texts ~ocaml_version =
                 : [< `Preserve of string | `Repl_text of _ * repl_text ] array)]
     | result -> Result.ok_exn result
   in
+  let z = Option.is_some (Sys.getenv_opt "Z") in
   let update_menhir_stack tokens i =
-    menhir_stack :=
-      Some (snd (parse_error_ok_exn i (parse file_type !menhir_stack tokens)))
+    if not z
+    then
+      menhir_stack :=
+        Some (snd (parse_error_ok_exn i (parse file_type !menhir_stack tokens)))
   in
   let next_token_lower_bound = ref (None, -1) in
   Array.filter_mapi repl_texts ~f:(fun i -> function
@@ -683,6 +693,7 @@ let choose_repl_text file_type repl_texts ~ocaml_version =
             | None ->
                 update_menhir_stack (tokens unambiguous) i;
                 unambiguous
+            | Some ambiguous when z -> ambiguous
             | Some ambiguous -> (
                 let next_token =
                   (* !next_token_lower_bound is there to avoid N^2 complexity if we
@@ -769,7 +780,77 @@ let stitch_code_together ~file_type ~ocaml_version ~debug_diff orig f =
   copy_orig (String.length orig) ~parsed:true;
   Buffer.contents buf
 
+let pos_join (pos1 : Lexing.position) (pos2 : Lexing.position) dir =
+  if
+    Bool.( = )
+      (pos1.pos_cnum > pos2.pos_cnum)
+      (match dir with `Max -> true | `Min -> false)
+  then pos1
+  else pos2
+
+let loc_join (loc1 : Location.t) (loc2 : Location.t) : Location.t =
+  { loc_ghost = loc1.loc_ghost || loc2.loc_ghost
+  ; loc_start = pos_join loc1.loc_start loc2.loc_start `Min
+  ; loc_end = pos_join loc1.loc_end loc2.loc_end `Max
+  }
+
+let loc_joins f =
+  let loc_ref = ref None in
+  f (fun loc ->
+      match !loc_ref with
+      | None -> loc_ref := Some loc
+      | Some loc' -> loc_ref := Some (loc_join loc loc'));
+  Option.value_exn !loc_ref
+
+let extra_diffs source_contents f =
+  let super = Ast_mapper.default_mapper in
+  { super with
+    type_declaration =
+      (fun self v ->
+        let v = super.type_declaration self v in
+        (match v.ptype_params with
+        | [] -> ()
+        | _ :: _ ->
+            let orig_text (loc : Location.t) =
+              String.sub source_contents ~pos:loc.loc_start.pos_cnum
+                ~len:(loc.loc_end.pos_cnum - loc.loc_start.pos_cnum)
+            in
+            let loc_name = v.ptype_name.loc in
+            let loc_params =
+              let loc =
+                loc_joins (fun yield ->
+                    List.iter v.ptype_params ~f:(fun (typ, markers) ->
+                        yield typ.ptyp_loc;
+                        List.iter markers ~f:(fun marker -> yield marker.loc)))
+              in
+              match
+                ( String.rindex_from source_contents loc.loc_start.pos_cnum '('
+                , String.index_from source_contents loc.loc_end.pos_cnum ')' )
+              with
+              | Some lpar_pos, Some rpar_pos
+                when lpar_pos > v.ptype_loc.loc_start.pos_cnum
+                     && rpar_pos <= loc_name.loc_start.pos_cnum ->
+                  { loc with
+                    loc_start = { loc.loc_start with pos_cnum = lpar_pos }
+                  ; loc_end = { loc.loc_end with pos_cnum = rpar_pos + 1 }
+                  }
+              | _ -> loc
+            in
+            let lpar, rpar =
+              if String.is_prefix (orig_text loc_params) ~prefix:"("
+              then ("", "")
+              else ("(", ")")
+            in
+            f
+              (`Add
+                 ( loc_join loc_name loc_params
+                 , orig_text loc_name ^ lpar ^ orig_text loc_params ^ rpar )));
+
+        v)
+  }
+
 let print ~ocaml_version ~debug_diff ~source_contents file_type ast1 ast2 =
+  let z = Option.is_some (Sys.getenv_opt "Z") in
   let add_comments = indexed_comments ast1 in
   let loc_of_diff : diff_out -> _ = function
     | `Expr (e, _) -> e.pexp_loc
@@ -792,6 +873,18 @@ let print ~ocaml_version ~debug_diff ~source_contents file_type ast1 ast2 =
         (Transform_common.File_type.to_extended_ast file_type)
         { ast1 with ast = ast2 }
   | `Ok l ->
+      let l =
+        (if z
+         then (
+           let r = ref [] in
+           ignore
+             (Transform_common.File_type.map file_type
+                (extra_diffs source_contents (fun d -> r := d :: !r))
+                ast1.ast);
+           !r)
+         else [])
+        @ l
+      in
       let l =
         List.sort l ~compare:(fun a b -> Location.compare (loc_of_diff a) (loc_of_diff b))
       in
@@ -853,7 +946,31 @@ let print ~ocaml_version ~debug_diff ~source_contents file_type ast1 ast2 =
                   }
             | `Sigi (s1, s2) ->
                 f s1.psig_loc
-                  (let str = printed_ast add_comments s1.psig_loc Signature [ s2.ast ] in
+                  (let str =
+                     printed_ast add_comments s1.psig_loc Signature
+                       [ (match s2.ast with
+                         | { psig_desc = Psig_type (rec_flag, decs); _ } ->
+                             (* Avoid duplicating of doc comments, presumably due to
+                                positions being wrong, or at least misleading. *)
+                             { s2.ast with
+                               psig_desc =
+                                 Psig_type
+                                   ( rec_flag
+                                   , List.map decs ~f:(fun d ->
+                                         let a = d.ptype_attributes in
+                                         { d with
+                                           ptype_attributes =
+                                             { attrs_extension = a.attrs_extension
+                                             ; attrs_before =
+                                                 (if true then [] else a.attrs_before)
+                                             ; attrs_after =
+                                                 (if true then [] else a.attrs_after)
+                                             }
+                                         }) )
+                             }
+                         | _ -> s2.ast)
+                       ]
+                   in
                    { unambiguous = str; ambiguous = None })
             | `Me (v1, v2) ->
                 f v1.pmod_loc
