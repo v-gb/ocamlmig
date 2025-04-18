@@ -244,6 +244,7 @@ type diff =
 type diff_out =
   [ diff
   | `Rem of Location.t
+  | `Add of Location.t * string
   | `Add_stri of Location.t * (int * structure_item)
   | `Add_sigi of Location.t * (int * signature_item)
   ]
@@ -781,6 +782,7 @@ let print ~ocaml_version ~debug_diff ~source_contents file_type ast1 ast2 =
     | `Cf (v, _) -> v.pcf_loc
     | `Cty (v, _) -> v.pcty_loc
     | `Rem loc -> loc
+    | `Add (loc, _) -> loc
     | `Add_stri (loc, _) -> loc
     | `Add_sigi (loc, _) -> loc
   in
@@ -883,6 +885,7 @@ let print ~ocaml_version ~debug_diff ~source_contents file_type ast1 ast2 =
             | `Rem loc ->
                 (* see `Stri about ambiguity *)
                 f loc { unambiguous = ""; ambiguous = None }
+            | `Add (loc, str) -> f loc { unambiguous = str; ambiguous = None }
             | `Add_stri (loc, (indent, s2)) ->
                 (* see `Stri about ambiguity *)
                 f loc
