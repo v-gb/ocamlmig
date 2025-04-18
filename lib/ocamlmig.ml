@@ -201,20 +201,24 @@ type detailed_fmconf =
   ; in_use : [ `Enabled | `Disabled | `Not_configured ]
   }
 
-let load_ocamlformat_conf ~dune_root ~for_file =
-  (* We want to distinguish three states: - the repo doesn't use ocamlformat at all. In
-     this case, we don't want to call the ocamlformat executable (instead just rely on
-     the linked in one), this way, it's one less piece that might fail when checking
-     out the tool - the repo uses ocamlformat, but it's disabled for this file. In this
-     case, I think it makes more sense not to rewrite such files - the repo uses
-     ocamlformat, and it's enabled for this file. In this case, we want to use that
-     configuration, and call "ocamlformat" to get it correctly formatted.
+let load_ocamlformat_conf ~root ~for_file =
+  (* We want to distinguish three states:
 
-     Bin_conf doesn't really tell us what we want, short of going in and patching
-     it. So we'll just assume that, if an .ocamlformat exists, it's going be in the
-     dune root. *)
+  - the repo doesn't use ocamlformat at all. In this case, we don't want to call the
+    ocamlformat executable (instead just rely on the linked in one), this way, it's
+    one less piece that might fail when checking out the tool
+
+  - the repo uses ocamlformat, but it's disabled for this file. In this case, I think
+    it makes more sense not to rewrite such files
+
+  - the repo uses ocamlformat, and it's enabled for this file. In this case, we want to
+    use that configuration, and call "ocamlformat" to get it correctly formatted.
+
+  Bin_conf doesn't really tell us what we want, short of going in and patching it. So
+  we'll just assume that, if an .ocamlformat exists, it's going be in the dune
+  root. *)
   let has_ocamlformat =
-    Sys.file_exists (Abspath.to_string (Abspath.concat dune_root ".ocamlformat"))
+    Sys.file_exists (Abspath.to_string (Abspath.concat root ".ocamlformat"))
   in
   let to_fpath str =
     match Ocamlformat_stdlib.Fpath.of_string str with
@@ -227,7 +231,7 @@ let load_ocamlformat_conf ~dune_root ~for_file =
         (* enable_outside_detected_project:true so ocamlformat doesn't print warnings
          when .ocamlformat is absent. When that happens, .disable.v is true when that
          flag is set (but would be false without). *)
-      ~root:(Some (to_fpath (Abspath.to_string dune_root)))
+      ~root:(Some (to_fpath (Abspath.to_string root)))
       ~file:(Cwdpath.to_string for_file) ~is_stdin:false
     |> Result.ok_or_failwith
   in
@@ -271,10 +275,8 @@ let ocamlformat_conf_param ?(rewrite_only_in_test = false) () =
           ~default:`Fail
           ~doc:"what to do with .ml files for which ocamlformat is explicitly disabled"
     in
-    fun ~dune_root file_path ->
-      let { conf = fmconf; in_use } =
-        load_ocamlformat_conf ~dune_root ~for_file:file_path
-      in
+    fun ~root file_path ->
+      let { conf = fmconf; in_use } = load_ocamlformat_conf ~root ~for_file:file_path in
       let fmconf =
         match in_use with
         | `Not_configured | `Enabled ->
@@ -402,7 +404,7 @@ let migrate =
                   transient_line
                     (Printf.sprintf "processing %s" (Cwdpath.to_string source_path));
                   Profile.record (Cwdpath.to_string source_path) (fun () ->
-                      match get_ocamlformat_conf ~dune_root source_path with
+                      match get_ocamlformat_conf ~root:dune_root source_path with
                       | None -> ()
                       | Some (fmconf, fm_orig) -> (
                           match Build.Listing.locate_cmt listing ~source_path with
@@ -486,10 +488,13 @@ let make_transform ?(rewrite_only_in_test = false) param =
           let source_paths = file_paths_of_source source in
           transient_line "preparing artifacts";
           let dune_root = find_dune_root () in
-          let listing =
+          let root, listing =
             match dune_root with
-            | Ok dune_root -> Build.Listing.create ~dune_root ~source_paths
-            | Error _ -> Build.Listing.create_without_dune (Abspath.cwd ())
+            | Ok dune_root ->
+                (lazy dune_root, Build.Listing.create ~dune_root ~source_paths)
+            | Error _ ->
+                ( lazy (Abspath.create_exn (Vcs.root_exn ()).abs)
+                , Build.Listing.create_without_dune (Abspath.cwd ()) )
           in
           let artifacts_cache = Build.Artifacts.create_cache () in
           List.iter source_paths ~f:(fun source_path ->
@@ -497,10 +502,7 @@ let make_transform ?(rewrite_only_in_test = false) param =
                 (Printf.sprintf "processing %s" (Cwdpath.to_string source_path));
               Profile.record (Cwdpath.to_string source_path) (fun () ->
                   let ocamlformat_conf =
-                    lazy
-                      (get_ocamlformat_conf
-                         ~dune_root:(Result.ok_or_failwith dune_root)
-                         source_path)
+                    lazy (get_ocamlformat_conf ~root:(force root) source_path)
                   in
                   let diff_or_write ~original_formatting =
                     Option.iter __
@@ -897,10 +899,13 @@ to search/replace other syntactic categories:
               let source_paths = file_paths_of_source source in
               transient_line "preparing artifacts";
               let dune_root = find_dune_root () in
-              let listing =
+              let root, listing =
                 match dune_root with
-                | Ok dune_root -> Build.Listing.create ~dune_root ~source_paths
-                | Error _ -> Build.Listing.create_without_dune (Abspath.cwd ())
+                | Ok dune_root ->
+                    (dune_root, Build.Listing.create ~dune_root ~source_paths)
+                | Error _ ->
+                    ( Abspath.create_exn (Vcs.root_exn ()).abs
+                    , Build.Listing.create_without_dune (Abspath.cwd ()) )
               in
               let _artifacts_cache = Build.Artifacts.create_cache () in
               let transform_replace =
@@ -932,14 +937,7 @@ to search/replace other syntactic categories:
                           | Ok (_cmt_path, dirs), Some cmt_infos ->
                               Some (Build.Type_index.create_from_cmt_infos cmt_infos dirs))
                       in
-                      let dune_root_or_root =
-                        match dune_root with
-                        | Error _ -> Abspath.create_exn (Vcs.root_exn ()).abs
-                        | Ok p -> p
-                      in
-                      match
-                        get_ocamlformat_conf ~dune_root:dune_root_or_root source_path
-                      with
+                      match get_ocamlformat_conf ~root source_path with
                       | None -> ()
                       | Some (fmconf, fm_orig) ->
                           with_reported_ocaml_exn report_exn None (fun () ->
@@ -1001,7 +999,12 @@ let internal_parsetree =
           with_ocaml_exn (fun _ ->
               Ocamlformat_parser_shims.Clflags.locations := loc;
               Clflags.locations := loc;
-              let dune_root = find_dune_root () |> Result.ok_or_failwith in
+              let dune_root = find_dune_root () in
+              let root =
+                match dune_root with
+                | Error _ -> Abspath.create_exn (Vcs.root_exn ()).abs
+                | Ok p -> p
+              in
               if false
               then
                 print_string
@@ -1021,8 +1024,8 @@ let internal_parsetree =
                 let ast_with_comments =
                   Fmast.parse_with_ocamlformat Structure
                     ~conf:
-                      (load_ocamlformat_conf ~dune_root ~for_file:(Cwdpath.create "z.ml"))
-                        .conf ~input_name:"z.ml" code
+                      (load_ocamlformat_conf ~root ~for_file:(Cwdpath.create "z.ml")).conf
+                    ~input_name:"z.ml" code
                 in
                 print_string (Fmast.debug_print ~raw:true Structure ast_with_comments.ast))]
   )
