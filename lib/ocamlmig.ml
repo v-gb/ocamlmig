@@ -886,7 +886,7 @@ to search/replace other syntactic categories:
 
 |})
       [%map_open.Command
-        let patterns_and_repls =
+        let motifs_and_repls =
           flag "-e" ~doc:"MOTIF///REPL "
             ((if in_test then listed else one_or_more_as_list)
                (Arg_type.create Transform_replace.split_motif_repl))
@@ -909,7 +909,7 @@ to search/replace other syntactic categories:
               in
               let _artifacts_cache = Build.Artifacts.create_cache () in
               let transform_replace =
-                Transform_replace.run ~listing patterns_and_repls ()
+                Transform_replace.run ~listing motifs_and_repls ()
               in
               List.iter source_paths ~f:(fun source_path ->
                   transient_line
