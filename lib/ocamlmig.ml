@@ -1128,8 +1128,7 @@ let main () =
   Command_unix.run ~version:"%%VERSION%%"
     (Command.group ~summary:"A tool for rewriting ocaml code"
        (List.concat
-          [ [ migrate; transform; check ]
-          ; Option.to_list (hidden replace)
+          [ [ migrate; transform; check; replace ]
           ; Option.to_list
               (hidden
                  ( "internal"
