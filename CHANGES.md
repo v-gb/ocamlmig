@@ -1,3 +1,13 @@
+# 5.3-20250429
+
+- Switch to ocaml 5.3.
+- Added experimental `ocamlmig replace` command, for a sed-like rewrites but working
+  on ASTs instead of bytes.
+- Reduce slightly dependency on ocamlformat, so this can be used on the compiler
+  codebase
+- Added `ocamlmig check` to typecheck the replacement in things like
+  `val foo : int [@migrate { repl = bar }]`
+
 # 5.2-20250228
 
 - Added support for rewriting .mli files, not just .ml files.
