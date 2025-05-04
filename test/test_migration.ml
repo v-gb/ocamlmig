@@ -385,6 +385,13 @@ let () =
         let __ l =
           List.partition_map l ~f:(fun a ->
               if a mod 3 = 0 then First 3 else if a mod 5 = 0 then First 5 else Second ())]
+
+      (* Matches with exception patterns include a try-with, so they shouldn't be
+         optimized away. *)
+      let f () = () [@@migrate { repl = (fun () -> f ()) }]
+
+      let __ () = match f () with x -> x | exception Stdlib.Exit -> ()
+      [@@migrate_test let __ () = match f () with x -> x | exception Stdlib.Exit -> ()]
     end)
 
 let () =

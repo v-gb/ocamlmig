@@ -1094,8 +1094,27 @@ let match_boolean (expr : P.expression) =
       | _ -> Error ())
   | _ -> Error ()
 
-let execute_match (expr : P.expression) (loc, cases) ~can_simplify =
-  if can_simplify expr.pexp_loc loc
+let has_exception_pattern =
+  let super = Ast_mapper.default_mapper in
+  let self =
+    { super with
+      pat =
+        (fun self pat ->
+          match pat.ppat_desc with
+          | Ppat_exception _ -> Stdlib.raise_notrace Stdlib.Exit
+          | _ -> super.pat self pat)
+    }
+  in
+  fun meth v ->
+    try
+      ignore ((meth self) self v);
+      false
+    with Stdlib.Exit -> true
+
+let execute_match (expr : P.expression) (loc, (cases : P.case list)) ~can_simplify =
+  if
+    can_simplify expr.pexp_loc loc
+    && List.for_all cases ~f:(fun case -> not (has_exception_pattern __.pat case.pc_lhs))
   then
     let last_i = ref 0 in
     match
