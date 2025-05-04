@@ -106,8 +106,10 @@ let attribute_payload ?repl ~(loc : Location.t) expr_opt =
       { repl; libraries }
   | Some expr -> report expr.pexp_loc "attribute payload not in expected format"
 
-let internalize_reorder_attribute (expr : P.expression) =
-  if Attr.exists expr.pexp_attributes (Attr.reorder `Source)
+let internalize_attribute (expr : P.expression) =
+  if
+    Attr.exists expr.pexp_attributes (Attr.reorder `Source)
+    || Attr.exists expr.pexp_attributes (Attr.commutes `Source)
   then
     { expr with
       pexp_attributes =
@@ -117,15 +119,18 @@ let internalize_reorder_attribute (expr : P.expression) =
               { attr with
                 attr_name = { attr.attr_name with txt = Attr.reorder `Internal }
               }
+            else if attr.attr_name.txt =: Attr.commutes `Source
+            then
+              { attr with
+                attr_name = { attr.attr_name with txt = Attr.commutes `Internal }
+              }
             else attr)
     }
   else expr
 
-let internalize_reorder_attribute_mapper =
+let internalize_attribute_mapper =
   let super = Ast_mapper.default_mapper in
-  { super with
-    expr = (fun self expr -> super.expr self (internalize_reorder_attribute expr))
-  }
+  { super with expr = (fun self expr -> super.expr self (internalize_attribute expr)) }
 
 let fmexpr_of_uexpr ~fmconf source e =
   let e_str = Format.asprintf "%a" Uast.Pprintast.expression e in
@@ -135,7 +140,7 @@ let fmexpr_of_uexpr ~fmconf source e =
       ~input_name:(migrate_filename source) e_str
   in
   expr
-  |> Ocamlformat_lib.Extended_ast.map Expression internalize_reorder_attribute_mapper
+  |> Ocamlformat_lib.Extended_ast.map Expression internalize_attribute_mapper
   |> Ocamlformat_lib.Extended_ast.map Expression drop_concrete_syntax_constructs
 
 let fmexpr_of_fmexpr source e =
@@ -144,7 +149,7 @@ let fmexpr_of_fmexpr source e =
   let self =
     { super with
       location = (fun _self loc -> update_loc loc (fun pos -> { pos with pos_fname }))
-    ; expr = (fun self expr -> super.expr self (internalize_reorder_attribute expr))
+    ; expr = (fun self expr -> super.expr self (internalize_attribute expr))
     }
   in
   e
@@ -286,7 +291,10 @@ let rec exec_of_expr (expr : P.expression) =
       then Const
       else exec_of_function_body body
   | Pexp_apply (fun_, args) ->
-      Sequence (exec_of_expr_list (fun_ :: List.map args ~f:snd), Special `Call)
+      let args_exec = exec_of_expr_list (fun_ :: List.map args ~f:snd) in
+      if Sattr.exists Sattr.commutes expr.pexp_attributes
+      then args_exec
+      else Sequence (args_exec, Special `Call)
   | Pexp_match (e, cases) -> Sequence (exec_of_expr e, exec_of_cases cases)
   | Pexp_try (e, cases) -> either (exec_of_expr e, exec_of_cases cases)
   | Pexp_tuple l -> unordereds (List.map l ~f:exec_of_expr)

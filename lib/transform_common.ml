@@ -71,6 +71,9 @@ module Attr = struct
   let reorder which =
     match which with `Source -> "reorder" | `Internal -> prefix ^ "reorder"
 
+  let commutes which =
+    match which with `Source -> "commutes" | `Internal -> prefix ^ "commutes"
+
   let create ~loc name payload : P.attribute =
     { attr_name = { loc; txt = prefix ^ name }
     ; attr_payload =
@@ -138,6 +141,12 @@ module Sattr = struct
     { name = Attr.prefix ^ "orig"
     ; build = (fun ~loc e -> Attr.create ~loc "orig" (Some e))
     ; match_ = match_expr Fn.id
+    }
+
+  let commutes =
+    { name = Attr.commutes `Internal
+    ; build = (fun ~loc () -> Attr.create ~loc (Attr.commutes `Source) None)
+    ; match_ = (fun _ -> ())
     }
 end
 

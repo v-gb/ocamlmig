@@ -46,6 +46,7 @@ module Attr : sig
   val exists : t -> string -> bool
   val prefix : string
   val reorder : [< `Internal | `Source ] -> string
+  val commutes : [< `Internal | `Source ] -> string
 
   val create :
        loc:Ocamlformat_ocaml_common.Location.t
@@ -69,6 +70,7 @@ module Sattr : sig
   val pun : unit t
   val touched : unit t
   val orig : P.expression t
+  val commutes : unit t
 end
 
 val structure_item_attributes :

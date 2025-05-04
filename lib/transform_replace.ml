@@ -958,7 +958,7 @@ let parse_template ~fmconf stage2 repl =
             .ast
           |> infer_repetition
           |> Ocamlformat_lib.Extended_ast.map kind
-               Transform_migration.internalize_reorder_attribute_mapper
+               Transform_migration.internalize_attribute_mapper
         in
         repl := `Forced (wrap v);
         v

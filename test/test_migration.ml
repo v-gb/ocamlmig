@@ -297,6 +297,24 @@ let () =
           let y = print_string "b" in
           if true then x else y]
 
+      (* A function in the replacement can prevent inlining... *)
+      let f ?(a = 0) b c d = a + b + c + d
+      [@@migrate { repl = (fun ?a b c d -> f2 ?a b (g c d)) }]
+
+      let _ = f ~a:(Fun.id 0) (Fun.id 1) (Fun.id 2) (Fun.id 3)
+      [@@migrate_test
+        let _ =
+          let a = Some (Fun.id 0) in
+          let b = Fun.id 1 in
+          f2 ?a b (g (Fun.id 2) (Fun.id 3))]
+
+      (* but you can work try to work around it if that's needlessly conservative: *)
+      let f ?(a = 0) b c d = a + b + c + d
+      [@@migrate { repl = (fun ?a b c d -> f2 ?a b (g c d [@commutes])) }]
+
+      let _ = f ~a:(Fun.id 0) (Fun.id 1) (Fun.id 2) (Fun.id 3)
+      [@@migrate_test let _ = f2 ~a:(Fun.id 0) (Fun.id 1) (g (Fun.id 2) (Fun.id 3))]
+
       (* Can't move arguments into functions... *)
       let f _ = () [@@migrate { repl = (fun x -> loop (fun () -> x)) }]
 
