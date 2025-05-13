@@ -612,7 +612,6 @@ let () =
     end)
 
 let () =
-  (* bug: extra migrations should also be sourced from cmt files *)
   test "extra migration"
     (module struct
       let _ = List.map [@migrate { repl = (fun f l -> Base.List.map l ~f) }]
@@ -866,7 +865,7 @@ let () =
     end)
 
 let () =
-  test "type name replacement"
+  test "type replacement"
     (module struct
       module M = struct
         type 'a option2 = 'a option

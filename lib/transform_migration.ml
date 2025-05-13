@@ -1908,12 +1908,12 @@ let payload_from_type_decl_fmast ~fmconf ~type_index ~id_for_logging:id v =
       match find_attribute_payload_uast ~fmconf type_decl.type_attributes with
       | None ->
           if !log || debug.all
-          then print_s [%sexp (id : Longident.t), "no side migration, no attr on val"];
+          then print_s [%sexp (id : Longident.t), "no side migration, no attr on type"];
           None
       | Some attr ->
           if !log || debug.all
-          then print_s [%sexp (id : Longident.t), "found attribute on val"];
-          Some (attr, env))
+          then print_s [%sexp (id : Longident.t), "found attribute on type"];
+          Some attr)
   | _ -> None
 
 let rec find_map_lident_prefix (lid : Longident.t) f =
@@ -1935,9 +1935,9 @@ let find_map_lident_prefix ~start lid f =
           | None -> None
           | Some res -> Some (Longident.Ldot (res, right))))
 
-let find_module_decl_payload (type a b c) ~fmconf ~type_index ~module_migrations
-    ((nsv : (_, c, _, _) Fmast.Node.t), v)
-    ((lidns : (a * b) Uast.ns), (lid : Longident.t)) ~build ~changed_something =
+let find_module_decl_payload (type a b) ~fmconf ~type_index ~module_migrations
+    ((nsv : (_, b, _, _) Fmast.Node.t), v) ((lidns : a Uast.ns), (lid : Longident.t))
+    ~build ~changed_something =
   (* A few points that might be worth improving:
      - this being opt-in. Maybe this can be sped up, or ocamlmig in general be sped up,
      so we don't care about speed.
@@ -2308,7 +2308,7 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
               payload_from_type_decl_fmast ~fmconf ~type_index ~id_for_logging:id.txt
                 v.ptyp_loc
             with
-            | Some ({ repl = { pexp_desc = Pexp_ident id2; _ }; libraries }, _env) ->
+            | Some { repl = { pexp_desc = Pexp_ident id2; _ }; libraries } ->
                 warn_about_disabled_ocamlformat ();
                 add_depends libraries;
                 let id2 =
