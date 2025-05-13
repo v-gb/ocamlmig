@@ -2161,6 +2161,33 @@ let requalify ((expr : P.expression), expr_type_index) new_base_env =
       in
       self.expr self expr
 
+let resolved_modpath ~type_index nsv v ~path_of =
+  match Build.Type_index.find type_index nsv v with
+  | [] -> None
+  | elt :: _ -> (
+      match path_of elt with
+      | None -> None
+      | Some path ->
+          let env = Build.Type_index.env nsv elt in
+          Some
+            (lazy
+              (let env = Envaux.env_of_only_summary env in
+               let ident =
+                 path
+                 |> Requalify.ident_of_path_exn __
+                 |> Longident.map_modpath __ (fun modpath ->
+                        Requalify.try_unqualifying_ident
+                          ~same_resolution_as_initially:(fun new_var ->
+                            match
+                              Requalify.same_resolution Module (modpath, env)
+                                (new_var, env)
+                            with
+                            | `Yes -> true
+                            | `No _ | `Unknown -> false)
+                          (Env.summary env) modpath)
+               in
+               (ident, env))))
+
 let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, artifacts)
     ~changed_something ~add_depends ~ctx =
   let extra_migrations, add_extra_migration_fmast =
@@ -2238,30 +2265,11 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                           | [] -> to_expr)
                     in
                     let to_expr =
-                      let resolved_modpath =
-                        match Build.Type_index.find type_index Exp expr with
-                        | { exp_desc = Texp_ident (path, _, _); exp_env; _ } :: _ ->
-                            Some
-                              (lazy
-                                (let env = Envaux.env_of_only_summary exp_env in
-                                 let ident =
-                                   path
-                                   |> Requalify.ident_of_path_exn __
-                                   |> Longident.map_modpath __ (fun modpath ->
-                                          Requalify.try_unqualifying_ident
-                                            ~same_resolution_as_initially:(fun new_var ->
-                                              match
-                                                Requalify.same_resolution Module
-                                                  (modpath, env) (new_var, env)
-                                              with
-                                              | `Yes -> true
-                                              | `No _ | `Unknown -> false)
-                                            (Env.summary exp_env) modpath)
-                                 in
-                                 (ident, env)))
-                        | _ -> None
-                      in
-                      relativize ~resolved_modpath id.txt __.expr to_expr
+                      relativize id.txt __.expr to_expr
+                        ~resolved_modpath:
+                          (resolved_modpath ~type_index Exp expr ~path_of:(function
+                            | { exp_desc = Texp_ident (path, _, _); _ } -> Some path
+                            | _ -> None))
                     in
                     let to_expr =
                       preserve_loc_to_preserve_comment_pos_expr ~from:expr to_expr
@@ -2304,30 +2312,14 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                 warn_about_disabled_ocamlformat ();
                 add_depends libraries;
                 let id2 =
-                  let resolved_modpath =
-                    match Build.Type_index.find type_index Typ v with
-                    | { ctyp_desc = Ttyp_constr (path, _, _); ctyp_env; _ } :: _ ->
-                        Some
-                          (lazy
-                            (let env = Envaux.env_of_only_summary ctyp_env in
-                             let ident =
-                               path
-                               |> Requalify.ident_of_path_exn __
-                               |> Longident.map_modpath __ (fun modpath ->
-                                      Requalify.try_unqualifying_ident
-                                        ~same_resolution_as_initially:(fun new_var ->
-                                          match
-                                            Requalify.same_resolution Module
-                                              (modpath, env) (new_var, env)
-                                          with
-                                          | `Yes -> true
-                                          | `No _ | `Unknown -> false)
-                                        (Env.summary ctyp_env) modpath)
-                             in
-                             (ident, env)))
-                    | _ -> None
-                  in
-                  { id2 with txt = rel Type ~resolved_modpath id.txt id2.txt }
+                  { id2 with
+                    txt =
+                      rel Type id.txt id2.txt
+                        ~resolved_modpath:
+                          (resolved_modpath ~type_index Typ v ~path_of:(function
+                            | { ctyp_desc = Ttyp_constr (path, _, _); _ } -> Some path
+                            | _ -> None))
+                  }
                 in
                 changed_something := true;
                 { v with
