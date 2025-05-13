@@ -39,7 +39,7 @@ let () =
       (* Not all namespaces are implemented here. *)
 
       let __ r = ((M.x : M.t), r.M.a, M.A 1)
-      [@@migrate_test let __ r = ((M2.x : M2.t), r.M.a, M.A 1)]
+      [@@migrate_test let __ r = ((M2.x : M2.t), r.M.a, M2.A 1)]
 
       module A = M.Sub [@@migrate_test module A = M2.Sub]
 

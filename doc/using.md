@@ -245,6 +245,11 @@ In general, the `migrate` attribute is supported:
   The replacement must be a path, not a general type (though a general type could
   presumably be supported with more work).
 
+- on open sum types constructor declaration, `exception A of int [@migrate {repl = B }]`. 
+  Note the single `@` sign.  The replacement must be a path, not a general expression,
+  as this migration will be applied in patterns where arbitrary expressions would be
+  quite difficult to support.
+
 - (experimental) on module declaration, `module M : ... [@@migrate { repl = Mnew }]`.
   The replacement must be a path, not a general expression, and these migrations
   attributes are only searched for with `ocamlmig mig -module-migration`.

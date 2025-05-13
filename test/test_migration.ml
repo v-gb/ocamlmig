@@ -907,6 +907,39 @@ let () =
     end)
 
 let () =
+  test "constructor replacement"
+    (module struct
+      module M = struct
+        exception Foo of int
+        exception A = Foo [@migrate { repl = Rel.Foo }]
+
+        type exn += B of int [@migrate { repl = Rel.Foo }]
+      end
+
+      let _ =
+        let _ = M.A 1 in
+        let _ = M.B 1 in
+        let _ = function M.A 2 -> true | _ -> false in
+        let open struct
+          [@@@warning "-38"]
+
+          exception Alias = M.A
+        end in
+        ()
+      [@@migrate_test
+        let _ =
+          let _ = M.Foo 1 in
+          let _ = M.Foo 1 in
+          let _ = function M.Foo 2 -> true | _ -> false in
+          let open struct
+            [@@@warning "-38"]
+
+            exception Alias = M.A
+          end in
+          ()]
+    end)
+
+let () =
   test "comment positions"
     (module struct
       let f x y = x + y [@@migrate_manual { repl = (fun x y -> f2 y x) }]

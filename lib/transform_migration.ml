@@ -1916,6 +1916,31 @@ let payload_from_type_decl_fmast ~fmconf ~type_index ~id_for_logging:id v =
           Some attr)
   | _ -> None
 
+let payload_from_exn_decl_fmast ~fmconf ~type_index ~id_for_logging:id (nsv, v)
+    ~construct_of =
+  match Build.Type_index.find type_index nsv v with
+  | [] -> None
+  | elt :: _ -> (
+      match construct_of elt with
+      | None -> None
+      | Some (construct_desc : Types.constructor_description) -> (
+          match construct_desc.cstr_tag with
+          | Cstr_extension _ -> (
+              match
+                find_attribute_payload_uast ~fmconf construct_desc.cstr_attributes
+              with
+              | None ->
+                  if !log || debug.all
+                  then
+                    print_s
+                      [%sexp (id : Longident.t), "no side migration, no attr on exn"];
+                  None
+              | Some attr ->
+                  if !log || debug.all
+                  then print_s [%sexp (id : Longident.t), "found attribute on exn"];
+                  Some attr)
+          | _ -> None))
+
 let rec find_map_lident_prefix (lid : Longident.t) f =
   match lid with
   | Lident _ | Lapply _ -> f lid
@@ -2283,11 +2308,96 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                           :: to_expr.pexp_attributes
                       }
                     else to_expr)
+            | Pexp_construct (id, body) -> (
+                let body = Option.map ~f:(self.expr self) body in
+                match
+                  payload_from_exn_decl_fmast ~fmconf ~type_index ~id_for_logging:id.txt
+                    (Exp, expr) ~construct_of:(function
+                    | { exp_desc = Texp_construct (_, desc, _); _ } -> Some desc
+                    | _ -> None)
+                with
+                | Some { repl = { pexp_desc = Pexp_construct (id2, None); _ }; libraries }
+                  ->
+                    warn_about_disabled_ocamlformat ();
+                    add_depends libraries;
+                    let id2 =
+                      { id2 with
+                        txt =
+                          rel Constructor id.txt id2.txt
+                            ~resolved_modpath:
+                              (resolved_modpath ~type_index Exp expr ~path_of:(function
+                                | { exp_desc =
+                                      Texp_construct
+                                        (_, { cstr_tag = Cstr_extension (path, _); _ }, _)
+                                  ; _
+                                  } ->
+                                    Some path
+                                | _ -> None))
+                      }
+                    in
+                    changed_something := true;
+                    { expr with
+                      pexp_desc = Pexp_construct (id2, body)
+                    ; pexp_attributes =
+                        Sattr.touched.build ~loc:!Ast_helper.default_loc ()
+                        :: expr.pexp_attributes
+                    }
+                | _ ->
+                    find_module_decl_payload ~fmconf ~type_index
+                      ~module_migrations:ctx.module_migrations (Exp, expr)
+                      (Constructor, id.txt)
+                      ~build:(fun newid -> Pexp_construct ({ id with txt = newid }, body))
+                      ~changed_something
+                    |> Option.value ~default:expr)
             | _ -> super.expr self expr
           in
           (* After the lookup, so we don't replace the definition itself. *)
           add_extra_migration_fmast ~type_index:(Some type_index) ~comp_unit expr;
           expr')
+  ; pat =
+      (fun self v ->
+        let v = super.pat self v in
+        match v.ppat_desc with
+        | Ppat_construct (id, body) -> (
+            match
+              payload_from_exn_decl_fmast ~fmconf ~type_index ~id_for_logging:id.txt
+                (Pat, v) ~construct_of:(function
+                | T { pat_desc = Tpat_construct (_, desc, _, _); _ } -> Some desc
+                | _ -> None)
+            with
+            | Some { repl = { pexp_desc = Pexp_construct (id2, None); _ }; libraries } ->
+                warn_about_disabled_ocamlformat ();
+                add_depends libraries;
+                let id2 =
+                  { id2 with
+                    txt =
+                      rel Constructor id.txt id2.txt
+                        ~resolved_modpath:
+                          (resolved_modpath ~type_index Pat v ~path_of:(function
+                            | T
+                                { pat_desc =
+                                    Tpat_construct
+                                      (_, { cstr_tag = Cstr_extension (path, _); _ }, _, _)
+                                ; _
+                                } ->
+                                Some path
+                            | _ -> None))
+                  }
+                in
+                changed_something := true;
+                { v with
+                  ppat_desc = Ppat_construct (id2, body)
+                ; ppat_attributes =
+                    Sattr.touched.build ~loc:!Ast_helper.default_loc ()
+                    :: v.ppat_attributes
+                }
+            | _ ->
+                find_module_decl_payload ~fmconf ~type_index
+                  ~module_migrations:ctx.module_migrations (Pat, v) (Constructor, id.txt)
+                  ~build:(fun newid -> Ppat_construct ({ id with txt = newid }, body))
+                  ~changed_something
+                |> Option.value ~default:v)
+        | _ -> v)
   ; module_expr =
       (fun self v ->
         let v = super.module_expr self v in
