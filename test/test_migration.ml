@@ -358,7 +358,7 @@ let () =
       let _ = f ~x:(Fun.id 0) 1
       [@@migrate_test
         let _ =
-          let _ = Some (Fun.id 0) in
+          let _ = Fun.id 0 in
           1]
     end)
 

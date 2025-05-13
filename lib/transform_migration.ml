@@ -1161,7 +1161,8 @@ let execute_if ~can_simplify ~loc (branches : P.if_branch list) else_ =
   | Some (Error ()) -> None
   | Some (Ok e) -> Some (e, e, !last_i)
 
-let execute_let ~can_simplify (value_bindings : P.value_bindings) =
+let execute_let ~ctx ~type_index ~can_simplify ~value_constraint
+    (value_bindings : P.value_bindings) =
   match value_bindings.pvbs_bindings with
   | [ ({ pvb_body = Pfunction_body expr; _ } as vb) ]
     when Option.is_none vb.pvb_constraint
@@ -1172,6 +1173,22 @@ let execute_let ~can_simplify (value_bindings : P.value_bindings) =
           (* optimize let () = () away. We could probably do more. *)
           Some { value_bindings with pvbs_bindings = [] }
       | _ -> None)
+  | [ ({ pvb_body =
+           Pfunction_body ({ pexp_desc = Pexp_construct (_, Some expr); _ } as body)
+       ; pvb_pat = { ppat_desc = Ppat_any; _ }
+       ; _
+       } as vb)
+    ]
+    when Option.is_none vb.pvb_constraint && can_simplify body.pexp_loc expr.pexp_loc ->
+      Some
+        { value_bindings with
+          pvbs_bindings =
+            [ { vb with
+                pvb_body = Pfunction_body expr
+              ; pvb_constraint = value_constraint ~ctx:!ctx ~type_index body
+              }
+            ]
+        }
   | _ -> None
 
 let rec map_tails (e : P.expression) f =
@@ -1300,6 +1317,25 @@ let simplify_args (args : Fmast.function_arg list) =
           | _ -> Some function_arg)
       | _ -> Some function_arg)
 
+let value_constraint ~ctx ~type_index e : P.value_constraint option =
+  if not (might_rely_on_type_based_disambiguation e)
+  then None
+  else
+    match Build.Type_index.exp type_index (Conv.location' e.pexp_loc) with
+    | [ texpr ] ->
+        Some
+          (Pvc_constraint
+             { locally_abstract_univars = []
+             ; typ =
+                 fmtype_of_typedtree ~fmconf:ctx.fmconf `Gen texpr.exp_env texpr.exp_type
+             })
+    | _ :: _ :: _ -> None
+    | [] ->
+        let loc = e.pexp_loc in
+        Format.printf "@[<2>failed to find@\n%a@]@." Sexplib.Sexp.pp_hum
+          [%sexp (Conv.location' loc : Uast.Location.t)];
+        None
+
 let simplify ~type_index ~ctx process_call =
   let ctx = ref ctx in
   let super = Ast_mapper.default_mapper in
@@ -1340,7 +1376,10 @@ let simplify ~type_index ~ctx process_call =
                   | None -> super.expr self expr
                   | Some (_, new_expr, _) -> self.expr self new_expr)
               | { pexp_desc = Pexp_let (value_bindings, body, loc); _ } -> (
-                  match execute_let value_bindings ~can_simplify with
+                  match
+                    execute_let ~ctx ~type_index value_bindings ~can_simplify
+                      ~value_constraint
+                  with
                   | None -> super.expr self expr
                   | Some value_bindings -> (
                       match value_bindings.pvbs_bindings with
@@ -1386,25 +1425,6 @@ let simplify ~type_index ~ctx process_call =
     }
   in
   self
-
-let value_constraint ~ctx ~type_index e : P.value_constraint option =
-  if not (might_rely_on_type_based_disambiguation e)
-  then None
-  else
-    match Build.Type_index.exp type_index (Conv.location' e.pexp_loc) with
-    | [ texpr ] ->
-        Some
-          (Pvc_constraint
-             { locally_abstract_univars = []
-             ; typ =
-                 fmtype_of_typedtree ~fmconf:ctx.fmconf `Gen texpr.exp_env texpr.exp_type
-             })
-    | _ :: _ :: _ -> None
-    | [] ->
-        let loc = e.pexp_loc in
-        Format.printf "@[<2>failed to find@\n%a@]@." Sexplib.Sexp.pp_hum
-          [%sexp (Conv.location' loc : Uast.Location.t)];
-        None
 
 let bind__sequentially_if_possible ~ctx ~type_index bindings body =
   (* We try to make separate let-bindings when doing so won't cause captures.  It'd be
