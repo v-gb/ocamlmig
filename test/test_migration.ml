@@ -866,6 +866,48 @@ let () =
     end)
 
 let () =
+  test "type name replacement"
+    (module struct
+      module M = struct
+        type 'a option2 = 'a option
+        type 'a t = 'a option [@@migrate { repl = Option.t }]
+        type 'a t2 = 'a option2 [@@migrate { repl = Rel.option2 }]
+      end
+
+      let _ =
+        let module Option = struct end in
+        (* The replacement incorrectly refers to this Option module, the same problem
+           as for it's not expression replacement. *)
+        let _ : float M.t list = [] in
+        let _ : float M.t2 list = [] in
+        let __ : 'a. 'a M.t list = [] in
+        let open struct
+          type 'a __ = A of ('a * int) M.t list
+
+          module type S1 = sig
+            type 'a t
+          end
+          with type 'a t = 'a M.t
+        end in
+        ()
+      [@@migrate_test
+        let _ =
+          let module Option = struct end in
+          let _ : float Option.t list = [] in
+          let _ : float M.option2 list = [] in
+          let __ : 'a. 'a Option.t list = [] in
+          let open struct
+            type 'a __ = A of ('a * int) Option.t list
+
+            module type S1 = sig
+              type 'a t
+            end
+            with type 'a t = 'a Option.t
+          end in
+          ()]
+    end)
+
+let () =
   test "comment positions"
     (module struct
       let f x y = x + y [@@migrate_manual { repl = (fun x y -> f2 y x) }]

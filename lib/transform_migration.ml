@@ -1844,7 +1844,7 @@ and rel : type a. a Uast.ns -> _ =
                   | `No _ -> l'))))
   | None -> Lident "Nomodulename"
 
-let relativize ~resolved_modpath path e =
+let relativize ~resolved_modpath path meth e =
   let super = Ast_mapper.default_mapper in
   let self =
     { super with
@@ -1874,9 +1874,17 @@ let relativize ~resolved_modpath path e =
               in
               { expr with pexp_desc = Pexp_record (fields', arg) }
           | _ -> expr)
+    ; typ =
+        (fun self v ->
+          let v = super.typ self v in
+          match v with
+          | { ptyp_desc = Ptyp_constr (id, args); _ } ->
+              let id' = rel Type ~resolved_modpath path id.txt in
+              { v with ptyp_desc = Ptyp_constr ({ id with txt = id' }, args) }
+          | _ -> v)
     }
   in
-  self.expr self e
+  (meth self) self e
 
 let payload_from_val_fmast ~fmconf ~type_index (id, ident_loc) =
   match Build.Type_index.exp type_index (Conv.location' ident_loc) with
@@ -1890,6 +1898,22 @@ let payload_from_val_fmast ~fmconf ~type_index (id, ident_loc) =
           if !log || debug.all
           then print_s [%sexp (id : Longident.t), "found attribute on val"];
           opt)
+  | _ -> None
+
+let payload_from_type_decl_fmast ~fmconf ~type_index ~id_for_logging:id v =
+  match Build.Type_index.typ type_index (Conv.location' v) with
+  | { ctyp_desc = Ttyp_constr (path, _, _); ctyp_env; _ } :: _ -> (
+      let env = Envaux.env_of_only_summary ctyp_env in
+      let type_decl = Env.find_type path env in
+      match find_attribute_payload_uast ~fmconf type_decl.type_attributes with
+      | None ->
+          if !log || debug.all
+          then print_s [%sexp (id : Longident.t), "no side migration, no attr on val"];
+          None
+      | Some attr ->
+          if !log || debug.all
+          then print_s [%sexp (id : Longident.t), "found attribute on val"];
+          Some (attr, env))
   | _ -> None
 
 let rec find_map_lident_prefix (lid : Longident.t) f =
@@ -2166,6 +2190,14 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
     then Ref.set_temporarily ocamlformat_disabled true ~f:(fun () -> wrapped self si)
     else wrapped self si
   in
+  let warn_about_disabled_ocamlformat () =
+    if !log && !ocamlformat_disabled
+    then
+      print_s
+        [%sexp
+          "found occurrence of rewritten identifier under [@@ocamlformat \"disable\"]. \
+           The ocamlformat printer will ignore all modifications made."]
+  in
   let super = Ast_mapper.default_mapper in
   { super with
     expr =
@@ -2193,13 +2225,7 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                     | None -> super.expr self expr
                     | Some e -> e)
                 | Some ({ repl = to_expr; libraries }, repl_type_index) ->
-                    if !log && !ocamlformat_disabled
-                    then
-                      print_s
-                        [%sexp
-                          "found occurrence of rewritten identifier under [@@ocamlformat \
-                           \"disable\"]. The ocamlformat printer will ignore all \
-                           modifications made."];
+                    warn_about_disabled_ocamlformat ();
                     add_depends libraries;
                     let to_expr =
                       match repl_type_index with
@@ -2235,7 +2261,7 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                                  (ident, env)))
                         | _ -> None
                       in
-                      relativize ~resolved_modpath id.txt to_expr
+                      relativize ~resolved_modpath id.txt __.expr to_expr
                     in
                     let to_expr =
                       preserve_loc_to_preserve_comment_pos_expr ~from:expr to_expr
@@ -2269,12 +2295,53 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
       (fun self v ->
         let v = super.typ self v in
         match v.ptyp_desc with
-        | Ptyp_constr (id, args) ->
-            find_module_decl_payload ~fmconf ~type_index
-              ~module_migrations:ctx.module_migrations (Typ, v) (Type, id.txt)
-              ~build:(fun newid -> Ptyp_constr ({ id with txt = newid }, args))
-              ~changed_something
-            |> Option.value ~default:v
+        | Ptyp_constr (id, args) -> (
+            match
+              payload_from_type_decl_fmast ~fmconf ~type_index ~id_for_logging:id.txt
+                v.ptyp_loc
+            with
+            | Some ({ repl = { pexp_desc = Pexp_ident id2; _ }; libraries }, _env) ->
+                warn_about_disabled_ocamlformat ();
+                add_depends libraries;
+                let id2 =
+                  let resolved_modpath =
+                    match Build.Type_index.find type_index Typ v with
+                    | { ctyp_desc = Ttyp_constr (path, _, _); ctyp_env; _ } :: _ ->
+                        Some
+                          (lazy
+                            (let env = Envaux.env_of_only_summary ctyp_env in
+                             let ident =
+                               path
+                               |> Requalify.ident_of_path_exn __
+                               |> Longident.map_modpath __ (fun modpath ->
+                                      Requalify.try_unqualifying_ident
+                                        ~same_resolution_as_initially:(fun new_var ->
+                                          match
+                                            Requalify.same_resolution Module
+                                              (modpath, env) (new_var, env)
+                                          with
+                                          | `Yes -> true
+                                          | `No _ | `Unknown -> false)
+                                        (Env.summary ctyp_env) modpath)
+                             in
+                             (ident, env)))
+                    | _ -> None
+                  in
+                  { id2 with txt = rel Type ~resolved_modpath id.txt id2.txt }
+                in
+                changed_something := true;
+                { v with
+                  ptyp_desc = Ptyp_constr (id2, args)
+                ; ptyp_attributes =
+                    Sattr.touched.build ~loc:!Ast_helper.default_loc ()
+                    :: v.ptyp_attributes
+                }
+            | _ ->
+                find_module_decl_payload ~fmconf ~type_index
+                  ~module_migrations:ctx.module_migrations (Typ, v) (Type, id.txt)
+                  ~build:(fun newid -> Ptyp_constr ({ id with txt = newid }, args))
+                  ~changed_something
+                |> Option.value ~default:v)
         | Ptyp_class (id, args) ->
             find_module_decl_payload ~fmconf ~type_index
               ~module_migrations:ctx.module_migrations (Typ, v) (Class, id.txt)
