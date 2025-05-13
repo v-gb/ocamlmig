@@ -308,7 +308,7 @@ let () =
           let b = Fun.id 1 in
           f2 ?a b (g (Fun.id 2) (Fun.id 3))]
 
-      (* but you can work try to work around it if that's needlessly conservative: *)
+      (* but you can work around it if that's needlessly conservative: *)
       let f ?(a = 0) b c d = a + b + c + d
       [@@migrate { repl = (fun ?a b c d -> f2 ?a b (g c d [@commutes])) }]
 
@@ -350,6 +350,16 @@ let () =
         let _ =
           let x = print_string "a" in
           try x with _ -> ()]
+
+      (* Unused arguments are dropped *)
+      let f ?(x = 0) y = x + y [@@migrate { repl = (fun ?x:_ y -> y) }]
+      let _ = f ~x:0 1 [@@migrate_test let _ = 1]
+
+      let _ = f ~x:(Fun.id 0) 1
+      [@@migrate_test
+        let _ =
+          let _ = Some (Fun.id 0) in
+          1]
     end)
 
 let () =
