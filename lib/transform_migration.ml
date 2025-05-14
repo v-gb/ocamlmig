@@ -2253,14 +2253,14 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
   let super = Ast_mapper.default_mapper in
   { super with
     expr =
-      with_log (fun self expr ->
-          let expr = super.expr self expr in
-          let expr' =
-            match expr.pexp_desc with
+      with_log (fun self v ->
+          let v = super.expr self v in
+          let v' =
+            match v.pexp_desc with
             | Pexp_ident id -> (
                 match
                   match
-                    payload_from_val_fmast ~fmconf ~type_index (id.txt, expr.pexp_loc)
+                    payload_from_val_fmast ~fmconf ~type_index (id.txt, v.pexp_loc)
                   with
                   | Some _ as opt -> Option.map opt ~f:(fun x -> (x, None))
                   | None ->
@@ -2269,10 +2269,10 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                 with
                 | None ->
                     find_module_decl_payload ~fmconf ~type_index
-                      ~module_migrations:ctx.module_migrations (Exp, expr) (Value, id.txt)
+                      ~module_migrations:ctx.module_migrations (Exp, v) (Value, id.txt)
                       ~build:(fun newlid -> Pexp_ident { id with txt = newlid })
                       ~changed_something
-                    |> Option.value ~default:expr
+                    |> Option.value ~default:v
                 | Some ({ repl = to_expr; libraries }, repl_type_index) ->
                     warn_about_disabled_ocamlformat ();
                     add_depends libraries;
@@ -2281,7 +2281,7 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                       | None -> to_expr
                       | Some repl_type_index -> (
                           match
-                            Build.Type_index.exp type_index (Conv.location' expr.pexp_loc)
+                            Build.Type_index.exp type_index (Conv.location' v.pexp_loc)
                           with
                           | texp :: _ -> requalify (to_expr, repl_type_index) texp.exp_env
                           | [] -> to_expr)
@@ -2289,26 +2289,26 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                     let to_expr =
                       relativize id.txt __.expr to_expr
                         ~resolved_modpath:
-                          (resolved_modpath ~type_index Exp expr ~path_of:(function
+                          (resolved_modpath ~type_index Exp v ~path_of:(function
                             | { exp_desc = Texp_ident (path, _, _); _ } -> Some path
                             | _ -> None))
                     in
                     let to_expr =
-                      preserve_loc_to_preserve_comment_pos_expr ~from:expr to_expr
+                      preserve_loc_to_preserve_comment_pos_expr ~from:v to_expr
                     in
                     changed_something := true;
                     if has_context_match to_expr
                     then
                       { to_expr with
                         pexp_attributes =
-                          Sattr.orig.build ~loc:!Ast_helper.default_loc expr
+                          Sattr.orig.build ~loc:!Ast_helper.default_loc v
                           :: to_expr.pexp_attributes
                       }
                     else to_expr)
             | Pexp_construct (id, body) -> (
                 match
                   payload_from_exn_decl_fmast ~fmconf ~type_index ~id_for_logging:id.txt
-                    (Exp, expr) ~construct_of:(function
+                    (Exp, v) ~construct_of:(function
                     | { exp_desc = Texp_construct (_, desc, _); _ } -> Some desc
                     | _ -> None)
                 with
@@ -2321,7 +2321,7 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                         txt =
                           rel Constructor id.txt id2.txt
                             ~resolved_modpath:
-                              (resolved_modpath ~type_index Exp expr ~path_of:(function
+                              (resolved_modpath ~type_index Exp v ~path_of:(function
                                 | { exp_desc =
                                       Texp_construct
                                         (_, { cstr_tag = Cstr_extension (path, _); _ }, _)
@@ -2332,24 +2332,24 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                       }
                     in
                     changed_something := true;
-                    { expr with
+                    { v with
                       pexp_desc = Pexp_construct (id2, body)
                     ; pexp_attributes =
                         Sattr.touched.build ~loc:!Ast_helper.default_loc ()
-                        :: expr.pexp_attributes
+                        :: v.pexp_attributes
                     }
                 | _ ->
                     find_module_decl_payload ~fmconf ~type_index
-                      ~module_migrations:ctx.module_migrations (Exp, expr)
+                      ~module_migrations:ctx.module_migrations (Exp, v)
                       (Constructor, id.txt)
                       ~build:(fun newid -> Pexp_construct ({ id with txt = newid }, body))
                       ~changed_something
-                    |> Option.value ~default:expr)
-            | _ -> expr
+                    |> Option.value ~default:v)
+            | _ -> v
           in
           (* After the lookup, so we don't replace the definition itself. *)
-          add_extra_migration_fmast ~type_index:(Some type_index) ~comp_unit expr;
-          expr')
+          add_extra_migration_fmast ~type_index:(Some type_index) ~comp_unit v;
+          v')
   ; pat =
       (fun self v ->
         let v = super.pat self v in
