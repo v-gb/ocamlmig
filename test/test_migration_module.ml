@@ -6,7 +6,7 @@ module M : sig
   val x : int
 
   type t = int
-  type tr = { a : int }
+  type tr = { mutable a : int }
   type tc = A of int
 
   module Sub : sig end
@@ -20,7 +20,7 @@ end = struct
   let x = 1
 
   type t = int
-  type tr = { a : int }
+  type tr = { mutable a : int }
   type tc = A of int
 
   module Sub = struct end
@@ -38,8 +38,12 @@ let () =
     (module struct
       (* Not all namespaces are implemented here. *)
 
-      let __ r = ((M.x : M.t), r.M.a, M.A 1)
-      [@@migrate_test let __ r = ((M2.x : M2.t), r.M.a, M2.A 1)]
+      let __ r = ((M.x : M.t), r.M.a, (r.M.a <- 1), { M.a = 1 }, M.A 1)
+      [@@migrate_test
+        let __ r = ((M2.x : M2.t), r.M2.a, (r.M2.a <- 1), { M2.a = 1 }, M2.A 1)]
+
+      let __ = function { M.a = _ }, M.A 1 -> () | _ -> ()
+      [@@migrate_test let __ = function { M2.a = _ }, M2.A 1 -> () | _ -> ()]
 
       module A = M.Sub [@@migrate_test module A = M2.Sub]
 
