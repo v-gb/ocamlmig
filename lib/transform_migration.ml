@@ -2364,31 +2364,27 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                     Pexp_setfield (record, { id with txt = newid }, new_v))
                   ~changed_something
                 |> Option.value ~default:v
-            | Pexp_record (fields, base_opt) ->
-                if
-                  not ctx.module_migrations
-                  (* not strictly necessary, but might be marginally faster to avoid
-                     considering every field pointlessly *)
-                then v
-                else
-                  let v = ref v in
-                  (* This is technically quadratic, but realistically, a user has no
+            | Pexp_record (fields, base_opt) when ctx.module_migrations ->
+                (* The [when] is not necessary, but may be a bit faster, as it avoids
+                   considering every field pointlessly. *)
+                let v = ref v in
+                (* This is technically quadratic, but realistically, a user has no
                   reason to write the module path on more than one field. *)
-                  List.iteri fields ~f:(fun i (id, typ, value) ->
-                      v :=
-                        find_module_decl_payload ~fmconf ~type_index
-                          ~module_migrations:ctx.module_migrations (Exp, !v)
-                          (Constructor, id.txt)
-                          ~build:(fun newid ->
-                            Pexp_record
-                              ( List.mapi fields ~f:(fun j field ->
-                                    if i = j
-                                    then ({ id with txt = newid }, typ, value)
-                                    else field)
-                              , base_opt ))
-                          ~changed_something
-                        |> Option.value ~default:!v);
-                  !v
+                List.iteri fields ~f:(fun i (id, typ, value) ->
+                    v :=
+                      find_module_decl_payload ~fmconf ~type_index
+                        ~module_migrations:ctx.module_migrations (Exp, !v)
+                        (Constructor, id.txt)
+                        ~build:(fun newid ->
+                          Pexp_record
+                            ( List.mapi fields ~f:(fun j field ->
+                                  if i = j
+                                  then ({ id with txt = newid }, typ, value)
+                                  else field)
+                            , base_opt ))
+                        ~changed_something
+                      |> Option.value ~default:!v);
+                !v
             | _ -> v
           in
           (* After the lookup, so we don't replace the definition itself. *)
@@ -2437,28 +2433,25 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                   ~build:(fun newid -> Ppat_construct ({ id with txt = newid }, body))
                   ~changed_something
                 |> Option.value ~default:v)
-        | Ppat_record (fields, etc) ->
-            if not ctx.module_migrations
-            then v
-            else
-              let v = ref v in
-              (* This is technically quadratic, but realistically, a user has no
+        | Ppat_record (fields, etc) when ctx.module_migrations ->
+            let v = ref v in
+            (* This is technically quadratic, but realistically, a user has no
                   reason to write the module path on more than one field. *)
-              List.iteri fields ~f:(fun i (id, typ, value) ->
-                  v :=
-                    find_module_decl_payload ~fmconf ~type_index
-                      ~module_migrations:ctx.module_migrations (Pat, !v)
-                      (Constructor, id.txt)
-                      ~build:(fun newid ->
-                        Ppat_record
-                          ( List.mapi fields ~f:(fun j field ->
-                                if i = j
-                                then ({ id with txt = newid }, typ, value)
-                                else field)
-                          , etc ))
-                      ~changed_something
-                    |> Option.value ~default:!v);
-              !v
+            List.iteri fields ~f:(fun i (id, typ, value) ->
+                v :=
+                  find_module_decl_payload ~fmconf ~type_index
+                    ~module_migrations:ctx.module_migrations (Pat, !v)
+                    (Constructor, id.txt)
+                    ~build:(fun newid ->
+                      Ppat_record
+                        ( List.mapi fields ~f:(fun j field ->
+                              if i = j
+                              then ({ id with txt = newid }, typ, value)
+                              else field)
+                        , etc ))
+                    ~changed_something
+                  |> Option.value ~default:!v);
+            !v
         | _ -> v)
   ; module_expr =
       (fun self v ->
