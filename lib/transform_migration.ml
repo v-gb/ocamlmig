@@ -2345,6 +2345,12 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                       ~build:(fun newid -> Pexp_construct ({ id with txt = newid }, body))
                       ~changed_something
                     |> Option.value ~default:v)
+            | Pexp_new id ->
+                find_module_decl_payload ~fmconf ~type_index
+                  ~module_migrations:ctx.module_migrations (Exp, v) (Class, id.txt)
+                  ~build:(fun newid -> Pexp_new { id with txt = newid })
+                  ~changed_something
+                |> Option.value ~default:v
             | Pexp_field (record, id) ->
                 find_module_decl_payload ~fmconf ~type_index
                   ~module_migrations:ctx.module_migrations (Exp, v) (Constructor, id.txt)
@@ -2462,6 +2468,39 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
             find_module_decl_payload ~fmconf ~type_index
               ~module_migrations:ctx.module_migrations (Mexp, v) (Module, id.txt)
               ~build:(fun newlid -> Pmod_ident { id with txt = newlid })
+              ~changed_something
+            |> Option.value ~default:v
+        | _ -> v)
+  ; module_type =
+      (fun self v ->
+        let v = super.module_type self v in
+        match v.pmty_desc with
+        | Pmty_ident id ->
+            find_module_decl_payload ~fmconf ~type_index
+              ~module_migrations:ctx.module_migrations (Mtyp, v) (Module_type, id.txt)
+              ~build:(fun newlid -> Pmty_ident { id with txt = newlid })
+              ~changed_something
+            |> Option.value ~default:v
+        | _ -> v)
+  ; class_expr =
+      (fun self v ->
+        let v = super.class_expr self v in
+        match v.pcl_desc with
+        | Pcl_constr (id, args) ->
+            find_module_decl_payload ~fmconf ~type_index
+              ~module_migrations:ctx.module_migrations (Cexp, v) (Class, id.txt)
+              ~build:(fun newlid -> Pcl_constr ({ id with txt = newlid }, args))
+              ~changed_something
+            |> Option.value ~default:v
+        | _ -> v)
+  ; class_type =
+      (fun self v ->
+        let v = super.class_type self v in
+        match v.pcty_desc with
+        | Pcty_constr (id, args) ->
+            find_module_decl_payload ~fmconf ~type_index
+              ~module_migrations:ctx.module_migrations (Ctyp, v) (Class_type, id.txt)
+              ~build:(fun newlid -> Pcty_constr ({ id with txt = newlid }, args))
               ~changed_something
             |> Option.value ~default:v
         | _ -> v)

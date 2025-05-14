@@ -36,8 +36,6 @@ end
 let () =
   test "migration on module"
     (module struct
-      (* Not all namespaces are implemented here. *)
-
       let __ r = ((M.x : M.t), r.M.a, (r.M.a <- 1), { M.a = 1 }, M.A 1)
       [@@migrate_test
         let __ r = ((M2.x : M2.t), r.M2.a, (r.M2.a <- 1), { M2.a = 1 }, M2.A 1)]
@@ -47,9 +45,11 @@ let () =
 
       module A = M.Sub [@@migrate_test module A = M2.Sub]
 
-      module type S = M.S [@@migrate_test module type S = M.S]
+      module type S = M.S [@@migrate_test module type S = M2.S]
 
-      class _c = M.c [@@migrate_test class _c = M.c]
+      class _c = M.c [@@migrate_test class _c = M2.c]
 
-      class type _ct = M.ct [@@migrate_test class type _ct = M.ct]
+      let _ : #M.c = new M.c [@@migrate_test let _ : #M2.c = new M2.c]
+
+      class type _ct = M.ct [@@migrate_test class type _ct = M2.ct]
     end)
