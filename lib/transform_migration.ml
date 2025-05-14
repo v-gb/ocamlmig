@@ -2254,6 +2254,7 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
   { super with
     expr =
       with_log (fun self expr ->
+          let expr = super.expr self expr in
           let expr' =
             match expr.pexp_desc with
             | Pexp_ident id -> (
@@ -2266,16 +2267,12 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                       payload_from_occurence_fmast ~fmconf ~context:"lookup migration"
                         ~artifacts ~extra_migrations (comp_unit, id)
                 with
-                | None -> (
-                    match
-                      find_module_decl_payload ~fmconf ~type_index
-                        ~module_migrations:ctx.module_migrations (Exp, expr)
-                        (Value, id.txt)
-                        ~build:(fun newlid -> Pexp_ident { id with txt = newlid })
-                        ~changed_something
-                    with
-                    | None -> super.expr self expr
-                    | Some e -> e)
+                | None ->
+                    find_module_decl_payload ~fmconf ~type_index
+                      ~module_migrations:ctx.module_migrations (Exp, expr) (Value, id.txt)
+                      ~build:(fun newlid -> Pexp_ident { id with txt = newlid })
+                      ~changed_something
+                    |> Option.value ~default:expr
                 | Some ({ repl = to_expr; libraries }, repl_type_index) ->
                     warn_about_disabled_ocamlformat ();
                     add_depends libraries;
@@ -2309,7 +2306,6 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                       }
                     else to_expr)
             | Pexp_construct (id, body) -> (
-                let body = Option.map ~f:(self.expr self) body in
                 match
                   payload_from_exn_decl_fmast ~fmconf ~type_index ~id_for_logging:id.txt
                     (Exp, expr) ~construct_of:(function
@@ -2349,7 +2345,7 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                       ~build:(fun newid -> Pexp_construct ({ id with txt = newid }, body))
                       ~changed_something
                     |> Option.value ~default:expr)
-            | _ -> super.expr self expr
+            | _ -> expr
           in
           (* After the lookup, so we don't replace the definition itself. *)
           add_extra_migration_fmast ~type_index:(Some type_index) ~comp_unit expr;
