@@ -420,6 +420,22 @@ let () =
 
       let __ () = match f () with x -> x | exception Stdlib.Exit -> ()
       [@@migrate_test let __ () = match f () with x -> x | exception Stdlib.Exit -> ()]
+
+      (* Case where we'd need to push the inner match into the outer patterns, instead
+         of the pushing the outer match into the inner expressions. Example derived
+         from https://github.com/OCamlPro/ocp-indent/pull/328/files. *)
+      let f () = if true then `A else `Error 1
+      [@@migrate
+        { repl =
+            (fun () -> match f2 () with Ok `A -> `A | Ok `B -> `B | Error e -> `Error e)
+        }]
+
+      let _ = match f () with `Error e -> e | _ -> 1
+      [@@migrate_test
+        let _ =
+          match match f2 () with Ok `A -> `A | Ok `B -> `B | Error e -> `Error e with
+          | `Error e -> e
+          | _ -> 1]
     end)
 
 let () =

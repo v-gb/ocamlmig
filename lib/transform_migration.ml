@@ -1083,6 +1083,11 @@ let rec match_pat_and_expr (pat : P.pattern) (expr : P.expression) bindings =
       else None
   | { ppat_desc = Ppat_or subpats; _ }, _ ->
       List.find_map subpats ~f:(match_pat_and_expr __ expr bindings)
+  | { ppat_desc = Ppat_alias (p, var); _ }, _ -> (
+      match match_pat_and_expr p expr bindings with
+      | Some (Ok bindings) ->
+          Some (Ok (Map.add_exn bindings ~key:var.txt ~data:(var.loc, expr)))
+      | other -> other)
   | _, _ -> Some (Error ())
 
 let match_case_and_expr (case : P.case) (expr : P.expression) =
