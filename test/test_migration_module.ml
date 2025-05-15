@@ -53,3 +53,17 @@ let () =
 
       class type _ct = M.ct [@@migrate_test class type _ct = M2.ct]
     end)
+
+module Outer = struct
+  module M3 = struct end
+  module M2 = struct end [@@migrate { repl = Rel.M3 }]
+end
+
+let () =
+  test "migration on module using Rel."
+    (module struct
+      open Outer
+      module _ = M2 [@@migrate_test module _ = M3]
+      module M3 = struct end
+      module _ = M2 [@@migrate_test module _ = Outer.M3]
+    end)

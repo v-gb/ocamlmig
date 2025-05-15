@@ -1965,14 +1965,40 @@ let find_map_lident_prefix ~start lid f =
           | None -> None
           | Some res -> Some (Longident.Ldot (res, right))))
 
+let resolved_modpath_from_env env path =
+  lazy
+    (let env = Envaux.env_of_only_summary env in
+     let ident =
+       path
+       |> Requalify.ident_of_path_exn __
+       |> Longident.map_modpath __ (fun modpath ->
+              Requalify.try_unqualifying_ident
+                ~same_resolution_as_initially:(fun new_var ->
+                  match
+                    Requalify.same_resolution Module (modpath, env) (new_var, env)
+                  with
+                  | `Yes -> true
+                  | `No _ | `Unknown -> false)
+                (Env.summary env) modpath)
+     in
+     (ident, env))
+
+let resolved_modpath ~type_index nsv v ~path_of =
+  match Build.Type_index.find type_index nsv v with
+  | [] -> None
+  | elt :: _ -> (
+      match path_of elt with
+      | None -> None
+      | Some path ->
+          let env = Build.Type_index.env nsv elt in
+          Some (resolved_modpath_from_env env path))
+
 let find_module_decl_payload (type a b) ~fmconf ~type_index ~module_migrations
     ((nsv : (_, b, _, _) Fmast.Node.t), v) ((lidns : a Uast.ns), (lid : Longident.t))
     ~build ~changed_something =
   (* A few points that might be worth improving:
      - this being opt-in. Maybe this can be sped up, or ocamlmig in general be sped up,
      so we don't care about speed.
-     - we should support `Rel.`, and maybe Requalify.requalify (although is this doing
-     something in cases other than shadowing the Stdlib?)
      - this only supports 'module M : sig ... end [@@migrate]', not definitions on
      implementations.
      - not all namespaces are implemented.
@@ -2001,7 +2027,7 @@ let find_module_decl_payload (type a b) ~fmconf ~type_index ~module_migrations
                 if !log || debug.all
                 then print_s [%sexp (lid : Longident.t), "module not in env"];
                 None
-            | _path, md -> (
+            | path, md -> (
                 match find_attribute_payload_uast ~fmconf md.md_attributes with
                 | None ->
                     if !log || debug.all
@@ -2010,6 +2036,14 @@ let find_module_decl_payload (type a b) ~fmconf ~type_index ~module_migrations
                 | Some payload -> (
                     match payload.repl with
                     | { pexp_desc = Pexp_construct (repl_lid, None); _ } ->
+                        let repl_lid =
+                          { repl_lid with
+                            txt =
+                              rel Module lid repl_lid.txt
+                                ~resolved_modpath:
+                                  (Some (resolved_modpath_from_env env path))
+                          }
+                        in
                         Requalify.try_unqualifying_ident (Env.summary env) repl_lid.txt
                           ~same_resolution_as_initially:(fun new_lid ->
                             match
@@ -2190,33 +2224,6 @@ let requalify ((expr : P.expression), expr_type_index) new_base_env =
         }
       in
       self.expr self expr
-
-let resolved_modpath ~type_index nsv v ~path_of =
-  match Build.Type_index.find type_index nsv v with
-  | [] -> None
-  | elt :: _ -> (
-      match path_of elt with
-      | None -> None
-      | Some path ->
-          let env = Build.Type_index.env nsv elt in
-          Some
-            (lazy
-              (let env = Envaux.env_of_only_summary env in
-               let ident =
-                 path
-                 |> Requalify.ident_of_path_exn __
-                 |> Longident.map_modpath __ (fun modpath ->
-                        Requalify.try_unqualifying_ident
-                          ~same_resolution_as_initially:(fun new_var ->
-                            match
-                              Requalify.same_resolution Module (modpath, env)
-                                (new_var, env)
-                            with
-                            | `Yes -> true
-                            | `No _ | `Unknown -> false)
-                          (Env.summary env) modpath)
-               in
-               (ident, env))))
 
 let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, artifacts)
     ~changed_something ~add_depends ~ctx =
