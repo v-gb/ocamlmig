@@ -1998,10 +1998,9 @@ let find_module_decl_payload (type a b) ~fmconf ~type_index ~module_migrations
     ~build ~changed_something =
   (* A few points that might be worth improving:
      - this being opt-in. Maybe this can be sped up, or ocamlmig in general be sped up,
-     so we don't care about speed.
+       so we don't care about speed.
      - this only supports 'module M : sig ... end [@@migrate]', not definitions on
-     implementations.
-     - not all namespaces are implemented.
+       implementations.
    *)
   if not module_migrations
   then None
