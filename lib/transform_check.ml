@@ -97,33 +97,34 @@ let run_structure changed_something file_type structure ~type_index ~add_to_load
     ; structure_item =
         (let state = ref false in
          update_migrate_test_payload
-           (if not in_test
-            then super
-            else
-              { super with
-                structure_item =
-                  (fun self si ->
-                    if not !state
-                    then super.structure_item self si
-                    else
-                      let errors =
-                        Ref.set_temporarily errors [] ~f:(fun () ->
-                            ignore (super.structure_item self si);
-                            List.rev !errors)
-                      in
-                      let expr_of_exn e =
-                        Ast_helper.Exp.string
-                          (String.strip
-                             (try Format.asprintf "%a" Uast.Location.report_exception e
-                              with _ -> (
-                                try Format.asprintf "%a" Fmast.Location.report_exception e
-                                with _ -> Exn.to_string e)))
-                      in
-                      Ast_helper.Str.eval
-                        (match errors with
-                        | [] -> Ast_helper.Exp.string "types"
-                        | _ -> Ast_helper.Exp.tuple (List.map errors ~f:expr_of_exn)))
-              })
+           { super with
+             structure_item =
+               (fun self si ->
+                 if not !state
+                 then super.structure_item self si
+                 else
+                   let () = () in
+                   if not in_test
+                   then si
+                   else
+                     let errors =
+                       Ref.set_temporarily errors [] ~f:(fun () ->
+                           ignore (super.structure_item self si);
+                           List.rev !errors)
+                     in
+                     let expr_of_exn e =
+                       Ast_helper.Exp.string
+                         (String.strip
+                            (try Format.asprintf "%a" Uast.Location.report_exception e
+                             with _ -> (
+                               try Format.asprintf "%a" Fmast.Location.report_exception e
+                               with _ -> Exn.to_string e)))
+                     in
+                     Ast_helper.Str.eval
+                       (match errors with
+                       | [] -> Ast_helper.Exp.string "types"
+                       | _ -> Ast_helper.Exp.tuple (List.map errors ~f:expr_of_exn)))
+           }
            ~state ~changed_something
          |> __.next)
     }
