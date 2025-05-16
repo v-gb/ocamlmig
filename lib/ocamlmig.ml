@@ -766,7 +766,10 @@ let check =
                    ~type_index:ctx.type_index ~add_to_load_path:(add_to_load_path ctx)
                    ~input_name_matching_compilation_command:
                      (Build.input_name_matching_compilation_command (force ctx.cmt_infos))
-                 |> ctx.diff_or_write ~original_formatting:(Some fm_orig)]) )
+                 |>
+                 if in_test
+                 then ctx.diff_or_write ~original_formatting:(Some fm_orig)
+                 else ignore]) )
 
 let replace =
   ( "replace"
