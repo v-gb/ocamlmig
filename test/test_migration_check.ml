@@ -40,5 +40,5 @@ end = struct
 end
 [@@migrate_test
   "File \"test/test_migration_check.ml\", line 35, characters 0-5:\n\
-   Error: Unbound module Rel"]
-(* todo *)
+   Error: The value Rel.y has type float but an expression was expected of type\n\
+  \         int"]

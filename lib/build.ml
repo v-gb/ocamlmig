@@ -629,8 +629,13 @@ module Type_index = struct
     ; ctyp : (Typedtree.class_type[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
     ; mexp : (Typedtree.module_expr[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
     ; mtyp : (Typedtree.module_type[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
+    ; overall :
+        ([ `Structure of Typedtree.structure | `Signature of Typedtree.signature ]
+        [@sexp.opaque])
     }
   [@@deriving sexp_of]
+
+  let overall t = t.overall
 
   let create_without_setting_up_loadpath (cmt_infos : Cmt_format.cmt_infos) =
     Profile.record "Build.Type_index.create" (fun () ->
@@ -674,15 +679,21 @@ module Type_index = struct
                 Hashtbl.add_multi mtyp ~key:v.mty_loc ~data:v)
           }
         in
-        (match cmt_infos.cmt_annots with
-        | Implementation structure -> self.structure self structure
-        | Interface signature -> self.signature self signature
-        | Partial_implementation _ ->
-            failwith "unexpected content of cmt (file doesn't fully type?)"
-        | Partial_interface _ ->
-            failwith "unexpected content of cmti (file doesn't fully type?)"
-        | _ -> failwith "unexpected content of cmt");
-        { exp; pat; typ; cexp; ctyp; mexp; mtyp })
+        let overall =
+          match cmt_infos.cmt_annots with
+          | Implementation structure ->
+              self.structure self structure;
+              `Structure structure
+          | Interface signature ->
+              self.signature self signature;
+              `Signature signature
+          | Partial_implementation _ ->
+              failwith "unexpected content of cmt (file doesn't fully type?)"
+          | Partial_interface _ ->
+              failwith "unexpected content of cmti (file doesn't fully type?)"
+          | _ -> failwith "unexpected content of cmt"
+        in
+        { exp; pat; typ; cexp; ctyp; mexp; mtyp; overall })
 
   let create_from_cmt_infos cmt_infos (listing1 : Listing.one) =
     Load_path.init ~auto_include:Load_path.no_auto_include ~visible:[] ~hidden:[];

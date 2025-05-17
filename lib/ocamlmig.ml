@@ -751,8 +751,8 @@ let check =
            - that its type is compatible with that of List.map\n\n\
            Currently, there are a few shortcomings of this command:\n\
            - the location of type errors point only roughly to the right location\n\
-           - replacement code that use the special module Rel will fail\n\
-           - attributes on \"val\" items are not checked")
+           - attributes on \"let\" items are not checked\n\
+           - attributes on non-value items are not checked (types, modules, etc)")
       (make_transform ~rewrite_only_in_test:true
          [%map_open.Command
            let () = return () in

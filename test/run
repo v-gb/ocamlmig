@@ -11,7 +11,7 @@ ocamlmig transform rescope -unqualify Z test_scope_unqualify.ml "$@"
 ocamlmig transform rescope -unopen Z test_scope_unopen.ml "$@"
 ocamlmig transform rescope -open Z test_scope_open.ml "$@"
 ocamlmig transform migration-inverse test_migration_inverse.ml "$@"
-ocamlmig check test_migration_check.ml "$@"
+ocamlmig check test_migration_check.ml{,i} "$@"
 ocamlmig replace *.ml "$@"
 
 (

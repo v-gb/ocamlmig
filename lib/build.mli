@@ -118,4 +118,7 @@ module Type_index : sig
 
   val find : t -> ('node, _, 'env) index -> 'node -> 'env list
   val env : (_, _, 'env) index -> 'env -> Uast.env
+
+  val overall :
+    t -> [ `Structure of Typedtree.structure | `Signature of Typedtree.signature ]
 end
