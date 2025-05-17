@@ -18,3 +18,27 @@ let _ = ( + ) [@migrate { repl = Base.( = ) }]
   \       Type bool is not compatible with type int"]
 
 let _ = [ ( - ); Base.( - ) ] [@migrate] [@@migrate_test "types"]
+
+module M_abs : sig
+  val x1 : int [@@migrate { repl = Test_ocamlmig.Test_migration_check.M_rel.y }]
+  val y : float
+end = struct
+  let x1 = 1
+  let y = 1.
+end
+[@@migrate_test
+  "File \"test/test_migration_check.ml\", line 23, characters 0-42:\n\
+   Error: The value Test_ocamlmig.Test_migration_check.M_rel.y has type \n\
+  \       float but an expression was expected of type int"]
+
+module M_rel : sig
+  val x1 : int [@@migrate { repl = Rel.y }]
+  val y : float
+end = struct
+  let x1 = 1
+  let y = 1.
+end
+[@@migrate_test
+  "File \"test/test_migration_check.ml\", line 35, characters 0-5:\n\
+   Error: Unbound module Rel"]
+(* todo *)

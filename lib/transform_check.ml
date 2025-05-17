@@ -20,7 +20,7 @@ let exprs_and_repls e repl =
     | _ -> assert false
   else [ (e, repl) ]
 
-let type_ ~type_index ~env (e1 : P.expression) e2 =
+let type_extra_migration ~type_index ~env (e1 : P.expression) e2 =
   match
     match Build.Type_index.find (force type_index) Exp e1 with
     | [] -> None
@@ -40,6 +40,15 @@ let type_ ~type_index ~env (e1 : P.expression) e2 =
            (uexpr_of_fmexpr { e2 with pexp_loc = e1.pexp_loc })
            t1 t1)
 
+let type_sigi ~env ~loc (tty : Typedtree.core_type option) e =
+  match tty with
+  | None ->
+      ignore (Typecore.type_expression env (uexpr_of_fmexpr { e with pexp_loc = loc }))
+  | Some tty ->
+      let tty = Ctype.instance tty.ctyp_type in
+      ignore
+        (Typecore.type_argument env (uexpr_of_fmexpr { e with pexp_loc = loc }) tty tty)
+
 let report_many_exns exns =
   List.iter exns ~f:(fun e ->
       match Uast.Location.report_exception Format.err_formatter e with
@@ -50,6 +59,18 @@ let report_many_exns exns =
           | exception _ -> raise e));
   raise Location.Already_displayed_error
 
+let find_migration_sigi_fmast ~type_index (sigi : signature_item) =
+  match sigi.psig_desc with
+  | Psig_value val_desc ->
+      Transform_migration.find_attribute_payload_fmast
+        (val_desc.pval_attributes.attrs_before @ val_desc.pval_attributes.attrs_after)
+      |> Option.map ~f:(fun migration ->
+             ( migration
+             , val_desc.pval_loc
+             , Build.Type_index.find (force type_index) Typ val_desc.pval_type |> List.hd
+             ))
+  | _ -> None
+
 let run_structure changed_something file_type structure ~type_index ~add_to_load_path =
   let libs =
     set_from_iter
@@ -59,13 +80,19 @@ let run_structure changed_something file_type structure ~type_index ~add_to_load
         let self =
           { super with
             expr =
-              (fun self expr ->
-                (match Transform_migration.find_extra_migration_fmast expr with
+              (fun self v ->
+                (match Transform_migration.find_extra_migration_fmast v with
                 | None -> ()
                 | Some (_, _, _, { libraries; _ }) ->
                     ignore (force type_index);
                     List.iter libraries ~f:yield);
-                super.expr self expr)
+                super.expr self v)
+          ; signature_item =
+              (fun self v ->
+                (match find_migration_sigi_fmast ~type_index v with
+                | None -> ()
+                | Some ({ libraries; _ }, _, _) -> List.iter libraries ~f:yield);
+                super.signature_item self v)
           }
         in
         ignore (structure |> File_type.map file_type self))
@@ -74,26 +101,26 @@ let run_structure changed_something file_type structure ~type_index ~add_to_load
   let super = Ast_mapper.default_mapper in
   let errors = ref [] in
   let self =
-    (* We should handle val and Rel *)
+    (* We should handle let and Rel *)
     let env = lazy (Compmisc.initial_env ()) in
     { super with
       expr =
-        (fun self expr ->
-          (match Transform_migration.find_extra_migration_fmast expr with
-          | None -> ()
-          | Some (id_expr, _, _, { repl; libraries = _ }) ->
-              exprs_and_repls
-                { id_expr with
-                  pexp_attributes =
-                    Transform_migration.remove_attribute_payload_fmast
-                      id_expr.pexp_attributes
-                }
-                repl
-              |> List.iter ~f:(fun (e, repl) ->
-                     let env = force env in
-                     try ignore (type_ ~env ~type_index e repl)
-                     with e -> errors := e :: !errors));
-          super.expr self expr)
+        with_log (fun self expr ->
+            (match Transform_migration.find_extra_migration_fmast expr with
+            | None -> ()
+            | Some (id_expr, _, _, { repl; libraries = _ }) ->
+                exprs_and_repls
+                  { id_expr with
+                    pexp_attributes =
+                      Transform_migration.remove_attribute_payload_fmast
+                        id_expr.pexp_attributes
+                  }
+                  repl
+                |> List.iter ~f:(fun (e, repl) ->
+                       let env = force env in
+                       try ignore (type_extra_migration ~env ~type_index e repl)
+                       with e -> errors := e :: !errors));
+            super.expr self expr)
     ; structure_item =
         (let state = ref false in
          update_migrate_test_payload
@@ -112,21 +139,34 @@ let run_structure changed_something file_type structure ~type_index ~add_to_load
                            ignore (super.structure_item self si);
                            List.rev !errors)
                      in
+                     let loc =
+                       update_loc { si.pstr_loc with loc_ghost = true } (fun pos ->
+                           { pos with pos_fname = migrate_filename `Gen })
+                     in
                      let expr_of_exn e =
-                       Ast_helper.Exp.string
+                       Ast_helper.Exp.string ~loc
                          (String.strip
                             (try Format.asprintf "%a" Uast.Location.report_exception e
                              with _ -> (
                                try Format.asprintf "%a" Fmast.Location.report_exception e
                                with _ -> Exn.to_string e)))
                      in
-                     Ast_helper.Str.eval
+                     Ast_helper.Str.eval ~loc
                        (match errors with
-                       | [] -> Ast_helper.Exp.string "types"
-                       | _ -> Ast_helper.Exp.tuple (List.map errors ~f:expr_of_exn)))
+                       | [] -> Ast_helper.Exp.string ~loc "types"
+                       | _ -> Ast_helper.Exp.tuple ~loc (List.map errors ~f:expr_of_exn)))
            }
            ~state ~changed_something
          |> __.next)
+    ; signature_item =
+        (fun self v ->
+          (match find_migration_sigi_fmast ~type_index v with
+          | None -> ()
+          | Some ({ repl; libraries = _ }, loc, ttyp) -> (
+              let env = force env in
+              try ignore (type_sigi ~env ~loc ttyp repl)
+              with e -> errors := e :: !errors));
+          super.signature_item self v)
     }
   in
   let structure' = structure |> File_type.map file_type self in
