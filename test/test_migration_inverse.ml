@@ -18,7 +18,7 @@ let _ =
     { repl =
         (fun f l ->
           Base.List.partition_map l ~f:(fun x ->
-              match f x with Either.Left a -> Base.First.First a | Right b -> Second b))
+              match f x with Either.Left a -> Base.Either.First a | Right b -> Second b))
     }]
 [@@migrate_test.inverse let _ = "can't inverse List.partition_map"]
 (* this is not supported, but it could be *)
