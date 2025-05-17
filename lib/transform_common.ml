@@ -182,55 +182,99 @@ let structure_item_attributes (si : P.structure_item) =
         )
   | _ -> None
 
-let update_migrate_test_payload =
-  let update_migrate_test ?(match_attr = ( =: ) "migrate_test") (si : P.structure_item) f
-      ~default =
-    match structure_item_attributes si with
-    | None -> force default
-    | Some (attributes, with_attributes) ->
-        let found = ref false in
-        let find_attr (attr : P.attribute) =
-          match attr with
-          | { attr_name = { txt; _ }; _ } when match_attr txt ->
-              found := true;
-              f attr
-          | _ -> Some attr
-        in
-        let attributes_attrs_before =
-          List.filter_map attributes.attrs_before ~f:find_attr
-        in
-        let attributes_attrs_after =
-          List.filter_map attributes.attrs_after ~f:find_attr
-        in
-        if not !found
-        then force default
-        else
-          with_attributes
-            { attributes with
-              attrs_after = attributes_attrs_after
-            ; attrs_before = attributes_attrs_before
-            }
-  in
-  fun ?match_attr ?filter_attr ?(state = ref false) ~changed_something
-      (super : Ast_mapper.mapper) ->
-    { next =
-        (fun self si ->
-          let si' = lazy (super.structure_item self si) in
-          update_migrate_test ?match_attr si ~default:si' (fun attr ->
-              changed_something := true;
-              Ref.set_temporarily state true ~f:(fun () ->
-                  Some
-                    { attr with
-                      attr_payload =
-                        PStr
-                          [ update_migrate_test
-                              ?match_attr:(Option.first_some filter_attr match_attr)
-                              (force si')
-                              (fun _ -> None)
-                              ~default:si'
-                          ]
-                    })))
-    }
+let signature_item_attributes (si : P.signature_item) =
+  match si.psig_desc with
+  | Psig_value value_desc ->
+      Some
+        ( value_desc.pval_attributes
+        , fun attrs ->
+            { si with psig_desc = Psig_value { value_desc with pval_attributes = attrs } }
+        )
+  | Psig_module v ->
+      Some
+        ( v.pmd_ext_attrs
+        , fun attrs ->
+            { si with psig_desc = Psig_module { v with pmd_ext_attrs = attrs } } )
+  | Psig_modtype v ->
+      Some
+        ( v.pmtd_ext_attrs
+        , fun attrs ->
+            { si with psig_desc = Psig_modtype { v with pmtd_ext_attrs = attrs } } )
+  | Psig_class [ v ] ->
+      Some
+        ( v.pci_attributes
+        , fun attrs ->
+            { si with psig_desc = Psig_class [ { v with pci_attributes = attrs } ] } )
+  | Psig_class_type [ v ] ->
+      Some
+        ( v.pci_attributes
+        , fun attrs ->
+            { si with psig_desc = Psig_class_type [ { v with pci_attributes = attrs } ] }
+        )
+  | _ -> None
+
+type 'a which = { attrs : 'a -> (P.ext_attrs * (P.ext_attrs -> 'a)) option }
+
+let structure_item = { attrs = structure_item_attributes }
+let signature_item = { attrs = signature_item_attributes }
+
+let update_migrate_test ?(match_attr = ( =: ) "migrate_test") which si =
+  match which.attrs si with
+  | None -> None
+  | Some ((attributes : P.ext_attrs), with_attributes) -> (
+      match
+        match
+          List.find attributes.attrs_before ~f:(fun a -> match_attr a.attr_name.txt)
+        with
+        | None ->
+            List.find attributes.attrs_after ~f:(fun a -> match_attr a.attr_name.txt)
+        | Some _ as opt -> opt
+      with
+      | None -> None
+      | Some a ->
+          Some
+            ( a
+            , fun a' ->
+                let find_attr (a : P.attribute) =
+                  if match_attr a.attr_name.txt then a' else Some a
+                in
+                let attributes_attrs_before =
+                  List.filter_map attributes.attrs_before ~f:find_attr
+                in
+                let attributes_attrs_after =
+                  List.filter_map attributes.attrs_after ~f:find_attr
+                in
+                with_attributes
+                  { attributes with
+                    attrs_after = attributes_attrs_after
+                  ; attrs_before = attributes_attrs_before
+                  } ))
+
+let update_migrate_test_payload ?match_attr ?filter_attr ?(state = ref false)
+    ~changed_something (super : Ast_mapper.mapper) =
+  { next =
+      (fun self si ->
+        let next () = super.structure_item self si in
+        match update_migrate_test ?match_attr structure_item si with
+        | None -> next ()
+        | Some (attr, rebuild) ->
+            changed_something := true;
+            Ref.set_temporarily state true ~f:(fun () ->
+                rebuild
+                  (Some
+                     { attr with
+                       attr_payload =
+                         PStr
+                           [ (match
+                                update_migrate_test
+                                  ?match_attr:(Option.first_some filter_attr match_attr)
+                                  structure_item (next ())
+                              with
+                             | None -> assert false
+                             | Some (_, rebuild_inner) -> rebuild_inner None)
+                           ]
+                     })))
+  }
 
 let drop_concrete_syntax_constructs =
   let super = Ast_mapper.default_mapper in

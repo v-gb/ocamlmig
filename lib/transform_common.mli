@@ -76,6 +76,17 @@ end
 val structure_item_attributes :
   P.structure_item -> (P.ext_attrs * (P.ext_attrs -> P.structure_item)) option
 
+type 'a which
+
+val structure_item : P.structure_item which
+val signature_item : P.signature_item which
+
+val update_migrate_test :
+     ?match_attr:(string -> bool)
+  -> 'a which
+  -> 'a
+  -> (P.attribute * (P.attribute option -> 'a)) option
+
 val update_migrate_test_payload :
      ?match_attr:(string -> bool)
   -> ?filter_attr:(string -> bool)
