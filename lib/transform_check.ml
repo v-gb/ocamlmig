@@ -218,8 +218,8 @@ let run_structure (type a) changed_something (file_type : a File_type.t) (struct
           ~mty_type:
             (lazy
               (match Build.Type_index.overall (force type_index) with
-              | `Signature s -> Some (Mty_signature s.sig_type)
-              | `Structure _ -> assert false))
+              | Some (`Signature s) -> Some (Mty_signature s.sig_type)
+              | None | Some (`Structure _) -> assert false))
           self structure
   in
   if not (List.is_empty !errors) then report_many_exns (List.rev !errors);

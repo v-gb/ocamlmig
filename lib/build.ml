@@ -630,7 +630,7 @@ module Type_index = struct
     ; mexp : (Typedtree.module_expr[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
     ; mtyp : (Typedtree.module_type[@sexp.opaque]) list Hashtbl.M(Uast.Location).t
     ; overall :
-        ([ `Structure of Typedtree.structure | `Signature of Typedtree.signature ]
+        ([ `Structure of Typedtree.structure | `Signature of Typedtree.signature ] option
         [@sexp.opaque])
     }
   [@@deriving sexp_of]
@@ -693,7 +693,7 @@ module Type_index = struct
               failwith "unexpected content of cmti (file doesn't fully type?)"
           | _ -> failwith "unexpected content of cmt"
         in
-        { exp; pat; typ; cexp; ctyp; mexp; mtyp; overall })
+        { exp; pat; typ; cexp; ctyp; mexp; mtyp; overall = Some overall })
 
   let create_from_cmt_infos cmt_infos (listing1 : Listing.one) =
     Load_path.init ~auto_include:Load_path.no_auto_include ~visible:[] ~hidden:[];
