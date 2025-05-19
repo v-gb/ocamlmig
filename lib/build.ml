@@ -637,8 +637,8 @@ module Type_index = struct
 
   let overall t = t.overall
 
-  let create_without_setting_up_loadpath (cmt_infos : Cmt_format.cmt_infos) =
-    Profile.record "Build.Type_index.create" (fun () ->
+  let create_from_typedtree meth v =
+    Profile.record "Build.Type_index.create_from_typedtree" (fun () ->
         let exp = Hashtbl.create (module Uast.Location.Ignoring_filename) in
         let pat = Hashtbl.create (module Uast.Location.Ignoring_filename) in
         let typ = Hashtbl.create (module Uast.Location.Ignoring_filename) in
@@ -679,25 +679,31 @@ module Type_index = struct
                 Hashtbl.add_multi mtyp ~key:v.mty_loc ~data:v)
           }
         in
-        let overall =
-          match cmt_infos.cmt_annots with
-          | Implementation structure ->
-              self.structure self structure;
-              `Structure structure
-          | Interface signature ->
-              self.signature self signature;
-              `Signature signature
-          | Partial_implementation _ ->
-              failwith "unexpected content of cmt (file doesn't fully type?)"
-          | Partial_interface _ ->
-              failwith "unexpected content of cmti (file doesn't fully type?)"
-          | _ -> failwith "unexpected content of cmt"
-        in
-        { exp; pat; typ; cexp; ctyp; mexp; mtyp; overall = Some overall })
+        (meth self) self v;
+        { exp; pat; typ; cexp; ctyp; mexp; mtyp; overall = None })
 
-  let create_from_cmt_infos cmt_infos (listing1 : Listing.one) =
+  let create_without_setting_up_loadpath (cmt_infos : Cmt_format.cmt_infos) =
+    match cmt_infos.cmt_annots with
+    | Implementation structure ->
+        { (create_from_typedtree __.structure structure) with
+          overall = Some (`Structure structure)
+        }
+    | Interface signature ->
+        { (create_from_typedtree __.signature signature) with
+          overall = Some (`Signature signature)
+        }
+    | Partial_implementation _ ->
+        failwith "unexpected content of cmt (file doesn't fully type?)"
+    | Partial_interface _ ->
+        failwith "unexpected content of cmti (file doesn't fully type?)"
+    | _ -> failwith "unexpected content of cmt"
+
+  let create_from_cmt_infos (cmt_infos : Cmt_format.cmt_infos) (listing1 : Listing.one) =
     Load_path.init ~auto_include:Load_path.no_auto_include ~visible:[] ~hidden:[];
     List.iter listing1.cmt_load_paths ~f:(fun (lazy dir) -> Load_path.append_dir dir);
+    Array.iteri cmt_infos.cmt_args ~f:(fun i elt ->
+        if elt =: "-open"
+        then Clflags.open_modules := cmt_infos.cmt_args.(i + 1) :: !Clflags.open_modules);
     create_without_setting_up_loadpath cmt_infos
 
   let create cmt_path listing1 = create_from_cmt_infos (read_cmt cmt_path) listing1

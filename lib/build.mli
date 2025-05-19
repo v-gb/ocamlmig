@@ -105,6 +105,10 @@ module Type_index : sig
      if this causes problems or not. Maybe instead of trying to mimic the load paths
      of the program, I should just use the maximum load path possible. *)
   val create_without_setting_up_loadpath : Cmt_format.cmt_infos -> t
+
+  val create_from_typedtree :
+    (Tast_iterator.iterator -> Tast_iterator.iterator -> 'a -> unit) -> 'a -> t
+
   val exp : t -> Location.t -> Typedtree.expression list
   val typ : t -> Location.t -> Typedtree.core_type list
   val pat : t -> Location.t -> Uast.any_pattern list
