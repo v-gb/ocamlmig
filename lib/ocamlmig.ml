@@ -750,7 +750,6 @@ let check =
            - that (fun f l -> ListLabel.ListLabel.map ~f l) typechecks\n\
            - that its type is compatible with that of List.map\n\n\
            Currently, there are a few shortcomings of this command:\n\
-           - the location of type errors point only roughly to the right location\n\
            - attributes on \"let\" items are not checked\n\
            - attributes on non-value items are not checked (types, modules, etc)")
       (make_transform ~rewrite_only_in_test:true
