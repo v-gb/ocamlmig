@@ -719,7 +719,7 @@ module Type_index = struct
     Fmast.Node.t
 
   let find (type node d env) t (i : (node, d, env) index) node : env list =
-    let loc = Conv.location' (Fmast.Node.loc i node) in
+    let loc = Conv.Ufm.location (Fmast.Node.loc i node) in
     match i with
     | Exp -> exp t loc
     | Typ -> typ t loc

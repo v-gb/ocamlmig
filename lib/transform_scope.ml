@@ -221,7 +221,7 @@ let qualify_for_unopen file_type ~changed_something ~artifacts ~type_index
     | None -> src
     | Some ttyp -> (
         let env = Envaux.env_of_only_summary (Build.Type_index.env srcnode ttyp) in
-        match Uast.find_by_name idns env (Conv.longident' id.txt) with
+        match Uast.find_by_name idns env (Conv.Ufm.longident id.txt) with
         | exception Stdlib.Not_found -> src
         | path, _td -> (
             match maybe_reroot root id.txt path with
@@ -250,7 +250,7 @@ let qualify_for_unopen file_type ~changed_something ~artifacts ~type_index
   in
   let label_may_have_been_provided_by_open (ns, (id : Longident.t Location.loc)) cd env =
     let env = Envaux.env_of_only_summary env in
-    match Uast.find_by_name ns env (Conv.longident' id.txt) with
+    match Uast.find_by_name ns env (Conv.Ufm.longident id.txt) with
     | exception Stdlib.Not_found -> false
     | cd_orig_env -> (
         Shape.Uid.equal (Uast.uid ns cd_orig_env) (Uast.uid ns cd)
@@ -260,7 +260,7 @@ let qualify_for_unopen file_type ~changed_something ~artifacts ~type_index
              but we have no way to determine what constructor disambiguation is in
              play. *)
         let new_env = filter_opens env in
-        match Uast.find_by_name ns new_env (Conv.longident' id.txt) with
+        match Uast.find_by_name ns new_env (Conv.Ufm.longident id.txt) with
         | exception Stdlib.Not_found -> true
         | cd_new_env -> not (Shape.Uid.equal (Uast.uid ns cd_new_env) (Uast.uid ns cd)))
   in
@@ -442,7 +442,7 @@ let qualify_for_unopen file_type ~changed_something ~artifacts ~type_index
                          So we get multiple expressions at the same location, and f itself
                          seems to be first in this case. *)
                       let env = Envaux.env_of_only_summary texpr.exp_env in
-                      match Env.find_value_by_name (Conv.longident' id.txt) env with
+                      match Env.find_value_by_name (Conv.Ufm.longident id.txt) env with
                       | exception Stdlib.Not_found ->
                           (* happens with __, because of ppx_partial *)
                           expr
@@ -452,7 +452,7 @@ let qualify_for_unopen file_type ~changed_something ~artifacts ~type_index
                           | Some new_id ->
                               let merely_aliased =
                                 match
-                                  Env.find_value_by_name (Conv.longident' id.txt)
+                                  Env.find_value_by_name (Conv.Ufm.longident id.txt)
                                     initial_env
                                 with
                                 | exception Stdlib.Not_found -> false
@@ -546,10 +546,12 @@ let qualify_for_open (type a) (file_type : a File_type.t) ~changed_something ~ar
     let prepended_env = prepended_env_of_only_summary env in
     let env = Envaux.env_of_only_summary env in
     let captured_by_open =
-      match Env.find_constructor_by_name (Conv.longident' id.txt) env with
+      match Env.find_constructor_by_name (Conv.Ufm.longident id.txt) env with
       | exception Stdlib.Not_found -> None
       | constructor_desc -> (
-          match Env.find_constructor_by_name (Conv.longident' id.txt) prepended_env with
+          match
+            Env.find_constructor_by_name (Conv.Ufm.longident id.txt) prepended_env
+          with
           | exception Stdlib.Not_found -> Some constructor_desc
           | constructor_desc' ->
               if Shape.Uid.equal constructor_desc.cstr_uid constructor_desc'.cstr_uid
@@ -600,7 +602,9 @@ let qualify_for_open (type a) (file_type : a File_type.t) ~changed_something ~ar
           else
             match pat.ppat_desc with
             | Ppat_construct (id, payload) -> (
-                match Build.Type_index.pat type_index (Conv.location' pat.ppat_loc) with
+                match
+                  Build.Type_index.pat type_index (Conv.Ufm.location pat.ppat_loc)
+                with
                 | [] -> pat
                 | T tpat :: _ -> (
                     match update_constructor tpat.pat_env id with
@@ -623,7 +627,7 @@ let qualify_for_open (type a) (file_type : a File_type.t) ~changed_something ~ar
               match expr.pexp_desc with
               | Pexp_ident id -> (
                   match
-                    Build.Type_index.exp type_index (Conv.location' expr.pexp_loc)
+                    Build.Type_index.exp type_index (Conv.Ufm.location expr.pexp_loc)
                   with
                   | [] ->
                       if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
@@ -632,14 +636,14 @@ let qualify_for_open (type a) (file_type : a File_type.t) ~changed_something ~ar
                       let env = texpr.exp_env in
                       let prepended_env = prepended_env_of_only_summary env in
                       let env = Envaux.env_of_only_summary env in
-                      match Env.find_value_by_name (Conv.longident' id.txt) env with
+                      match Env.find_value_by_name (Conv.Ufm.longident id.txt) env with
                       | exception Stdlib.Not_found ->
                           (* happens with __, because of ppx_partial *)
                           expr
                       | path, vd -> (
                           let merely_aliased =
                             match
-                              Env.find_value_by_name (Conv.longident' id.txt)
+                              Env.find_value_by_name (Conv.Ufm.longident id.txt)
                                 prepended_env
                             with
                             | exception Stdlib.Not_found -> false
@@ -666,7 +670,7 @@ let qualify_for_open (type a) (file_type : a File_type.t) ~changed_something ~ar
                                 })))
               | Pexp_construct (id, payload) -> (
                   match
-                    Build.Type_index.exp type_index (Conv.location' expr.pexp_loc)
+                    Build.Type_index.exp type_index (Conv.Ufm.location expr.pexp_loc)
                   with
                   | [] -> expr
                   | texpr :: _ -> (
@@ -758,13 +762,15 @@ let unqualify file_type ~changed_something structure ~artifacts ~type_index
             let expr = super.expr self expr in
             match expr.pexp_desc with
             | Pexp_ident id -> (
-                match Build.Type_index.exp type_index (Conv.location' expr.pexp_loc) with
+                match
+                  Build.Type_index.exp type_index (Conv.Ufm.location expr.pexp_loc)
+                with
                 | [] ->
                     if !log then print_s [%sexp (id.txt : Longident.t), "missing type"];
                     expr
                 | texpr :: _ -> (
                     let env = Envaux.env_of_only_summary texpr.exp_env in
-                    match Env.find_value_by_name (Conv.longident' id.txt) env with
+                    match Env.find_value_by_name (Conv.Ufm.longident id.txt) env with
                     | exception Stdlib.Not_found ->
                         (* happens with __, because of ppx_partial *)
                         expr
@@ -774,7 +780,7 @@ let unqualify file_type ~changed_something structure ~artifacts ~type_index
                         | Some new_id ->
                             let merely_aliased =
                               match
-                                Env.find_value_by_name (Conv.longident' new_id) env
+                                Env.find_value_by_name (Conv.Ufm.longident new_id) env
                               with
                               | exception Stdlib.Not_found -> false
                               | path', vd' ->

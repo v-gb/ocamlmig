@@ -153,9 +153,10 @@ let internalize_attribute_mapper =
 
 let fmexpr_of_uexpr ~fmconf e =
   let expr =
-    try Conv.expr e
+    try Conv.Fmu.expr e
     with Stdlib.Exit ->
       let e_str = Format.asprintf "%a" Uast.Pprintast.expression e in
+      if in_test then raise_s [%sexp "can't fmexpr_of_uexpr", (e_str : string)];
       Ocamlformat_lib.Extended_ast.Parse.ast Expression
         ~ocaml_version:(ocaml_version fmconf) ~preserve_beginend:false
         ~input_name:e.pexp_loc.loc_start.pos_fname e_str
@@ -1308,7 +1309,7 @@ let execute_context_match ~type_index (cases : P.case list) ~(orig : P.expressio
       match case.pc_lhs with
       | { ppat_desc = Ppat_extension ({ txt = "context"; _ }, PTyp user_typ); _ } -> (
           let ttyp = Uast.type_type (utype_of_fmtype user_typ) in
-          match Build.Type_index.exp type_index (Conv.location' orig.pexp_loc) with
+          match Build.Type_index.exp type_index (Conv.Ufm.location orig.pexp_loc) with
           | [ texpr ] ->
               (* maybe root env makes more sense *)
               let does_match =
@@ -1343,7 +1344,7 @@ let value_constraint ~ctx ~type_index e : P.value_constraint option =
   if not (might_rely_on_type_based_disambiguation e)
   then None
   else
-    match Build.Type_index.exp type_index (Conv.location' e.pexp_loc) with
+    match Build.Type_index.exp type_index (Conv.Ufm.location e.pexp_loc) with
     | [ texpr ] ->
         Some
           (Pvc_constraint
@@ -1355,7 +1356,7 @@ let value_constraint ~ctx ~type_index e : P.value_constraint option =
     | [] ->
         let loc = e.pexp_loc in
         Format.printf "@[<2>failed to find@\n%a@]@." Sexplib.Sexp.pp_hum
-          [%sexp (Conv.location' loc : Uast.Location.t)];
+          [%sexp (Conv.Ufm.location loc : Uast.Location.t)];
         None
 
 let simplify ~type_index ~ctx process_call =
@@ -1644,13 +1645,13 @@ let find_attribute_payload_uast ~fmconf ?repl (attributes : Typedtree.attributes
         Some
           (attribute_payload
              ?repl:(Option.map repl ~f:Lazy.force)
-             ~loc:(Conv.location e.pexp_loc)
+             ~loc:(Conv.Fmu.location e.pexp_loc)
              (Some (fmexpr_of_uexpr ~fmconf e)))
     | { attr_name = { txt = "migrate"; _ }; attr_payload = PStr []; attr_loc; _ } ->
         Some
           (attribute_payload
              ?repl:(Option.map repl ~f:Lazy.force)
-             ~loc:(Conv.location attr_loc) None)
+             ~loc:(Conv.Fmu.location attr_loc) None)
     | _ -> None)
 
 let find_attribute_payload_fmast ?repl (attributes : P.attributes) =
@@ -1788,7 +1789,7 @@ let decl_from_id_uast ~context ~artifacts
   | Some v -> value_decl_of_item_decl ~context ~id:id.txt v
 
 let decl_from_id_fmast ~context ~artifacts (comp_unit, id) =
-  decl_from_id_uast ~context ~artifacts (comp_unit, Conv.located' Conv.longident' id)
+  decl_from_id_uast ~context ~artifacts (comp_unit, Conv.Ufm.located Conv.Ufm.longident id)
 
 module Decl_id = struct
   type shape_uid = Uast.Shape.Uid.t [@@deriving sexp_of]
@@ -1907,7 +1908,7 @@ let relativize ~resolved_modpath path meth e =
   (meth self) self e
 
 let payload_from_val_fmast ~fmconf ~type_index (id, ident_loc) =
-  match Build.Type_index.exp type_index (Conv.location' ident_loc) with
+  match Build.Type_index.exp type_index (Conv.Ufm.location ident_loc) with
   | { exp_desc = Texp_ident (_, _, vd); _ } :: _ -> (
       match find_attribute_payload_uast ~fmconf vd.val_attributes with
       | None ->
@@ -1921,7 +1922,7 @@ let payload_from_val_fmast ~fmconf ~type_index (id, ident_loc) =
   | _ -> None
 
 let payload_from_type_decl_fmast ~fmconf ~type_index ~id_for_logging:id v =
-  match Build.Type_index.typ type_index (Conv.location' v) with
+  match Build.Type_index.typ type_index (Conv.Ufm.location v) with
   | { ctyp_desc = Ttyp_constr (path, _, _); ctyp_env; _ } :: _ -> (
       let env = Envaux.env_of_only_summary ctyp_env in
       let type_decl = Env.find_type path env in
@@ -2036,7 +2037,7 @@ let find_module_decl_payload (type a b) ~fmconf ~type_index ~module_migrations
         match force env with
         | None -> None
         | Some env -> (
-            match Uast.find_by_name Module env (Conv.longident' lid) with
+            match Uast.find_by_name Module env (Conv.Ufm.longident lid) with
             | exception Stdlib.Not_found ->
                 if !log || debug.all
                 then print_s [%sexp (lid : Longident.t), "module not in env"];
@@ -2195,7 +2196,7 @@ let load_extra_migrations ~cmts ~artifacts ~fmconf =
                       | None -> ()
                       | Some vb ->
                           Hashtbl.set extra_migrations
-                            ~key:(Decl_id.create (Conv.longident src_id.txt) vb)
+                            ~key:(Decl_id.create (Conv.Fmu.longident src_id.txt) vb)
                             ~data:(repl, None))
                   | None -> ());
                   super.expr self expr)
@@ -2212,7 +2213,7 @@ let load_extra_migrations ~cmts ~artifacts ~fmconf =
 
 let requalify ((expr : P.expression), expr_type_index) new_base_env =
   if !log || debug.all then print_s [%sexp `requalify (expr : Fmast.expression)];
-  match Build.Type_index.exp expr_type_index (Conv.location' expr.pexp_loc) with
+  match Build.Type_index.exp expr_type_index (Conv.Ufm.location expr.pexp_loc) with
   | [] -> expr
   | texp :: _ ->
       let rebased_env =
@@ -2227,7 +2228,7 @@ let requalify ((expr : P.expression), expr_type_index) new_base_env =
               match v with
               | { pexp_desc = Pexp_ident { txt = var; loc }; _ } -> (
                   match
-                    Build.Type_index.exp expr_type_index (Conv.location' v.pexp_loc)
+                    Build.Type_index.exp expr_type_index (Conv.Ufm.location v.pexp_loc)
                   with
                   | [] -> v
                   | texp :: _ ->
@@ -2331,7 +2332,7 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                       | None -> to_expr
                       | Some repl_type_index -> (
                           match
-                            Build.Type_index.exp type_index (Conv.location' v.pexp_loc)
+                            Build.Type_index.exp type_index (Conv.Ufm.location v.pexp_loc)
                           with
                           | texp :: _ -> requalify (to_expr, repl_type_index) texp.exp_env
                           | [] -> to_expr)

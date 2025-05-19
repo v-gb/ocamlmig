@@ -634,7 +634,7 @@ let process_file ~fmconf ~source_path ~input_name_matching_compilation_command (
 
 module Requalify = struct
   let same_resolution ns (lid1, env1) (lid2, env2) =
-    match Uast.find_by_name ns env1 (Conv.longident' lid1) with
+    match Uast.find_by_name ns env1 (Conv.Ufm.longident lid1) with
     | exception Stdlib.Not_found ->
         if !log || debug.all
         then
@@ -643,7 +643,7 @@ module Requalify = struct
               `same_resolution, `out_of_scope, (lid1 : Longident.t), (lid2 : Longident.t)];
         `Unknown
     | (path, _) as v -> (
-        match Uast.find_by_name ns env2 (Conv.longident' lid2) with
+        match Uast.find_by_name ns env2 (Conv.Ufm.longident lid2) with
         | v' ->
             if Shape.Uid.equal (Uast.uid ns v) (Uast.uid ns v')
             then (
@@ -792,8 +792,9 @@ let utype_of_fmtype typ =
   Uast.Parse.core_type (Lexing.from_string str)
 
 let uexpr_of_fmexpr e =
-  try Conv.expr' e
+  try Conv.Ufm.expr e
   with Stdlib.Exit ->
+    if in_test then raise_s [%sexp "can't uexpr_of_fmexpr", (e : expression)];
     let str = Fmast.debug_print Expression e in
     let str =
       Printf.sprintf "#%d %S\n" e.pexp_loc.loc_start.pos_lnum

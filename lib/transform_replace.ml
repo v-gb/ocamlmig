@@ -38,7 +38,7 @@ let map_ref_find_and_remove map key =
 let uid_of_var_binding ~index (binding : P.value_binding) =
   match binding.pvb_pat with
   | { ppat_desc = Ppat_var _; _ } -> (
-      match Build.Type_index.pat index (Conv.location' binding.pvb_pat.ppat_loc) with
+      match Build.Type_index.pat index (Conv.Ufm.location binding.pvb_pat.ppat_loc) with
       | [] -> None
       | T tpat :: _ -> (
           match tpat.pat_desc with Tpat_var (_, _, uid) -> Some uid | _ -> None))
@@ -211,7 +211,7 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
             if !log || debug.all then print_s [%sexp "missing type index"];
             false
         | Some index -> (
-            match Build.Type_index.exp index (Conv.location' expr.pexp_loc) with
+            match Build.Type_index.exp index (Conv.Ufm.location expr.pexp_loc) with
             | [] ->
                 if !log || debug.all then print_s [%sexp "pexp_constraint", "no type"];
                 false
@@ -252,7 +252,7 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
                 if !log || debug.all then print_s [%sexp "missing type index"];
                 false
             | Some index -> (
-                match Build.Type_index.exp index (Conv.location' expr.pexp_loc) with
+                match Build.Type_index.exp index (Conv.Ufm.location expr.pexp_loc) with
                 | [] ->
                     if !log || debug.all then print_s [%sexp "id motif", "no type"];
                     false
@@ -441,7 +441,7 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
                         false
                     | Some index -> (
                         match
-                          Build.Type_index.exp index (Conv.location' expr.pexp_loc)
+                          Build.Type_index.exp index (Conv.Ufm.location expr.pexp_loc)
                         with
                         | [] ->
                             if !log || debug.all
