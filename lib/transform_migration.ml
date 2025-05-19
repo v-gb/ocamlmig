@@ -130,7 +130,7 @@ let internalize_attribute (expr : P.expression) =
 
 let internalize_attribute_mapper =
   let super = Ast_mapper.default_mapper in
-  { super with expr = (fun self expr -> super.expr self (internalize_attribute expr)) }
+  { super with expr = (fun self v -> super.expr self (internalize_attribute v)) }
 
 let fmexpr_of_uexpr ~fmconf source e =
   let e_str = Format.asprintf "%a" Uast.Pprintast.expression e in
@@ -149,7 +149,7 @@ let fmexpr_of_fmexpr source e =
   let self =
     { super with
       location = (fun _self loc -> update_loc loc (fun pos -> { pos with pos_fname }))
-    ; expr = (fun self expr -> super.expr self (internalize_attribute expr))
+    ; expr = (fun self v -> super.expr self (internalize_attribute v))
     }
   in
   e
@@ -172,15 +172,15 @@ let might_rely_on_type_based_disambiguation expr =
   let self =
     { super with
       expr =
-        (fun self expr ->
-          match expr with
+        (fun self v ->
+          match v with
           (* The list syntax could be overridden to mean something else depending
              on type information, but it seems it would pessimizes things a lot to
              assume that all list literal are such lists. Similarly, we special case
              special case options and bools *)
           | { pexp_desc = Pexp_construct ({ txt = Lident s; _ }, _); _ } -> (
               match s with
-              | "true" | "false" | "None" | "Some" | "()" -> super.expr self expr
+              | "true" | "false" | "None" | "Some" | "()" -> super.expr self v
               | _ -> Stdlib.raise_notrace Stdlib.Exit)
           | { pexp_desc = Pexp_record (labels, _); _ }
             when List.exists labels ~f:(function
@@ -209,14 +209,14 @@ let might_rely_on_type_based_disambiguation expr =
             } ->
               (* don't think the type info propagates from return type to the function or
                  parameters *)
-              expr
+              v
           | { pexp_desc = Pexp_let (_, expr, _); _ } -> self.expr self expr
           | { pexp_desc =
                 ( Pexp_ident _ | Pexp_constant _ | Pexp_function _ | Pexp_match _
                 | Pexp_try _ | Pexp_tuple _ | Pexp_variant _ | _ )
             ; _
             } ->
-              super.expr self expr)
+              super.expr self v)
     ; pat =
         (fun self pat ->
           match pat with
@@ -247,16 +247,16 @@ let can_be_dead_code_eliminated =
           | Ppat_lazy _ -> Exn.raise_without_backtrace Stdlib.Exit
           | _ -> super.pat self pat)
     ; expr =
-        (fun self expr ->
+        (fun self v ->
           (* We could probably jump into the definitions of functions to see what
              they do, instead of assuming all functions are side effecting. We could
              also exclude mutations of local state. *)
-          match expr.pexp_desc with
+          match v.pexp_desc with
           | Pexp_apply _ | Pexp_while _ | Pexp_send _ | Pexp_new _ | Pexp_setfield _
           | Pexp_setinstvar _ | Pexp_assert _ | Pexp_letop _ | Pexp_indexop_access _
           | Pexp_prefix _ | Pexp_infix _ ->
               Exn.raise_without_backtrace Stdlib.Exit
-          | _ -> super.expr self expr)
+          | _ -> super.expr self v)
     }
   in
   fun field (v : 'a) ->
@@ -1854,31 +1854,31 @@ let relativize ~resolved_modpath path meth e =
   let self =
     { super with
       module_expr =
-        (fun self mexpr ->
-          let mexpr = super.module_expr self mexpr in
-          match mexpr.pmod_desc with
+        (fun self v ->
+          let v = super.module_expr self v in
+          match v.pmod_desc with
           | Pmod_ident { txt = var; loc } ->
               let var' = rel Module ~resolved_modpath path var in
-              { mexpr with pmod_desc = Pmod_ident { txt = var'; loc } }
-          | _ -> mexpr)
+              { v with pmod_desc = Pmod_ident { txt = var'; loc } }
+          | _ -> v)
     ; expr =
-        (fun self expr ->
-          let expr = super.expr self expr in
-          match expr with
+        (fun self v ->
+          let v = super.expr self v in
+          match v with
           | { pexp_desc = Pexp_ident { txt = var; loc }; _ } ->
               let var' = rel Value ~resolved_modpath path var in
-              { expr with pexp_desc = Pexp_ident { txt = var'; loc } }
+              { v with pexp_desc = Pexp_ident { txt = var'; loc } }
           | { pexp_desc = Pexp_construct ({ txt = var; loc }, arg); _ } ->
               let var' = rel Constructor ~resolved_modpath path var in
-              { expr with pexp_desc = Pexp_construct ({ txt = var'; loc }, arg) }
+              { v with pexp_desc = Pexp_construct ({ txt = var'; loc }, arg) }
           | { pexp_desc = Pexp_record (fields, arg); _ } ->
               let fields' =
                 List.map fields ~f:(fun ({ txt = var; loc }, a, b) ->
                     let var' = rel Label ~resolved_modpath path var in
                     (({ txt = var'; loc } : _ Location.loc), a, b))
               in
-              { expr with pexp_desc = Pexp_record (fields', arg) }
-          | _ -> expr)
+              { v with pexp_desc = Pexp_record (fields', arg) }
+          | _ -> v)
     ; typ =
         (fun self v ->
           let v = super.typ self v in
@@ -2195,14 +2195,14 @@ let requalify ((expr : P.expression), expr_type_index) new_base_env =
         let super = Ast_mapper.default_mapper in
         { super with
           expr =
-            (fun self expr ->
-              let expr = super.expr self expr in
-              match expr with
+            (fun self v ->
+              let v = super.expr self v in
+              match v with
               | { pexp_desc = Pexp_ident { txt = var; loc }; _ } -> (
                   match
-                    Build.Type_index.exp expr_type_index (Conv.location' expr.pexp_loc)
+                    Build.Type_index.exp expr_type_index (Conv.location' v.pexp_loc)
                   with
-                  | [] -> expr
+                  | [] -> v
                   | texp :: _ ->
                       let orig_env = Envaux.env_of_only_summary texp.exp_env in
                       let rebased_env = rebased_env texp.exp_env in
@@ -2218,8 +2218,8 @@ let requalify ((expr : P.expression), expr_type_index) new_base_env =
                                | `Yes -> true
                                | `No _ | `Unknown -> false)
                       in
-                      { expr with pexp_desc = Pexp_ident { txt = var'; loc } })
-              | _ -> expr)
+                      { v with pexp_desc = Pexp_ident { txt = var'; loc } })
+              | _ -> v)
         }
       in
       self.expr self expr
@@ -2606,7 +2606,7 @@ let resolve_idents () =
   in
   ( { super with
       pat =
-        (fun self pat ->
+        (fun self v ->
           let unset =
             match !from_current_pat with
             | Some _ -> false
@@ -2615,17 +2615,17 @@ let resolve_idents () =
                 from_current_pat := Some bound;
                 true
           in
-          let pat = super.pat self pat in
-          let pat =
-            match pat with
+          let v = super.pat self v in
+          let v =
+            match v with
             | { ppat_desc = Ppat_var p; _ } ->
-                { pat with ppat_attributes = bind_pat p.txt :: pat.ppat_attributes }
+                { v with ppat_attributes = bind_pat p.txt :: v.ppat_attributes }
             | { ppat_desc = Ppat_alias (_, p); _ } ->
-                { pat with ppat_attributes = bind_pat p.txt :: pat.ppat_attributes }
-            | _ -> pat
+                { v with ppat_attributes = bind_pat p.txt :: v.ppat_attributes }
+            | _ -> v
           in
           if unset then from_current_pat := None;
-          pat)
+          v)
     ; expr =
         (fun self expr ->
           let expr =
@@ -2658,31 +2658,31 @@ let use_preferred_names (type a) (file_type : a File_type.t) structure =
   let self =
     { super with
       pat =
-        (fun self pat ->
-          let pat =
-            match pat with
+        (fun self v ->
+          let v =
+            match v with
             | { ppat_desc = Ppat_var p; _ } ->
                 let p' =
-                  match find_id pat.ppat_attributes with Some (var, _) -> var | _ -> p
+                  match find_id v.ppat_attributes with Some (var, _) -> var | _ -> p
                 in
-                { pat with ppat_desc = Ppat_var p' }
+                { v with ppat_desc = Ppat_var p' }
             | { ppat_desc = Ppat_alias (subpat, p); _ } ->
                 let p' =
-                  match find_id pat.ppat_attributes with Some (var, _) -> var | _ -> p
+                  match find_id v.ppat_attributes with Some (var, _) -> var | _ -> p
                 in
-                { pat with ppat_desc = Ppat_alias (subpat, p') }
-            | _ -> pat
+                { v with ppat_desc = Ppat_alias (subpat, p') }
+            | _ -> v
           in
-          super.pat self pat)
+          super.pat self v)
     ; expr =
-        (fun self expr ->
-          let expr =
-            match expr.pexp_desc with
+        (fun self v ->
+          let v =
+            match v.pexp_desc with
             | Pexp_ident { txt = Lident _; _ } -> (
-                match find_id expr.pexp_attributes with None -> expr | Some (_, e) -> e)
-            | _ -> expr
+                match find_id v.pexp_attributes with None -> v | Some (_, e) -> e)
+            | _ -> v
           in
-          super.expr self expr)
+          super.expr self v)
     }
   in
   File_type.map file_type self structure
