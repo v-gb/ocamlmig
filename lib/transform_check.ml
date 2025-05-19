@@ -40,14 +40,12 @@ let type_extra_migration ~type_index ~env (e1 : P.expression) e2 =
            (uexpr_of_fmexpr { e2 with pexp_loc = e1.pexp_loc })
            t1 t1)
 
-let type_sigi ~env ~loc (tty : Typedtree.core_type option) e =
+let type_sigi ~env (tty : Typedtree.core_type option) e =
   match tty with
-  | None ->
-      ignore (Typecore.type_expression env (uexpr_of_fmexpr { e with pexp_loc = loc }))
+  | None -> ignore (Typecore.type_expression env (uexpr_of_fmexpr e))
   | Some tty ->
       let tty = Ctype.instance tty.ctyp_type in
-      ignore
-        (Typecore.type_argument env (uexpr_of_fmexpr { e with pexp_loc = loc }) tty tty)
+      ignore (Typecore.type_argument env (uexpr_of_fmexpr e) tty tty)
 
 let report_many_exns exns =
   List.iter exns ~f:(fun e ->
@@ -66,7 +64,6 @@ let find_migration_sigi_fmast ~type_index (sigi : signature_item) =
         (val_desc.pval_attributes.attrs_before @ val_desc.pval_attributes.attrs_after)
       |> Option.map ~f:(fun migration ->
              ( migration
-             , val_desc.pval_loc
              , Build.Type_index.find (force type_index) Typ val_desc.pval_type |> List.hd
              ))
   | _ -> None
@@ -92,7 +89,7 @@ let run_structure (type a) changed_something (file_type : a File_type.t) (struct
               (fun self v ->
                 (match find_migration_sigi_fmast ~type_index v with
                 | None -> ()
-                | Some ({ libraries; _ }, _, _) -> List.iter libraries ~f:yield);
+                | Some ({ libraries; _ }, _) -> List.iter libraries ~f:yield);
                 super.signature_item self v)
           }
         in
@@ -126,7 +123,7 @@ let run_structure (type a) changed_something (file_type : a File_type.t) (struct
       let next () =
         (match find_migration_sigi_fmast ~type_index v with
         | None -> ()
-        | Some ({ repl; libraries = _ }, loc, ttyp) -> (
+        | Some ({ repl = { loc_preserved = repl; _ }; libraries = _ }, ttyp) -> (
             let env = force env in
             let env =
               match mty_type with
@@ -134,7 +131,7 @@ let run_structure (type a) changed_something (file_type : a File_type.t) (struct
               | Some (lazy (Some (mty_type : Types.module_type))) ->
                   Env.add_module (Ident.create_local "Rel") Mp_present mty_type env
             in
-            try ignore (type_sigi ~env ~loc ttyp repl) with e -> errors := e :: !errors));
+            try ignore (type_sigi ~env ttyp repl) with e -> errors := e :: !errors));
         super.signature_item self v
       in
       match update_migrate_test signature_item v with
@@ -161,7 +158,8 @@ let run_structure (type a) changed_something (file_type : a File_type.t) (struct
           with_log (fun self expr ->
               (match Transform_migration.find_extra_migration_fmast expr with
               | None -> ()
-              | Some (id_expr, _, _, { repl; libraries = _ }) ->
+              | Some (id_expr, _, _, { repl = { loc_preserved = repl; _ }; libraries = _ })
+                ->
                   exprs_and_repls
                     { id_expr with
                       pexp_attributes =

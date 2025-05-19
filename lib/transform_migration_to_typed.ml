@@ -16,7 +16,11 @@ let run ~fmconf ~source_path =
               expr =
                 (fun self expr ->
                   match Transform_migration.find_extra_migration_fmast expr with
-                  | Some (id_expr, _, src_syntax, ({ repl; _ } as payload))
+                  | Some
+                      ( id_expr
+                      , _
+                      , src_syntax
+                      , ({ repl = { loc_preserved = repl; _ }; _ } as payload) )
                     when (* ideally, we'd exclude use of Rel in replacement as well *)
                          (not (Transform_migration.has_context_match repl))
                          && match src_syntax with `Id -> true | `Structure -> false ->

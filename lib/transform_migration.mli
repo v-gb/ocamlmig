@@ -21,12 +21,17 @@ val run :
 module Ast_mapper := Ocamlformat_parser_extended.Ast_mapper
 module P := Fmast.Parsetree
 
+type repl =
+  { loc_preserved : Fmast.expression
+  ; loc_updated : Fmast.expression
+  }
+
 type 'repl gen_migrate_payload =
   { repl : 'repl
   ; libraries : string list
   }
 
-type migrate_payload = P.expression gen_migrate_payload [@@deriving sexp_of]
+type migrate_payload = repl gen_migrate_payload [@@deriving sexp_of]
 
 val find_extra_migration_fmast :
      P.expression

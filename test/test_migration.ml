@@ -595,11 +595,9 @@ let () =
           let f =
             let f = const (fun a b -> a + b) in
             let+ f = f and+ a = None in
-
             f a
           in
           let+ f = f and+ a = Some 1 in
-
           f a]
       (* QOI: simplify this somehow?? *)
 
@@ -861,10 +859,9 @@ let () =
           let _ = b in
           Z.Module.b]
 
-      (* Requalification with absolute paths, untyped *)
+      (* Requalification with absolute paths, typed on the fly *)
       let _ = (Z.Module.a3, Z.Module.(a3), Z.(Module.(a3)))
-      [@@migrate_test
-        let _ = (Z.Module.b, Z.Module.(Z.Module.b), Z.(Module.(Z.Module.b)))]
+      [@@migrate_test let _ = (Z.Module.b, Z.Module.(b), Z.(Module.(b)))]
 
       let _ =
         (* testing shadowing *)

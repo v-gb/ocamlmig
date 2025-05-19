@@ -20,13 +20,20 @@ open Ocamlformat_parser_extended
 module P = Parsetree
 open Fmast
 
+type repl =
+  { loc_preserved : Fmast.expression
+  ; loc_updated : Fmast.expression
+  }
+
+let sexp_of_repl repl = Fmast.sexp_of_expression repl.loc_preserved
+
 type 'repl gen_migrate_payload =
   { repl : 'repl
   ; libraries : string list
   }
 [@@deriving sexp_of]
 
-type migrate_payload = Fmast.expression gen_migrate_payload [@@deriving sexp_of]
+type migrate_payload = repl gen_migrate_payload [@@deriving sexp_of]
 
 let payload_attribute ~attrs { repl; libraries } =
   match (repl, libraries) with
@@ -55,6 +62,18 @@ let payload_attribute ~attrs { repl; libraries } =
                  None)
           ])
 
+let create_repl source repl =
+  let pos_fname = migrate_filename source in
+  let super = Ast_mapper.default_mapper in
+  let self =
+    { super with
+      location = (fun _self loc -> update_loc loc (fun pos -> { pos with pos_fname }))
+    }
+  in
+  { loc_preserved = repl
+  ; loc_updated = Ocamlformat_lib.Extended_ast.map Expression self repl
+  }
+
 let attribute_payload ?repl ~(loc : Location.t) expr_opt =
   let report subloc fmt =
     Location.raise_errorf
@@ -66,7 +85,7 @@ let attribute_payload ?repl ~(loc : Location.t) expr_opt =
   | None -> (
       match repl with
       | None -> report loc "missing repl field in attribute"
-      | Some repl -> { repl; libraries = [] })
+      | Some repl -> { repl = create_repl `Import repl; libraries = [] })
   | Some ({ pexp_desc = Pexp_record (l, None); _ } as expr) ->
       let repl =
         match
@@ -103,7 +122,7 @@ let attribute_payload ?repl ~(loc : Location.t) expr_opt =
                   "the libraries field should consist of a list literal of string \
                    literals")
       in
-      { repl; libraries }
+      { repl = create_repl `Import repl; libraries }
   | Some expr -> report expr.pexp_loc "attribute payload not in expected format"
 
 let internalize_attribute (expr : P.expression) =
@@ -132,25 +151,23 @@ let internalize_attribute_mapper =
   let super = Ast_mapper.default_mapper in
   { super with expr = (fun self v -> super.expr self (internalize_attribute v)) }
 
-let fmexpr_of_uexpr ~fmconf source e =
-  let e_str = Format.asprintf "%a" Uast.Pprintast.expression e in
+let fmexpr_of_uexpr ~fmconf e =
   let expr =
-    Ocamlformat_lib.Extended_ast.Parse.ast Expression
-      ~ocaml_version:(ocaml_version fmconf) ~preserve_beginend:false
-      ~input_name:(migrate_filename source) e_str
+    try Conv.expr e
+    with Stdlib.Exit ->
+      let e_str = Format.asprintf "%a" Uast.Pprintast.expression e in
+      Ocamlformat_lib.Extended_ast.Parse.ast Expression
+        ~ocaml_version:(ocaml_version fmconf) ~preserve_beginend:false
+        ~input_name:e.pexp_loc.loc_start.pos_fname e_str
   in
   expr
   |> Ocamlformat_lib.Extended_ast.map Expression internalize_attribute_mapper
   |> Ocamlformat_lib.Extended_ast.map Expression drop_concrete_syntax_constructs
 
-let fmexpr_of_fmexpr source e =
-  let pos_fname = migrate_filename source in
+let fmexpr_of_fmexpr e =
   let super = Ast_mapper.default_mapper in
   let self =
-    { super with
-      location = (fun _self loc -> update_loc loc (fun pos -> { pos with pos_fname }))
-    ; expr = (fun self v -> super.expr self (internalize_attribute v))
-    }
+    { super with expr = (fun self v -> super.expr self (internalize_attribute v)) }
   in
   e
   |> Ocamlformat_lib.Extended_ast.map Expression self
@@ -1628,7 +1645,7 @@ let find_attribute_payload_uast ~fmconf ?repl (attributes : Typedtree.attributes
           (attribute_payload
              ?repl:(Option.map repl ~f:Lazy.force)
              ~loc:(Conv.location e.pexp_loc)
-             (Some (fmexpr_of_uexpr ~fmconf `Import e)))
+             (Some (fmexpr_of_uexpr ~fmconf e)))
     | { attr_name = { txt = "migrate"; _ }; attr_payload = PStr []; attr_loc; _ } ->
         Some
           (attribute_payload
@@ -1637,13 +1654,13 @@ let find_attribute_payload_uast ~fmconf ?repl (attributes : Typedtree.attributes
     | _ -> None)
 
 let find_attribute_payload_fmast ?repl (attributes : P.attributes) =
-  let repl = Option.map repl ~f:(fmexpr_of_fmexpr `Import __) in
+  let repl = Option.map repl ~f:(fmexpr_of_fmexpr __) in
   List.find_map attributes ~f:(function
     | { attr_name = { txt = "migrate"; _ }
       ; attr_payload = PStr [ { pstr_desc = Pstr_eval (e, _); _ } ]
       ; _
       } ->
-        Some (attribute_payload ?repl ~loc:e.pexp_loc (Some (fmexpr_of_fmexpr `Import e)))
+        Some (attribute_payload ?repl ~loc:e.pexp_loc (Some (fmexpr_of_fmexpr e)))
     | { attr_name = { txt = "migrate"; _ }; attr_payload = PStr []; attr_loc; _ } ->
         Some (attribute_payload ?repl ~loc:attr_loc None)
     | _ -> None)
@@ -1689,9 +1706,7 @@ let find_extra_migration_uast ~fmconf (e : Typedtree.expression) =
          deal with desugaring like filling in of optional arguments, there's no way we
          could undo ppx expansions. So the only good option here would be to find the
          source code, rather than the cmt. *)
-      let repl =
-        lazy (fmexpr_of_uexpr ~fmconf `Import (Untypeast.untype_expression e2))
-      in
+      let repl = lazy (fmexpr_of_uexpr ~fmconf (Untypeast.untype_expression e2)) in
       match find_attribute_payload_uast ~fmconf ~repl e.exp_attributes with
       | None -> None
       | Some payload -> Some (e1, id1, payload))
@@ -2033,7 +2048,7 @@ let find_module_decl_payload (type a b) ~fmconf ~type_index ~module_migrations
                     then print_s [%sexp (lid : Longident.t), "no attributes"];
                     None
                 | Some payload -> (
-                    match payload.repl with
+                    match payload.repl.loc_updated with
                     | { pexp_desc = Pexp_construct (repl_lid, None); _ } ->
                         let repl_lid =
                           { repl_lid with
@@ -2060,8 +2075,20 @@ let find_module_decl_payload (type a b) ~fmconf ~type_index ~module_migrations
            changed_something := true;
            Fmast.Node.update nsv v ~desc:(build flid))
 
-let payload_from_occurence_fmast ~fmconf ~context ~artifacts ~extra_migrations
-    (comp_unit, id) =
+let type_index_from_payload ~initial_env payload =
+  match
+    Typecore.type_expression (force initial_env)
+      (uexpr_of_fmexpr payload.repl.loc_preserved)
+  with
+  | exception _ ->
+      if !log then print_s [%sexp "failed to type repl", (payload.repl : repl)];
+      None
+  | texp ->
+      if !log then print_s [%sexp "typed repl", (payload.repl : repl)];
+      Some (Build.Type_index.create_from_typedtree __.expr texp)
+
+let payload_from_occurence_fmast ~initial_env ~fmconf ~context ~artifacts
+    ~extra_migrations (comp_unit, id) =
   match decl_from_id_fmast ~context ~artifacts (comp_unit, id) with
   | None -> None
   | Some vb -> (
@@ -2095,10 +2122,10 @@ let payload_from_occurence_fmast ~fmconf ~context ~artifacts ~extra_migrations
                   , "no side migration, no attr on def"
                   , (decl_id : Decl_id.t option)];
               None
-          | Some _ as opt ->
+          | Some payload ->
               if !log || debug.all
               then print_s [%sexp (id.txt : Longident.t), "found attribute on def"];
-              Option.map opt ~f:(fun x -> (x, None))))
+              Some (payload, type_index_from_payload ~initial_env payload)))
 
 let load_extra_migrations ~cmts ~artifacts ~fmconf =
   let extra_migrations = Hashtbl.create (module Decl_id) in
@@ -2226,6 +2253,7 @@ let requalify ((expr : P.expression), expr_type_index) new_base_env =
 
 let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, artifacts)
     ~changed_something ~add_depends ~ctx =
+  let initial_env = lazy (Compmisc.initial_env ()) in
   let extra_migrations, add_extra_migration_fmast =
     load_extra_migrations ~cmts:extra_migrations_cmts ~artifacts ~fmconf
   in
@@ -2273,10 +2301,12 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                   match
                     payload_from_val_fmast ~fmconf ~type_index (id.txt, v.pexp_loc)
                   with
-                  | Some payload -> Some (payload, None)
+                  | Some payload ->
+                      Some (payload, type_index_from_payload ~initial_env payload)
                   | None ->
-                      payload_from_occurence_fmast ~fmconf ~context:"lookup migration"
-                        ~artifacts ~extra_migrations (comp_unit, id)
+                      payload_from_occurence_fmast ~initial_env ~fmconf
+                        ~context:"lookup migration" ~artifacts ~extra_migrations
+                        (comp_unit, id)
                 with
                 | None ->
                     find_module_decl_payload ~fmconf ~type_index
@@ -2284,7 +2314,9 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                       ~build:(fun newlid -> Pexp_ident { id with txt = newlid })
                       ~changed_something
                     |> Option.value ~default:v
-                | Some ({ repl = to_expr; libraries }, repl_type_index) ->
+                | Some
+                    ({ repl = { loc_updated = to_expr; _ }; libraries }, repl_type_index)
+                  ->
                     warn_about_disabled_ocamlformat ();
                     add_depends libraries;
                     let to_expr =
@@ -2323,8 +2355,11 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                     | { exp_desc = Texp_construct (_, desc, _); _ } -> Some desc
                     | _ -> None)
                 with
-                | Some { repl = { pexp_desc = Pexp_construct (id2, None); _ }; libraries }
-                  ->
+                | Some
+                    { repl =
+                        { loc_updated = { pexp_desc = Pexp_construct (id2, None); _ }; _ }
+                    ; libraries
+                    } ->
                     warn_about_disabled_ocamlformat ();
                     add_depends libraries;
                     let id2 =
@@ -2412,7 +2447,11 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                 | T { pat_desc = Tpat_construct (_, desc, _, _); _ } -> Some desc
                 | _ -> None)
             with
-            | Some { repl = { pexp_desc = Pexp_construct (id2, None); _ }; libraries } ->
+            | Some
+                { repl =
+                    { loc_updated = { pexp_desc = Pexp_construct (id2, None); _ }; _ }
+                ; libraries
+                } ->
                 warn_about_disabled_ocamlformat ();
                 add_depends libraries;
                 let id2 =
@@ -2517,7 +2556,10 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
               payload_from_type_decl_fmast ~fmconf ~type_index ~id_for_logging:id.txt
                 v.ptyp_loc
             with
-            | Some { repl = { pexp_desc = Pexp_ident id2; _ }; libraries } ->
+            | Some
+                { repl = { loc_updated = { pexp_desc = Pexp_ident id2; _ }; _ }
+                ; libraries
+                } ->
                 warn_about_disabled_ocamlformat ();
                 add_depends libraries;
                 let id2 =
