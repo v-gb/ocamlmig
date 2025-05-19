@@ -2273,7 +2273,7 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                   match
                     payload_from_val_fmast ~fmconf ~type_index (id.txt, v.pexp_loc)
                   with
-                  | Some _ as opt -> Option.map opt ~f:(fun x -> (x, None))
+                  | Some payload -> Some (payload, None)
                   | None ->
                       payload_from_occurence_fmast ~fmconf ~context:"lookup migration"
                         ~artifacts ~extra_migrations (comp_unit, id)
