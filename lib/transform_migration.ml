@@ -2288,6 +2288,13 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                     warn_about_disabled_ocamlformat ();
                     add_depends libraries;
                     let to_expr =
+                      relativize id.txt __.expr to_expr
+                        ~resolved_modpath:
+                          (resolved_modpath ~type_index Exp v ~path_of:(function
+                            | { exp_desc = Texp_ident (path, _, _); _ } -> Some path
+                            | _ -> None))
+                    in
+                    let to_expr =
                       match repl_type_index with
                       | None -> to_expr
                       | Some repl_type_index -> (
@@ -2296,13 +2303,6 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                           with
                           | texp :: _ -> requalify (to_expr, repl_type_index) texp.exp_env
                           | [] -> to_expr)
-                    in
-                    let to_expr =
-                      relativize id.txt __.expr to_expr
-                        ~resolved_modpath:
-                          (resolved_modpath ~type_index Exp v ~path_of:(function
-                            | { exp_desc = Texp_ident (path, _, _); _ } -> Some path
-                            | _ -> None))
                     in
                     let to_expr =
                       preserve_loc_to_preserve_comment_pos_expr ~from:v to_expr
