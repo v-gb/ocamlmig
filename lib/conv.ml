@@ -114,7 +114,16 @@ module Fmu = struct
     | Pexp_try (e, l) -> Pexp_try (expr e, cases l)
     | Pexp_match (e, l) -> Pexp_match (expr e, cases l)
     | Pexp_extension (name, p) -> Pexp_extension (located Fn.id name, payload p)
-    | _ -> raise Stdlib.Exit
+    | Pexp_unreachable -> Pexp_unreachable
+    | Pexp_constraint (e, ty) -> Pexp_constraint (expr e, typ ty)
+    | Pexp_field (e, f) -> Pexp_field (expr e, located longident f)
+    | Pexp_lazy e -> Pexp_lazy (expr e)
+    | Pexp_array l -> Pexp_array (List.map l ~f:expr)
+    | Pexp_pack me -> Pexp_pack (module_expr me, None)
+    | Pexp_setfield _ | Pexp_for _ | Pexp_send _ | Pexp_new _ | Pexp_setinstvar _
+    | Pexp_override _ | Pexp_letexception _ | Pexp_assert _ | Pexp_poly _ | Pexp_object _
+    | Pexp_newtype _ ->
+        raise Stdlib.Exit
 
   and cases : From.P.case list -> To.P.case list = fun l -> List.map l ~f:case
 
@@ -139,7 +148,10 @@ module Fmu = struct
           , typ ty2 )
     | Ptyp_constr (id, params) ->
         Ptyp_constr (located longident id, List.map params ~f:typ)
-    | _ -> raise Stdlib.Not_found
+    | Ptyp_tuple l -> Ptyp_tuple (List.map l ~f:typ)
+    | Ptyp_object _ | Ptyp_class _ | Ptyp_alias _ | Ptyp_variant _ | Ptyp_poly _
+    | Ptyp_package _ | Ptyp_open _ | Ptyp_extension _ ->
+        raise Stdlib.Not_found
 
   and open_infos : type a b. a From.P.open_infos -> f:(a -> b) -> b To.P.open_infos =
    fun { popen_expr; popen_override; popen_loc; popen_attributes } ~f ->
@@ -159,7 +171,9 @@ module Fmu = struct
   and module_expr_desc : From.P.module_expr_desc -> To.P.module_expr_desc = function
     | Pmod_ident i -> Pmod_ident (located longident i)
     | Pmod_structure l -> Pmod_structure (List.map ~f:structure_item l)
-    | _ -> raise Stdlib.Exit
+    | Pmod_functor _ | Pmod_apply _ | Pmod_apply_unit _ | Pmod_constraint _
+    | Pmod_unpack _ | Pmod_extension _ ->
+        raise Stdlib.Exit
 
   and value_bindings ~rec_flag:flag (vbs : From.P.value_binding list) :
       To.P.value_bindings =
@@ -213,7 +227,19 @@ module Fmu = struct
     | Ppat_tuple l -> Ppat_tuple (List.map l ~f:pat)
     | Ppat_constraint (p, ty) -> Ppat_constraint (pat p, typ ty)
     | Ppat_extension (name, p) -> Ppat_extension (located Fn.id name, payload p)
-    | _ -> raise Stdlib.Exit
+    | Ppat_alias (p, name) -> Ppat_alias (pat p, located Fn.id name)
+    | Ppat_constant const -> Ppat_constant (constant const)
+    | Ppat_interval (c1, c2) -> Ppat_interval (constant c1, constant c2)
+    | Ppat_record (fields, closed) ->
+        Ppat_record
+          ( List.map fields ~f:(fun (field, p) ->
+                (located longident field, None, Some (pat p)))
+          , match closed with Closed -> OClosed | Open -> OOpen To.Location.none )
+    | Ppat_or (p1, p2) -> Ppat_or [ pat p1; pat p2 ]
+    | Ppat_lazy p -> Ppat_lazy (pat p)
+    | Ppat_array _ | Ppat_type _ | Ppat_unpack _ | Ppat_exception _ | Ppat_effect _
+    | Ppat_open _ ->
+        raise Stdlib.Exit
 
   and attributes : From.P.attributes -> To.P.attributes = fun l -> List.map l ~f:attribute
 
@@ -250,7 +276,10 @@ module Fmu = struct
     function
     | Pstr_eval (e, attrs) -> Pstr_eval (expr e, attributes attrs)
     | Pstr_value (rec_flag, vbs) -> Pstr_value (value_bindings ~rec_flag vbs)
-    | _ -> raise Stdlib.Exit
+    | Pstr_primitive _ | Pstr_type _ | Pstr_typext _ | Pstr_exception _ | Pstr_module _
+    | Pstr_recmodule _ | Pstr_modtype _ | Pstr_open _ | Pstr_class _ | Pstr_class_type _
+    | Pstr_include _ | Pstr_attribute _ | Pstr_extension _ ->
+        raise Stdlib.Exit
 end
 
 module Ufm = struct
@@ -351,7 +380,21 @@ module Ufm = struct
     | Pexp_try (e, l) -> Pexp_try (expr e, cases l)
     | Pexp_match (e, l) -> Pexp_match (expr e, cases l)
     | Pexp_extension (name, p) -> Pexp_extension (located Fn.id name, payload p)
-    | _ -> raise Stdlib.Exit
+    | Pexp_unreachable -> Pexp_unreachable
+    | Pexp_constraint (e, ty) -> Pexp_constraint (expr e, typ ty)
+    | Pexp_field (e, f) -> Pexp_field (expr e, located longident f)
+    | Pexp_lazy e -> Pexp_lazy (expr e)
+    | Pexp_array l -> Pexp_array (List.map l ~f:expr)
+    | Pexp_pack (me, ty) ->
+        assert (Option.is_none ty);
+        Pexp_pack (module_expr me)
+    | Pexp_hole | Pexp_setfield _ | Pexp_for _ | Pexp_send _ | Pexp_new _
+    | Pexp_setinstvar _ | Pexp_override _ | Pexp_letexception _ | Pexp_assert _
+    | Pexp_object _ ->
+        raise Stdlib.Exit
+    | Pexp_list _ | Pexp_beginend _ | Pexp_parens _ | Pexp_cons _ | Pexp_indexop_access _
+    | Pexp_prefix _ | Pexp_infix _ ->
+        assert false
 
   and cases : From.P.case list -> To.P.case list = fun l -> List.map l ~f:case
 
@@ -380,7 +423,10 @@ module Ufm = struct
         ty.ptyp_desc
     | Ptyp_constr (id, params) ->
         Ptyp_constr (located longident id, List.map params ~f:typ)
-    | _ -> raise Stdlib.Not_found
+    | Ptyp_tuple l -> Ptyp_tuple (List.map l ~f:typ)
+    | Ptyp_object _ | Ptyp_class _ | Ptyp_alias _ | Ptyp_variant _ | Ptyp_poly _
+    | Ptyp_package _ | Ptyp_open _ | Ptyp_extension _ ->
+        raise Stdlib.Not_found
 
   and open_infos : type a b. a From.P.open_infos -> f:(a -> b) -> b To.P.open_infos =
    fun { popen_expr; popen_override; popen_loc; popen_attributes } ~f ->
@@ -400,7 +446,9 @@ module Ufm = struct
   and module_expr_desc : From.P.module_expr_desc -> To.P.module_expr_desc = function
     | Pmod_ident i -> Pmod_ident (located longident i)
     | Pmod_structure l -> Pmod_structure (List.map ~f:structure_item l)
-    | _ -> raise Stdlib.Exit
+    | Pmod_hole | Pmod_functor _ | Pmod_apply _ | Pmod_apply_unit _ | Pmod_constraint _
+    | Pmod_unpack _ | Pmod_extension _ ->
+        raise Stdlib.Exit
 
   and value_bindings :
       From.P.value_bindings -> To.Asttypes.rec_flag * To.P.value_binding list =
@@ -460,7 +508,26 @@ module Ufm = struct
     | Ppat_tuple l -> Ppat_tuple (List.map l ~f:pat)
     | Ppat_constraint (p, ty) -> Ppat_constraint (pat p, typ ty)
     | Ppat_extension (name, p) -> Ppat_extension (located Fn.id name, payload p)
-    | _ -> raise Stdlib.Exit
+    | Ppat_alias (p, name) -> Ppat_alias (pat p, located Fn.id name)
+    | Ppat_constant const -> Ppat_constant (constant const)
+    | Ppat_interval (c1, c2) -> Ppat_interval (constant c1, constant c2)
+    | Ppat_record (fields, closed) ->
+        Ppat_record
+          ( List.map fields ~f:(fun (field, ty, p) ->
+                assert (Option.is_none ty);
+                let p = Option.value_exn p in
+                (located longident field, pat p))
+          , match closed with OClosed -> Closed | OOpen _ -> Open )
+    | Ppat_or [] -> assert false
+    | Ppat_or (p :: ps) ->
+        (List.fold_left ps ~init:(pat p) ~f:(fun acc p ->
+             To.Ast_helper.Pat.or_ acc (pat p)))
+          .ppat_desc
+    | Ppat_lazy p -> Ppat_lazy (pat p)
+    | Ppat_array _ | Ppat_type _ | Ppat_unpack _ | Ppat_exception _ | Ppat_effect _
+    | Ppat_open _ ->
+        raise Stdlib.Exit
+    | Ppat_cons _ | Ppat_list _ -> assert false
 
   and attributes : From.P.attributes -> To.P.attributes = fun l -> List.map l ~f:attribute
 
@@ -501,5 +568,8 @@ module Ufm = struct
     | Pstr_value vbs ->
         let rec_flag, vbs = value_bindings vbs in
         Pstr_value (rec_flag, vbs)
-    | _ -> raise Stdlib.Exit
+    | Pstr_primitive _ | Pstr_type _ | Pstr_typext _ | Pstr_exception _ | Pstr_module _
+    | Pstr_recmodule _ | Pstr_modtype _ | Pstr_open _ | Pstr_class _ | Pstr_class_type _
+    | Pstr_include _ | Pstr_attribute _ | Pstr_extension _ ->
+        raise Stdlib.Exit
 end
