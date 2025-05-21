@@ -119,16 +119,16 @@ let run_structure (type a) changed_something (file_type : a File_type.t) (struct
         | [] -> Ast_helper.Exp.string ~loc "types"
         | _ -> Ast_helper.Exp.tuple ~loc (List.map errors ~f:expr_of_exn))
     in
-    let signature_item ?mty_type self v =
+    let signature_item ~mty_type self v =
       let next () =
         (match find_migration_sigi_fmast ~type_index v with
         | None -> ()
         | Some ({ repl = { loc_preserved = repl; _ }; libraries = _ }, ttyp) -> (
             let env = force env in
             let env =
-              match mty_type with
-              | None | Some (lazy None) -> env
-              | Some (lazy (Some (mty_type : Types.module_type))) ->
+              match force mty_type with
+              | None -> env
+              | Some (mty_type : Types.module_type) ->
                   Env.add_module (Ident.create_local "Rel") Mp_present mty_type env
             in
             try ignore (type_sigi ~env ttyp repl) with e -> errors := e :: !errors));
@@ -152,7 +152,7 @@ let run_structure (type a) changed_something (file_type : a File_type.t) (struct
                    attr_payload = PStr [ ast_of_errors ~loc:Location.none errors ]
                  }))
     in
-    let signature ?mty_type self l = List.map l ~f:(signature_item ?mty_type self) in
+    let signature ~mty_type self l = List.map l ~f:(signature_item ~mty_type self) in
     ( { super with
         expr =
           with_log (fun self expr ->
@@ -204,7 +204,9 @@ let run_structure (type a) changed_something (file_type : a File_type.t) (struct
                 in
                 { v with pmty_desc = Pmty_signature (signature ~mty_type self l) }
             | _ -> super.module_type self v)
-      ; signature_item
+      ; signature_item =
+          signature_item ~mty_type:(lazy None)
+          (* This should only be reachable for signatures in extension points *)
       }
     , signature )
   in
