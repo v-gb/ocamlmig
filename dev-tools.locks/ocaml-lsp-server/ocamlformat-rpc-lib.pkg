@@ -1,0 +1,17 @@
+(version 0.27.0)
+
+(build
+ (progn
+  (when
+   %{pkg-self:dev}
+   (run dune subst))
+  (run dune build -p %{pkg-self:name} -j %{jobs} @install)))
+
+(depends dune ocaml csexp)
+
+(source
+ (fetch
+  (url
+   https://github.com/ocaml-ppx/ocamlformat/releases/download/0.27.0/ocamlformat-0.27.0.tbz)
+  (checksum
+   sha256=ddbf484c076d08f99400ee84b790ec231f5c8fcbd5d3324a6400d5388e846d15)))
