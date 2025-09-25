@@ -1,0 +1,19 @@
+(version 1.0)
+
+(build
+ (all_platforms
+  ((action
+    (progn
+     (when %{pkg-self:dev} (run dune subst))
+     (run dune build -p %{pkg-self:name} -j %{jobs} @install))))))
+
+(depends
+ (all_platforms
+  (ppxlib ocaml dune)))
+
+(source
+ (fetch
+  (url
+   https://github.com/v-gb/ppx_partial/releases/download/1.0/ppx_partial-1.0.tbz)
+  (checksum
+   sha256=98f5540ea530fc4aebb555e2063848bd6aca84eb72f7fb8cd8bfdc45c4650416)))
