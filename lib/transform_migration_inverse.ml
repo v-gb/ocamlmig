@@ -144,8 +144,11 @@ let run_structure file_type structure =
         (fun self expr ->
           match Transform_migration.find_extra_migration_fmast expr with
           | None -> super.expr self expr
-          | Some (src, src_id, _, { repl = { loc_updated = repl; _ }; libraries = _ })
-            -> (
+          | Some
+              ( src
+              , src_id
+              , _
+              , { repl = { loc_updated = repl; _ }; libraries = _; pps = _ } ) -> (
               match inverse_equation { src with pexp_attributes = [] } repl with
               | exception e ->
                   if not in_test
@@ -163,7 +166,7 @@ let run_structure file_type structure =
                   ; pexp_attributes =
                       Transform_migration.update_attribute_payload_fmast
                         expr.pexp_attributes
-                        { repl = Some repl'; libraries = [] }
+                        { repl = Some repl'; libraries = []; pps = [] }
                   }))
     ; structure_item =
         update_migrate_test_payload

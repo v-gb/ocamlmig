@@ -11,5 +11,5 @@ val ppx : path:Cwdpath.t -> string list
 
 val add_dependencies :
      dune_root:Abspath.t
-  -> ([ `Path of Cwdpath.t ] * string list) list
+  -> ([ `Path of Cwdpath.t ] * string list * string list) list
   -> ([ `Path of Cwdpath.t ] * string * string) list

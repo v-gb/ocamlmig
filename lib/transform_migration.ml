@@ -13,7 +13,10 @@ type ctx =
   ; module_migrations : bool
   }
 
-type res = { libraries : string list }
+type res =
+  { libraries : string list
+  ; pps : string list
+  }
 
 open! Ocamlformat_ocaml_common
 open Ocamlformat_parser_extended
@@ -30,15 +33,16 @@ let sexp_of_repl repl = Fmast.sexp_of_expression repl.loc_preserved
 type 'repl gen_migrate_payload =
   { repl : 'repl
   ; libraries : string list
+  ; pps : string list
   }
 [@@deriving sexp_of]
 
 type migrate_payload = repl gen_migrate_payload [@@deriving sexp_of]
 
-let payload_attribute ~attrs { repl; libraries } =
-  match (repl, libraries) with
-  | None, [] -> []
-  | Some _, _ | None, _ :: _ ->
+let payload_attribute ~attrs { repl; libraries; pps } =
+  match (repl, libraries, pps) with
+  | None, [], [] -> []
+  | _ ->
       Ast_helper.with_default_loc (migrate_loc `Gen) (fun () ->
           [ Ast_helper.Str.eval ~attrs
               (Ast_helper.Exp.record
@@ -85,7 +89,7 @@ let attribute_payload ?repl ~(loc : Location.t) expr_opt =
   | None -> (
       match repl with
       | None -> report loc "missing repl field in attribute"
-      | Some repl -> { repl = create_repl `Import repl; libraries = [] })
+      | Some repl -> { repl = create_repl `Import repl; libraries = []; pps = [] })
   | Some ({ pexp_desc = Pexp_record (l, None); _ } as expr) ->
       let repl =
         match
@@ -98,10 +102,11 @@ let attribute_payload ?repl ~(loc : Location.t) expr_opt =
         | Some s, None | None, Some s -> s
         | Some _, Some _ -> report expr.pexp_loc "two repl expressions specified"
       in
-      let libraries =
+      let libraries_or_pps field =
         match
           List.find_map l ~f:(function
-            | { txt = Lident "libraries"; _ }, None, Some expr -> Some expr
+            | { txt = Lident field'; _ }, None, Some expr when field =: field' ->
+                Some expr
             | _ -> None)
         with
         | None -> []
@@ -116,13 +121,15 @@ let attribute_payload ?repl ~(loc : Location.t) expr_opt =
                       s
                   | _ ->
                       report expr.pexp_loc
-                        "the libraries field should consist of string literals")
+                        "the %s field should consist of string literals" field)
             | _ ->
                 report expr.pexp_loc
-                  "the libraries field should consist of a list literal of string \
-                   literals")
+                  "the %s field should consist of a list literal of string literals" field
+            )
       in
-      { repl = create_repl `Import repl; libraries }
+      let libraries = libraries_or_pps "libraries" in
+      let pps = libraries_or_pps "pps" in
+      { repl = create_repl `Import repl; libraries; pps }
   | Some expr -> report expr.pexp_loc "attribute payload not in expected format"
 
 let internalize_attribute (expr : P.expression) =
@@ -2316,10 +2323,10 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                       ~changed_something
                     |> Option.value ~default:v
                 | Some
-                    ({ repl = { loc_updated = to_expr; _ }; libraries }, repl_type_index)
-                  ->
+                    ( { repl = { loc_updated = to_expr; _ }; libraries; pps }
+                    , repl_type_index ) ->
                     warn_about_disabled_ocamlformat ();
-                    add_depends libraries;
+                    add_depends (libraries, pps);
                     let to_expr =
                       relativize id.txt __.expr to_expr
                         ~resolved_modpath:
@@ -2360,9 +2367,10 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                     { repl =
                         { loc_updated = { pexp_desc = Pexp_construct (id2, None); _ }; _ }
                     ; libraries
+                    ; pps
                     } ->
                     warn_about_disabled_ocamlformat ();
-                    add_depends libraries;
+                    add_depends (libraries, pps);
                     let id2 =
                       { id2 with
                         txt =
@@ -2452,9 +2460,10 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                 { repl =
                     { loc_updated = { pexp_desc = Pexp_construct (id2, None); _ }; _ }
                 ; libraries
+                ; pps
                 } ->
                 warn_about_disabled_ocamlformat ();
-                add_depends libraries;
+                add_depends (libraries, pps);
                 let id2 =
                   { id2 with
                     txt =
@@ -2560,9 +2569,10 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
             | Some
                 { repl = { loc_updated = { pexp_desc = Pexp_ident id2; _ }; _ }
                 ; libraries
+                ; pps
                 } ->
                 warn_about_disabled_ocamlformat ();
-                add_depends libraries;
+                add_depends (libraries, pps);
                 let id2 =
                   { id2 with
                     txt =
@@ -2738,11 +2748,16 @@ let run ~artifacts ~type_index ~extra_migrations_cmts ~fmconf ~source_path
           let has_ppx_partial =
             List.mem ~equal:( =: ) (Dune_files.ppx ~path:source_path) "ppx_partial"
           in
-          let depends = Queue.create () in
+          let libs = Queue.create () in
+          let pps = Queue.create () in
           let ctx = { has_ppx_partial; fmconf; module_migrations } in
           let inline =
             inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts
-              ~changed_something ~add_depends:(Queue.enqueue_all depends) ~ctx
+              ~changed_something
+              ~add_depends:(fun (new_libs, new_pps) ->
+                Queue.enqueue_all libs new_libs;
+                Queue.enqueue_all pps new_pps)
+              ~ctx
           in
           let simplify = simplify ~ctx ~type_index (process_call ~type_index) in
           let structure =
@@ -2751,5 +2766,5 @@ let run ~artifacts ~type_index ~extra_migrations_cmts ~fmconf ~source_path
             |> File_type.map file_type simplify
             |> use_preferred_names file_type
           in
-          (structure, { libraries = Queue.to_list depends }))
+          (structure, { libraries = Queue.to_list libs; pps = Queue.to_list pps }))
     }

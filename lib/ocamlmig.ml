@@ -442,8 +442,8 @@ let migrate =
                                     ~input_name_matching_compilation_command:
                                       (Build.input_name_matching_compilation_command
                                          cmt_infos))
-                              |> Option.iter ~f:(fun (contents, { libraries }) ->
-                                     Queue.enqueue deps (`Path source_path, libraries);
+                              |> Option.iter ~f:(fun (contents, { libraries; pps }) ->
+                                     Queue.enqueue deps (`Path source_path, libraries, pps);
                                      diff_or_write ~format
                                        ~original_formatting:(Some fm_orig) source_path
                                        ~write contents)));
@@ -981,11 +981,18 @@ let internal_dune_files =
   ( "dune-files"
   , Command.basic ~summary:""
       [%map_open.Command
-        let src, lib = anon (t2 ("SRC" %: cwdpath_param) ("LIB" %: string)) in
+        let src, lib_or_ppx =
+          anon (t2 ("SRC" %: cwdpath_param) ("LIB|pp:PP" %: string))
+        in
         fun () ->
           let dune_root = find_dune_root () |> Result.ok_or_failwith in
+          let libs, pps =
+            match String.chop_prefix lib_or_ppx ~prefix:"pp:" with
+            | None -> ([ lib_or_ppx ], [])
+            | Some pp -> ([], [ pp ])
+          in
           List.iter
-            (Dune_files.add_dependencies ~dune_root [ (`Path src, [ lib ]) ])
+            (Dune_files.add_dependencies ~dune_root [ (`Path src, libs, pps) ])
             ~f:(fun (`Path path, before, after) ->
               diff ~label1:(Cwdpath.to_string path) ~label2:(Cwdpath.to_string path)
                 (`Str before) (`Str after))] )

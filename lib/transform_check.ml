@@ -123,7 +123,7 @@ let run_structure (type a) changed_something (file_type : a File_type.t) (struct
       let next () =
         (match find_migration_sigi_fmast ~type_index v with
         | None -> ()
-        | Some ({ repl = { loc_preserved = repl; _ }; libraries = _ }, ttyp) -> (
+        | Some ({ repl = { loc_preserved = repl; _ }; libraries = _; pps = _ }, ttyp) -> (
             let env = force env in
             let env =
               match force mty_type with
@@ -158,8 +158,11 @@ let run_structure (type a) changed_something (file_type : a File_type.t) (struct
           with_log (fun self expr ->
               (match Transform_migration.find_extra_migration_fmast expr with
               | None -> ()
-              | Some (id_expr, _, _, { repl = { loc_preserved = repl; _ }; libraries = _ })
-                ->
+              | Some
+                  ( id_expr
+                  , _
+                  , _
+                  , { repl = { loc_preserved = repl; _ }; libraries = _; pps = _ } ) ->
                   exprs_and_repls
                     { id_expr with
                       pexp_attributes =

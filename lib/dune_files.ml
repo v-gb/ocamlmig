@@ -146,7 +146,6 @@ let add_dependencies_to_dune_file dune_path deps =
     let changes =
       let q = Queue.create () in
       List.iter dune_cst ~f:(fun elt ->
-          (* what if we need to add the field entirely?? *)
           let library_or_executable_stanza =
             List.find_map ~f:Fn.id
               [ Cst_comb.is_constructor elt "library"
@@ -155,8 +154,20 @@ let add_dependencies_to_dune_file dune_path deps =
               ]
           in
           Option.iter library_or_executable_stanza ~f:(fun (_, library_cst) ->
+              let libs =
+                List.filter_map deps ~f:(function `Lib v -> Some v | `Pp _ -> None)
+              in
+              let pps =
+                List.filter_map deps ~f:(function `Pp v -> Some v | `Lib _ -> None)
+              in
               Option.iter (Cst_comb.is_field library_cst "libraries") ~f:(fun field ->
-                  add_to_list q field deps)));
+                  add_to_list q field libs);
+              (* We'd need to do something else in the None case, so we add the preprocess
+                 field when it doesn't already exist. *)
+              Option.iter (Cst_comb.is_field library_cst "preprocess")
+                ~f:(fun (_, _, pp_field) ->
+                  Option.iter (Cst_comb.is_field pp_field "pps") ~f:(fun field ->
+                      add_to_list q field pps))));
       Queue.to_list q
     in
     Option.map (update_text dune_contents changes) ~f:(fun (old, new_) ->
@@ -174,7 +185,7 @@ let add_dependencies_to_dune_project dune_project_path deps =
        dune is doing, and at least this works for dune-project with a single package. *)
     let deps =
       List.concat_map deps ~f:(fun (_public_name, deps) ->
-          List.map deps ~f:package_of_public_name)
+          List.map deps ~f:(fun (`Lib name | `Pp name) -> package_of_public_name name))
       |> List.dedup_and_sort ~compare:String.compare
     in
     let dune_project_contents =
@@ -214,10 +225,12 @@ let dune_path path =
 
 let add_dependencies ~dune_root path_and_deps =
   let dune_paths_and_deps =
-    List.concat_map path_and_deps ~f:(fun (`Path path, deps) ->
-        List.map deps ~f:(fun dep -> (dune_path path, dep)))
+    List.concat_map path_and_deps ~f:(fun (`Path path, deps, pps) ->
+        List.map deps ~f:(fun dep -> (dune_path path, `Lib dep))
+        @ List.map pps ~f:(fun pp -> (dune_path path, `Pp pp)))
     |> Map.of_alist_multi (module Cwdpath)
-    |> Map.map ~f:(List.dedup_and_sort ~compare:String.compare)
+    |> Map.map
+         ~f:(List.dedup_and_sort ~compare:[%compare: [ `Lib of string | `Pp of string ]])
     |> Map.to_alist
   in
   let deps_by_public_names = Queue.create () in

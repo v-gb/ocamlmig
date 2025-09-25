@@ -4,7 +4,10 @@
 open Base
 open Common
 
-type res = { libraries : string list }
+type res =
+  { libraries : string list
+  ; pps : string list
+  }
 
 val run :
      artifacts:string * Build.Artifacts.t
@@ -29,6 +32,7 @@ type repl =
 type 'repl gen_migrate_payload =
   { repl : 'repl
   ; libraries : string list
+  ; pps : string list
   }
 
 type migrate_payload = repl gen_migrate_payload [@@deriving sexp_of]
