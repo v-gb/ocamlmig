@@ -25,6 +25,7 @@ type debug =
   ; extra_migrations : bool
   ; preserve_format_parens : bool
   ; replace_repetitions : bool
+  ; pos : bool
   }
 
 let debug =
@@ -35,6 +36,7 @@ let debug =
     ; extra_migrations = f "extra_migrations" b
     ; preserve_format_parens = f "preserve_format_parens" b
     ; replace_repetitions = f "replace_repetitions" b
+    ; pos = b
     }
   in
   let l = ref [] in
@@ -58,6 +60,7 @@ let debug =
         | "extra_migrations" -> { d with extra_migrations = true }
         | "preserve_format_parens" -> { d with preserve_format_parens = true }
         | "replace_repetitions" -> { d with replace_repetitions = true }
+        | "pos" -> { d with pos = true }
         | s ->
             eprintf "OCAMLMIG_DEBUG: unknown field %S (see OCAMLMIG_DEBUG=help)\n" s;
             d)

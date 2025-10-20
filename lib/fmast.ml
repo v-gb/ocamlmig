@@ -101,20 +101,6 @@ let update_structure (ast_plus : _ Ocamlformat_lib.Parse_with_comments.with_comm
 open! Ocamlformat_ocaml_common
 open Ocamlformat_parser_extended
 
-module Longident = struct
-  include Longident
-
-  let compare : t -> t -> int = Stdlib.compare
-  let sexp_of_t t = [%sexp (String.concat ~sep:"." (flatten t) : string)]
-
-  include (val Comparator.make ~compare ~sexp_of_t)
-
-  let map_modpath t f =
-    match t with
-    | Lident _ | Lapply _ -> t
-    | Ldot (ident_path, field) -> Ldot (f ident_path, field)
-end
-
 module Location = struct
   include Location
 
@@ -180,6 +166,47 @@ module Location = struct
       }
     [@@deriving compare, sexp_of]
   end
+
+  module Ignore_location = struct
+    type t = Location.t =
+      { loc_start : position
+      ; loc_end : position
+      ; loc_ghost : bool
+      }
+    [@@deriving sexp_of]
+
+    let compare (_ : t) _ = 0
+    let sexp_of_t t = if debug.pos then sexp_of_t t else sexp_of_unit ()
+
+    type 'a loc = 'a Location.loc =
+      { txt : 'a
+      ; loc : t
+      }
+    [@@deriving compare, sexp_of]
+  end
+end
+
+module Longident = struct
+  include Longident
+
+  type t = Longident.t =
+    | Lident of string
+    | Ldot of t Location.Ignore_location.loc * string Location.Ignore_location.loc
+    | Lapply of t Location.Ignore_location.loc * t Location.Ignore_location.loc
+  [@@deriving compare, sexp_of]
+
+  let sexp_of_t t =
+    if debug.pos
+    then sexp_of_t t
+    else [%sexp (String.concat ~sep:"." (flatten t) : string)]
+
+  include (val Comparator.make ~compare ~sexp_of_t)
+
+  let map_modpath t f =
+    match t with
+    | Lident _ | Lapply _ -> t
+    | Ldot (ident_path, field) ->
+        Ldot ({ txt = f ident_path.txt; loc = ident_path.loc }, field)
 end
 
 module Ast_helper = struct

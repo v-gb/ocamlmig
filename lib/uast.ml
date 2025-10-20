@@ -37,11 +37,121 @@ let typed_print_value_binding ppf vb =
 
 let _ = typed_print_value_binding
 
+module Location = struct
+  include Location
+
+  type position = Lexing.position =
+    { pos_fname : string
+    ; pos_lnum : int
+    ; pos_bol : int
+    ; pos_cnum : int
+    }
+
+  let sexp_of_position { pos_fname; pos_lnum; pos_bol; pos_cnum } =
+    sexp_of_string
+      (Printf.sprintf "%s:%d:%d (%d)" pos_fname pos_lnum (pos_cnum - pos_bol) pos_cnum)
+
+  let compare_position p1 p2 =
+    (* pos_cnum and pos_bol are shifted because, I think, of the line directive we used
+       to ensure pos_fname is the same. *)
+    [%compare: string * int * int]
+      (p1.pos_fname, p1.pos_lnum, p1.pos_cnum - p1.pos_bol)
+      (p2.pos_fname, p2.pos_lnum, p2.pos_cnum - p2.pos_bol)
+
+  let hash_fold_position acc p =
+    let acc = String.hash_fold_t acc p.pos_fname in
+    let acc = Int.hash_fold_t acc p.pos_lnum in
+    let acc = Int.hash_fold_t acc (p.pos_cnum - p.pos_bol) in
+    acc
+
+  let hash_position p =
+    Ppx_hash_lib.Std.Hash.get_hash_value
+      (hash_fold_position (Ppx_hash_lib.Std.Hash.create ()) p)
+
+  type t = Location.t =
+    { loc_start : position
+    ; loc_end : position
+    ; loc_ghost : bool
+    }
+  [@@deriving sexp_of]
+
+  type 'a loc = 'a Location.loc =
+    { txt : 'a
+    ; loc : t
+    }
+  [@@deriving sexp_of]
+
+  module Including_filename = struct
+    type nonrec position = position [@@deriving sexp_of, compare, hash]
+
+    type t = Location.t =
+      { loc_start : position
+      ; loc_end : position
+      ; loc_ghost : bool
+      }
+    [@@deriving compare, hash, sexp_of]
+
+    type 'a loc = 'a Location.loc =
+      { txt : 'a
+      ; loc : t
+      }
+    [@@deriving compare, sexp_of]
+  end
+
+  module Ignoring_filename = struct
+    type nonrec position = position
+
+    let sexp_of_position = sexp_of_position
+    let compare_position p1 p2 = compare_position p1 { p2 with pos_fname = p1.pos_fname }
+    let hash_fold_position acc p = hash_fold_position acc { p with pos_fname = "" }
+    let hash_position p = hash_position { p with pos_fname = "" }
+
+    type t = Location.t =
+      { loc_start : position
+      ; loc_end : position
+      ; loc_ghost : bool
+      }
+    [@@deriving compare, hash, sexp_of]
+
+    type 'a loc = 'a Location.loc =
+      { txt : 'a
+      ; loc : t
+      }
+    [@@deriving compare, sexp_of]
+  end
+
+  module Ignore_location = struct
+    type t = Location.t =
+      { loc_start : position
+      ; loc_end : position
+      ; loc_ghost : bool
+      }
+    [@@deriving sexp_of]
+
+    let compare (_ : t) _ = 0
+    let sexp_of_t t = if debug.pos then sexp_of_t t else sexp_of_unit ()
+
+    type 'a loc = 'a Location.loc =
+      { txt : 'a
+      ; loc : t
+      }
+    [@@deriving compare, sexp_of]
+  end
+end
+
 module Longident = struct
   include Longident
 
-  let compare : t -> t -> int = Stdlib.compare
-  let sexp_of_t t = [%sexp (String.concat ~sep:"." (flatten t) : string)]
+  type t = Longident.t =
+    | Lident of string
+    | Ldot of t Location.Ignore_location.loc * string Location.Ignore_location.loc
+    | Lapply of t Location.Ignore_location.loc * t Location.Ignore_location.loc
+  [@@deriving compare, sexp_of]
+
+  let sexp_of_t t =
+    if debug.pos
+    then sexp_of_t t
+    else [%sexp (String.concat ~sep:"." (flatten t) : string)]
 
   include (val Comparator.make ~compare ~sexp_of_t)
 end
@@ -150,90 +260,6 @@ module Shape_reduce = struct
     | Approximated of Shape.Uid.t option
     | Internal_error_missing_uid
   [@@deriving sexp_of]
-end
-
-module Location = struct
-  include Location
-
-  type position = Lexing.position =
-    { pos_fname : string
-    ; pos_lnum : int
-    ; pos_bol : int
-    ; pos_cnum : int
-    }
-
-  let sexp_of_position { pos_fname; pos_lnum; pos_bol; pos_cnum } =
-    sexp_of_string
-      (Printf.sprintf "%s:%d:%d (%d)" pos_fname pos_lnum (pos_cnum - pos_bol) pos_cnum)
-
-  let compare_position p1 p2 =
-    (* pos_cnum and pos_bol are shifted because, I think, of the line directive we used
-       to ensure pos_fname is the same. *)
-    [%compare: string * int * int]
-      (p1.pos_fname, p1.pos_lnum, p1.pos_cnum - p1.pos_bol)
-      (p2.pos_fname, p2.pos_lnum, p2.pos_cnum - p2.pos_bol)
-
-  let hash_fold_position acc p =
-    let acc = String.hash_fold_t acc p.pos_fname in
-    let acc = Int.hash_fold_t acc p.pos_lnum in
-    let acc = Int.hash_fold_t acc (p.pos_cnum - p.pos_bol) in
-    acc
-
-  let hash_position p =
-    Ppx_hash_lib.Std.Hash.get_hash_value
-      (hash_fold_position (Ppx_hash_lib.Std.Hash.create ()) p)
-
-  type t = Location.t =
-    { loc_start : position
-    ; loc_end : position
-    ; loc_ghost : bool
-    }
-  [@@deriving sexp_of]
-
-  type 'a loc = 'a Location.loc =
-    { txt : 'a
-    ; loc : t
-    }
-  [@@deriving sexp_of]
-
-  module Including_filename = struct
-    type nonrec position = position [@@deriving sexp_of, compare, hash]
-
-    type t = Location.t =
-      { loc_start : position
-      ; loc_end : position
-      ; loc_ghost : bool
-      }
-    [@@deriving compare, hash, sexp_of]
-
-    type 'a loc = 'a Location.loc =
-      { txt : 'a
-      ; loc : t
-      }
-    [@@deriving compare, sexp_of]
-  end
-
-  module Ignoring_filename = struct
-    type nonrec position = position
-
-    let sexp_of_position = sexp_of_position
-    let compare_position p1 p2 = compare_position p1 { p2 with pos_fname = p1.pos_fname }
-    let hash_fold_position acc p = hash_fold_position acc { p with pos_fname = "" }
-    let hash_position p = hash_position { p with pos_fname = "" }
-
-    type t = Location.t =
-      { loc_start : position
-      ; loc_end : position
-      ; loc_ghost : bool
-      }
-    [@@deriving compare, hash, sexp_of]
-
-    type 'a loc = 'a Location.loc =
-      { txt : 'a
-      ; loc : t
-      }
-    [@@deriving compare, sexp_of]
-  end
 end
 
 module Longident_loc_ignoring_filename = struct

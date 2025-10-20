@@ -603,7 +603,10 @@ module Artifacts = struct
 
   let shape_from_occurrence t (comp_unit, idloc) =
     match loaded_cmt Impl t ~comp_unit with
-    | None -> None
+    | None ->
+        if !log || debug.all
+        then print_s [%sexp "couldn't load cmt for", (comp_unit : string)];
+        None
     | Some (_, loaded_cmt) ->
         Map.find (force loaded_cmt.ident_occurrences) idloc
         |> Option.map ~f:(fun shape ->
