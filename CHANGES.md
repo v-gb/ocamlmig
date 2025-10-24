@@ -1,3 +1,7 @@
+# 5.4-20251020
+
+- Switch to ocaml 5.4
+
 # 5.3-20250429
 
 - Switch to ocaml 5.3.

@@ -1,0 +1,32 @@
+(version 2.0.0)
+
+(install
+ (all_platforms
+  (progn
+   (run
+    %{make}
+    install
+    BINDIR=%{pkg-self:bin}
+    LIBDIR=%{pkg-self:lib}
+    DOCDIR=%{pkg-self:doc}
+    SHAREDIR=%{share}
+    MANDIR=%{man})
+   (run
+    %{make}
+    install-doc
+    LIBDIR=%{pkg-self:lib}
+    DOCDIR=%{pkg-self:doc}
+    SHAREDIR=%{share}
+    MANDIR=%{man}))))
+
+(build
+ (all_platforms ((action (run %{make} all PREFIX=%{prefix})))))
+
+(depends
+ (all_platforms (ocaml)))
+
+(source
+ (fetch
+  (url https://erratique.ch/software/cmdliner/releases/cmdliner-2.0.0.tbz)
+  (checksum
+   sha512=a7bd4eeb0cef7c08bca73b0077a65f748c19a230544133b39fc3360feb2cf0af08416a8b84031c94a2f4a007d5920a4db1368d87b9eeca561671828e2dad2885)))

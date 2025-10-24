@@ -20,7 +20,7 @@ module Exp : sig
   module Infix_op_arg : sig
     val wrap : Conf.t -> ?parens_nested:bool -> parens:bool -> Fmt.t -> Fmt.t
 
-    val dock : Conf.t -> expression Ast.xt -> bool
+    val dock : expression Ast.xt -> bool
     (** Whether the RHS of an infix operator should be docked. *)
   end
 
@@ -78,8 +78,35 @@ module Exp : sig
 
   val single_line_function : ctx:Ast.t -> ctx0:Ast.t -> args:'a list -> bool
 
-  val box_fun_decl : ctx0:Ast.t -> Conf.t -> Fmt.t -> Fmt.t
+  val box_fun_decl : ctx0:Ast.t -> ctx:Ast.t -> Conf.t -> Fmt.t -> Fmt.t
   (** Box a function decl from the label to the arrow. *)
+
+  val box_fun_decl_after_pro : ctx0:Ast.t -> Fmt.t -> Fmt.t
+  (** Box a function decl from after the [pro] to the arrow. *)
+
+  val box_beginend : Conf.t -> ctx0:Ast.t -> ctx:Ast.t -> bool
+
+  val box_beginend_subexpr : Conf.t -> ctx0:Ast.t -> ctx:Ast.t -> bool
+
+  val match_inner_pro : ctx0:Ast.t -> parens:bool -> bool
+  (**  whether the [pro] argument of [fmt_match] should be displayed as an inner
+     or outer prologue.*)
+
+  val function_inner_pro : has_cmts_outer:bool -> ctx0:Ast.t -> bool
+  (** whether the [pro] argument of [fmt_function] should be displayed as an
+    inner or outer prologue. *)
+
+  val ifthenelse_inner_pro : parens:bool -> ctx0:Ast.t -> bool
+  (** whether the [pro] argument should be displayed as an inner or outer
+        prologue when printing [Pexp_ifthenelse]. *)
+
+  val ctx_is_apply_and_exp_is_arg_with_label :
+    ctx:Ast.t -> ctx0:Ast.t -> bool
+
+  val ctx_is_apply_and_exp_is_last_arg_and_other_args_are_simple :
+    Conf_t.t -> ctx:Ast.t -> ctx0:Ast.t -> bool
+
+  val fun_label_sep : Conf.t -> Fmt.t
 end
 
 module Mod : sig
@@ -124,6 +151,7 @@ type cases =
 
 val get_cases :
      Conf.t
+  -> fmt_infix_ext_attrs:(pro:Fmt.t -> infix_ext_attrs -> Fmt.t)
   -> ctx:Ast.t
   -> first:bool
   -> last:bool
@@ -132,7 +160,12 @@ val get_cases :
   -> cases
 
 val wrap_tuple :
-  Conf.t -> parens:bool -> no_parens_if_break:bool -> Fmt.t list -> Fmt.t
+     Conf.t
+  -> parens:bool
+  -> no_parens_if_break:bool
+  -> ?close:Fmt.t
+  -> Fmt.t list
+  -> Fmt.t
 (** Format a tuple given a list of items. *)
 
 type record_type =
@@ -183,6 +216,7 @@ type if_then_else =
 
 val get_if_then_else :
      Conf.t
+  -> pro:Fmt.t
   -> first:bool
   -> last:bool
   -> parens_bch:bool
@@ -190,8 +224,8 @@ val get_if_then_else :
   -> xcond:expression Ast.xt option
   -> xbch:expression Ast.xt
   -> expr_loc:Location.t
-  -> fmt_extension_suffix:Fmt.t option
-  -> fmt_attributes:Fmt.t
+  -> fmt_infix_ext_attrs:(pro:Fmt.t -> infix_ext_attrs -> Fmt.t)
+  -> infix_ext_attrs:infix_ext_attrs
   -> fmt_cond:(expression Ast.xt -> Fmt.t)
   -> cmts_before_kw:Fmt.t
   -> cmts_after_kw:Fmt.t option

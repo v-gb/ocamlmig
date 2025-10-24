@@ -74,9 +74,9 @@ let fmt_location f loc =
 let rec fmt_longident_aux f x =
   match x with
   | Longident.Lident (s) -> fprintf f "%s" s
-  | Longident.Ldot (y, s) -> fprintf f "%a.%s" fmt_longident_aux y s
+  | Longident.Ldot (y, s) -> fprintf f "%a.%s" fmt_longident_aux y.txt s.txt
   | Longident.Lapply (y, z) ->
-      fprintf f "%a(%a)" fmt_longident_aux y fmt_longident_aux z
+      fprintf f "%a(%a)" fmt_longident_aux y.txt fmt_longident_aux z.txt
 
 let fmt_longident f x = fprintf f "\"%a\"" fmt_longident_aux x
 
@@ -192,6 +192,19 @@ let typevars ppf vs =
   List.iter (fun x ->
       fprintf ppf " %a %a" Pprintast.tyvar x.txt fmt_location x.loc) vs
 
+let labeled_tuple_element f i ppf te =
+  option i string_loc ppf te.lte_label;
+  f i ppf te.lte_elt
+
+let labeled_tuple_element_with_pun type_constraint f i ppf lte =
+  match lte with
+  | Lte_simple lte -> labeled_tuple_element f i ppf lte
+  | Lte_pun s -> line i ppf "Punned tuple element %a\n" fmt_string_loc s
+  | Lte_constrained_pun p ->
+      line i ppf "Punned tuple element with type constraint %a(%a)\n"
+        fmt_string_loc p.label fmt_location p.loc;
+        type_constraint (i+1) ppf p.type_constraint
+
 let variant_var i ppf (x : variant_var) =
   line i ppf "variant_var %a\n" fmt_location x.loc;
   string_loc (i+1) ppf x.txt
@@ -209,7 +222,7 @@ let rec core_type i ppf x =
       core_type i ppf ct2;
   | Ptyp_tuple l ->
       line i ppf "Ptyp_tuple\n";
-      list i core_type ppf l;
+      list i (labeled_tuple_element core_type) ppf l;
   | Ptyp_constr (li, l) ->
       line i ppf "Ptyp_constr %a\n" fmt_longident_loc li;
       list i core_type ppf l;
@@ -229,9 +242,9 @@ let rec core_type i ppf x =
   | Ptyp_poly (sl, ct) ->
       line i ppf "Ptyp_poly%a\n" typevars sl;
       core_type i ppf ct;
-  | Ptyp_package pt ->
+  | Ptyp_package ptyp ->
       line i ppf "Ptyp_package\n";
-      package_type i ppf pt
+      package_type i ppf ptyp;
   | Ptyp_open (mod_ident, t) ->
       line i ppf "Ptyp_open \"%a\"\n" fmt_longident_loc mod_ident;
       core_type i ppf t
@@ -256,14 +269,15 @@ and object_field i ppf x =
       line i ppf "Oinherit\n";
       core_type i ppf ct
 
+and package_type i ppf ptyp =
+  let i = i + 1 in
+  line i ppf "package_type %a\n" fmt_longident_loc ptyp.ppt_path;
+  attributes i ppf ptyp.ppt_attrs;
+  list i package_with ppf ptyp.ppt_cstrs;
+
 and package_with i ppf (s, t) =
   line i ppf "with type %a\n" fmt_longident_loc s;
   core_type i ppf t
-
-and package_type i ppf (s, l, attrs) =
-  line i ppf "package_type %a\n" fmt_longident_loc s;
-  attributes (i+1) ppf attrs;
-  list i package_with ppf l
 
 and pattern i ppf x =
   line i ppf "pattern %a\n" fmt_location x.ppat_loc;
@@ -282,9 +296,9 @@ and pattern i ppf x =
       line i ppf "Ppat_interval\n";
       fmt_constant i ppf c1;
       fmt_constant i ppf c2;
-  | Ppat_tuple (l) ->
-      line i ppf "Ppat_tuple\n";
-      list i pattern ppf l;
+  | Ppat_tuple (l, c) ->
+      line i ppf "Ppat_tuple\n %a\n" fmt_closed_flag c;
+      list i (labeled_tuple_element_with_pun core_type pattern) ppf l;
   | Ppat_construct (li, po) ->
       line i ppf "Ppat_construct %a\n" fmt_longident_loc li;
       option i
@@ -352,8 +366,9 @@ and expression i ppf x =
       line (i + 1) ppf "loc_in: %a\n" fmt_location loc_in;
       value_bindings i ppf l;
       expression i ppf e;
-  | Pexp_function (params, c, body) ->
+  | Pexp_function (params, c, body, iea) ->
       line i ppf "Pexp_function\n";
+      infix_ext_attrs i ppf iea;
       list i expr_function_param ppf params;
       option i type_constraint ppf c;
       function_body i ppf body
@@ -361,17 +376,19 @@ and expression i ppf x =
       line i ppf "Pexp_apply\n";
       expression i ppf e;
       list i label_x_expression ppf l;
-  | Pexp_match (e, l) ->
+  | Pexp_match (e, l, iea) ->
       line i ppf "Pexp_match\n";
+      infix_ext_attrs i ppf iea;
       expression i ppf e;
       list i case ppf l;
-  | Pexp_try (e, l) ->
+  | Pexp_try (e, l, iea) ->
       line i ppf "Pexp_try\n";
+      infix_ext_attrs i ppf iea;
       expression i ppf e;
       list i case ppf l;
   | Pexp_tuple (l) ->
       line i ppf "Pexp_tuple\n";
-      list i expression ppf l;
+      list i (labeled_tuple_element_with_pun type_constraint expression) ppf l;
   | Pexp_construct (li, eo) ->
       line i ppf "Pexp_construct %a\n" fmt_longident_loc li;
       option i expression ppf eo;
@@ -406,16 +423,21 @@ and expression i ppf x =
       line i ppf "Pexp_ifthenelse\n";
       list i if_branch ppf eN;
       option i pp_else ppf eo;
-  | Pexp_sequence (e1, e2) ->
+  | Pexp_sequence (e1, e2, ext) ->
       line i ppf "Pexp_sequence\n";
+      option (i + 1)
+        (fun i ppf ext ->  line i ppf "extension %a\n" fmt_string_loc ext)
+        ppf ext;
       expression i ppf e1;
       expression i ppf e2;
-  | Pexp_while (e1, e2) ->
+  | Pexp_while (e1, e2, iea) ->
       line i ppf "Pexp_while\n";
+      infix_ext_attrs i ppf iea;
       expression i ppf e1;
       expression i ppf e2;
-  | Pexp_for (p, e1, e2, df, e3) ->
+  | Pexp_for (p, e1, e2, df, e3, iea) ->
       line i ppf "Pexp_for %a\n" fmt_direction_flag df;
+      infix_ext_attrs i ppf iea;
       pattern i ppf p;
       expression i ppf e1;
       expression i ppf e2;
@@ -432,41 +454,50 @@ and expression i ppf x =
   | Pexp_send (e, s) ->
       line i ppf "Pexp_send %a\n" fmt_string_loc s;
       expression i ppf e;
-  | Pexp_new (li) -> line i ppf "Pexp_new %a\n" fmt_longident_loc li;
+  | Pexp_new (li, iea) ->
+    line i ppf "Pexp_new %a\n" fmt_longident_loc li;
+    infix_ext_attrs i ppf iea;
   | Pexp_setinstvar (s, e) ->
       line i ppf "Pexp_setinstvar %a\n" fmt_string_loc s;
       expression i ppf e;
   | Pexp_override (l) ->
       line i ppf "Pexp_override\n";
       list i string_x_expression ppf l;
-  | Pexp_letmodule (s, args, me, e) ->
+  | Pexp_letmodule (s, args, me, e, iea) ->
       line i ppf "Pexp_letmodule %a\n" fmt_str_opt_loc s;
+      infix_ext_attrs i ppf iea;
       list i functor_parameter ppf args;
       module_expr i ppf me;
       expression i ppf e;
-  | Pexp_letexception (cd, e) ->
+  | Pexp_letexception (cd, e, iea) ->
       line i ppf "Pexp_letexception\n";
+      infix_ext_attrs i ppf iea;
       extension_constructor i ppf cd;
       expression i ppf e;
-  | Pexp_assert (e) ->
+  | Pexp_assert (e, iea) ->
       line i ppf "Pexp_assert\n";
+      infix_ext_attrs i ppf iea;
       expression i ppf e;
-  | Pexp_lazy (e) ->
+  | Pexp_lazy (e, iea) ->
       line i ppf "Pexp_lazy\n";
+      infix_ext_attrs i ppf iea;
       expression i ppf e;
-  | Pexp_object s ->
+  | Pexp_object (s, iea) ->
       line i ppf "Pexp_object\n";
+      infix_ext_attrs i ppf iea;
       class_structure i ppf s
-  | Pexp_pack (me, pt) ->
+  | Pexp_pack (me, pt, iea) ->
       line i ppf "Pexp_pack\n";
+      infix_ext_attrs i ppf iea;
       module_expr i ppf me;
       option i package_type ppf pt
   | Pexp_open (lid, e) ->
       line i ppf "Pexp_open\n";
       longident_loc i ppf lid;
       expression i ppf e
-  | Pexp_letopen (o, e) ->
+  | Pexp_letopen (o, e, iea) ->
       line i ppf "Pexp_letopen\n";
+      infix_ext_attrs i ppf iea;
       open_declaration i ppf o;
       expression i ppf e
   | Pexp_letop {let_; ands; body} ->
@@ -481,8 +512,9 @@ and expression i ppf x =
       line i ppf "Pexp_unreachable\n"
   | Pexp_hole ->
       line i ppf "Pexp_hole\n"
-  | Pexp_beginend e ->
+  | Pexp_beginend (e, iea) ->
       line i ppf "Pexp_beginend\n";
+      infix_ext_attrs i ppf iea;
       expression i ppf e
   | Pexp_parens e ->
       line i ppf "Pexp_parens\n";
@@ -511,9 +543,13 @@ and expression i ppf x =
       line i ppf "Pexp_infix %a\n" fmt_string_loc op;
       expression i ppf e1;
       expression i ppf e2
+  | Pexp_construct_unit_beginend iea ->
+    line i ppf "Pexp_construct_unit_beginend\n";
+    infix_ext_attrs i ppf iea;
 
-and if_branch i ppf { if_cond; if_body; if_loc_then } =
+and if_branch i ppf { if_cond; if_body; if_loc_then ; if_attrs } =
   line i ppf "if_branch\n";
+  infix_ext_attrs i ppf if_attrs;
   expression i ppf if_cond;
   line i ppf "then %a\n" fmt_location if_loc_then;
   expression i ppf if_body
@@ -540,9 +576,9 @@ and function_body i ppf body =
   | Pfunction_body e ->
       line i ppf "Pfunction_body\n";
       expression (i+1) ppf e
-  | Pfunction_cases (cases, loc, attrs) ->
+  | Pfunction_cases (cases, loc, iea) ->
       line i ppf "Pfunction_cases %a\n" fmt_location loc;
-      attributes (i+1) ppf attrs;
+     infix_ext_attrs (i+1) ppf iea;
       list (i+1) case ppf cases
 
 and type_constraint i ppf constraint_ =
@@ -598,6 +634,13 @@ and ext_attrs i ppf attrs =
     ppf attrs.attrs_extension;
   attributes i ppf attrs.attrs_before;
   attributes i ppf attrs.attrs_after
+
+and infix_ext_attrs i ppf iea =
+  let i = i + 1 in
+  option (i + 1)
+    (fun i ppf ext ->  line i ppf "extension %a\n" fmt_string_loc ext)
+    ppf iea.infix_ext;
+  attributes i ppf iea.infix_attrs;
 
 and payload i ppf = function
   | PStr x -> structure i ppf x

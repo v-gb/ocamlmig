@@ -166,17 +166,17 @@ let check =
 let inputs =
   let docv = "SRC" in
   let file_or_dash =
-    let parse, print = Arg.non_dir_file in
+    let parse = Arg.conv_parser Arg.non_dir_file in
+    let print = Arg.conv_printer Arg.non_dir_file in
     let print fmt = function
       | Stdin -> print fmt "<standard input>"
       | File x -> print fmt x
     in
     let parse = function
-      | "-" -> `Ok Stdin
-      | s -> (
-        match parse s with `Ok x -> `Ok (File x) | `Error x -> `Error x )
+      | "-" -> Ok Stdin
+      | s -> parse s |> Result.map ~f:(fun x -> File x)
     in
-    (parse, print)
+    Arg.conv (parse, print)
   in
   let doc =
     "Input files. At least one is required, and exactly one without \
@@ -467,7 +467,7 @@ let is_in_listing_file ~listings ~filename =
               In_channel.input_lines ch
               |> Migrate_ast.Location.of_lines ~filename:listing_filename
               |> List.filter ~f:(fun Location.{txt= l; _} ->
-                     not (drop_line l) )
+                  not (drop_line l) )
             in
             List.find_map lines ~f:(fun {txt= line; loc} ->
                 match Fpath.of_string line with
@@ -520,15 +520,6 @@ let update_using_env conf =
   | [] -> conf
   | l -> failwith_user_errors ~from:"OCAMLFORMAT environment variable" l
 
-let discard_formatter =
-  Format.(
-    formatter_of_out_functions
-      { out_string= (fun _ _ _ -> ())
-      ; out_flush= (fun () -> ())
-      ; out_newline= (fun () -> ())
-      ; out_spaces= (fun _ -> ())
-      ; out_indent= (fun _ -> ()) } )
-
 let global_lib_term =
   Term.(
     const (fun conf_modif lib_conf ->
@@ -537,11 +528,14 @@ let global_lib_term =
         new_global.lib_conf )
     $ global_term )
 
-let update_using_cmdline info config =
-  match
-    Cmd.eval_value ~err:discard_formatter ~help:discard_formatter
-      (Cmd.v info global_lib_term)
-  with
+let global_lib_term_eval =
+  lazy
+    (let discard = Format.formatter_of_buffer (Buffer.create 0) in
+     Cmd.eval_value ~err:discard ~help:discard (Cmd.v info global_lib_term)
+    )
+
+let update_using_cmdline config =
+  match Lazy.force global_lib_term_eval with
   | Ok (`Ok conf_modif) -> conf_modif config
   | Error _ | Ok (`Version | `Help) -> config
 
@@ -561,7 +555,7 @@ let build_config ~enable_outside_detected_project ~root ~file ~is_stdin =
       read_config_file ~version_check:false ~disable_conf_attrs:false
     in
     List.fold fs.configuration_files ~init:Conf.default ~f:read_config_file
-    |> update_using_env |> update_using_cmdline info
+    |> update_using_env |> update_using_cmdline
   in
   let conf =
     let opr_opts =
@@ -573,7 +567,7 @@ let build_config ~enable_outside_detected_project ~root ~file ~is_stdin =
   in
   let conf =
     List.fold fs.configuration_files ~init:conf ~f:read_config_file
-    |> update_using_env |> update_using_cmdline info
+    |> update_using_env |> update_using_cmdline
   in
   if
     (not is_stdin)
