@@ -151,7 +151,7 @@ module Fmu = struct
     | Ptyp_tuple l -> Ptyp_tuple (List.map l ~f:typ)
     | Ptyp_object _ | Ptyp_class _ | Ptyp_alias _ | Ptyp_variant _ | Ptyp_poly _
     | Ptyp_package _ | Ptyp_open _ | Ptyp_extension _ ->
-        raise Stdlib.Not_found
+        raise Stdlib.Exit
 
   and open_infos : type a b. a From.P.open_infos -> f:(a -> b) -> b To.P.open_infos =
    fun { popen_expr; popen_override; popen_loc; popen_attributes } ~f ->
@@ -426,7 +426,7 @@ module Ufm = struct
     | Ptyp_tuple l -> Ptyp_tuple (List.map l ~f:typ)
     | Ptyp_object _ | Ptyp_class _ | Ptyp_alias _ | Ptyp_variant _ | Ptyp_poly _
     | Ptyp_package _ | Ptyp_open _ | Ptyp_extension _ ->
-        raise Stdlib.Not_found
+        raise Stdlib.Exit
 
   and open_infos : type a b. a From.P.open_infos -> f:(a -> b) -> b To.P.open_infos =
    fun { popen_expr; popen_override; popen_loc; popen_attributes } ~f ->
