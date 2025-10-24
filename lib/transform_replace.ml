@@ -267,8 +267,22 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
         | Pexp_ident id -> Fmast.Longident.compare id.txt id_motif.txt = 0
         | _ -> false)
   | Pexp_tuple motifs ->
+      let motifs =
+        List.map motifs ~f:(function
+          | Lte_simple { lte_label; lte_elt } ->
+              if Option.is_some lte_label then unsupported_motif motif.pexp_loc;
+              lte_elt
+          | _ -> assert false)
+      in
       match_list (match_ ~ctx1) motifs (function
-        | ({ pexp_desc = Pexp_tuple es; _ } : P.expression) -> Some es
+        | ({ pexp_desc = Pexp_tuple es; _ } : P.expression) -> (
+            match
+              List.map es ~f:(function
+                | Lte_simple { lte_label = None; lte_elt } -> lte_elt
+                | _ -> Stdlib.raise_notrace Stdlib.Exit)
+            with
+            | exception Stdlib.Exit -> None
+            | es -> Some es)
         | _ -> None)
   | Pexp_apply
       ( { pexp_desc = Pexp_ident { txt = Lident (("&" | "or") as op); _ }; _ }
@@ -314,23 +328,23 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
         match expr.pexp_desc with
         | Pexp_record (fields, init) -> s_init init ~env ~ctx && s_fields fields ~env ~ctx
         | _ -> false)
-  | Pexp_lazy m1 -> (
+  | Pexp_lazy (m1, _) -> (
       let s1 = match_ ~ctx1 m1 in
       fun expr ~env ~ctx ->
-        match expr.pexp_desc with Pexp_lazy e1 -> s1 e1 ~env ~ctx | _ -> false)
-  | Pexp_sequence (m1, m2) -> (
+        match expr.pexp_desc with Pexp_lazy (e1, _) -> s1 e1 ~env ~ctx | _ -> false)
+  | Pexp_sequence (m1, m2, _) -> (
       let s1 = match_ ~ctx1 m1 in
       let s2 = match_ ~ctx1 m2 in
       fun expr ~env ~ctx ->
         match expr.pexp_desc with
-        | Pexp_sequence (e1, e2) -> s1 e1 ~env ~ctx && s2 e2 ~env ~ctx
+        | Pexp_sequence (e1, e2, _) -> s1 e1 ~env ~ctx && s2 e2 ~env ~ctx
         | _ -> false)
-  | Pexp_function (params_motif, None, Pfunction_body body_motif) -> (
+  | Pexp_function (params_motif, None, Pfunction_body body_motif, _) -> (
       let match_params = match_list (match_param ~ctx1) params_motif (Some __) in
       let match_body = match_ ~ctx1 body_motif in
       fun expr ~env ~ctx ->
         match expr.pexp_desc with
-        | Pexp_function (params, None, Pfunction_body body) ->
+        | Pexp_function (params, None, Pfunction_body body, _) ->
             match_params params ~env ~ctx && match_body body ~env ~ctx
         | _ -> false)
   | Pexp_extension ({ txt = "acc"; _ }, _) ->
@@ -385,9 +399,9 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
          match_base expr ~env ~ctx
          && match_count ~env (List.length xvars + 1)
          && List.for_alli xvars ~f:(fun i map ->
-                let i = i + 2 in
-                Map.for_alli map ~f:(fun ~key ~data ->
-                    match_var_snd_stage ~env (key ^ Int.to_string i) data)))
+             let i = i + 2 in
+             Map.for_alli map ~f:(fun ~key ~data ->
+                 match_var_snd_stage ~env (key ^ Int.to_string i) data)))
       in
       loop []
   | Pexp_extension ({ txt = "repeat2"; _ }, PStr [ { pstr_desc = Pstr_eval (e, _); _ } ])
@@ -401,7 +415,8 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
               }
             ]
           , None
-          , Pfunction_body body_motif ) -> (
+          , Pfunction_body body_motif
+          , _ ) -> (
           let match_params (params : P.expr_function_param list) ~env ~ctx:_ =
             List.for_alli params ~f:(fun i param ->
                 match param.pparam_desc with
@@ -413,7 +428,7 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
           let match_body = match_ ~ctx1 body_motif in
           fun expr ~env ~ctx ->
             match expr.pexp_desc with
-            | Pexp_function (params, None, Pfunction_body body) ->
+            | Pexp_function (params, None, Pfunction_body body, _) ->
                 match_params params ~env ~ctx && match_body body ~env ~ctx
             | _ -> false)
       | _ -> unsupported_motif motif.pexp_loc)
@@ -511,8 +526,8 @@ and match_fields ~ctx1 (mfields : (Longident.t Location.loc * _ * expression opt
       match id.txt with
       | Lident id'
         when (match m.pexp_desc with
-             | Pexp_ident { txt = Lident id''; _ } when id'' =: id' -> true
-             | _ -> false)
+               | Pexp_ident { txt = Lident id''; _ } when id'' =: id' -> true
+               | _ -> false)
              && String.is_prefix id' ~prefix:"__etc" ->
           var_other := Some id'
       | _ -> s_named := Map.add_exn !s_named ~key:id.txt ~data:(id.txt, match_ ~ctx1 m));
@@ -749,7 +764,7 @@ let subst ~env =
               let fields' =
                 fields
                 |> List.map ~f:(fun (id, typopt, eopt) ->
-                       ((id, typopt), Option.value_exn eopt))
+                    ((id, typopt), Option.value_exn eopt))
                 |> Transform_migration.commute_list (fun _ _ -> true)
                 |> List.map ~f:(fun ((id, typopt), e) -> (id, typopt, Some e))
               in
@@ -840,8 +855,8 @@ let rec match_type ~ctx1 (t : core_type) =
           } ->
             s_label label.txt.txt ~env ~ctx
             && (match (closed_flag, closed_flag') with
-               | Open, Open | Closed, Closed -> true
-               | _ -> false)
+              | Open, Open | Closed, Closed -> true
+              | _ -> false)
             && s_typ (has_no_payload, types) ~env ~ctx
         | _ -> false)
   | _ -> unsupported_motif t.ptyp_loc

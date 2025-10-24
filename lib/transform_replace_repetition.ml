@@ -390,7 +390,7 @@ let infer motif =
                 let p1f, a1f = Tree.fill p1 a1 in
                 let expr =
                   match Tree.to_exp a1f with
-                  | { pexp_desc = Pexp_function (params, typ, body); _ } as pat -> (
+                  | { pexp_desc = Pexp_function (params, typ, body, _); _ } as pat -> (
                       match params with
                       | [ { pparam_desc = Pparam_val (Nolabel, None, p1); _ }
                         ; { pparam_desc = Pparam_val (Nolabel, None, p2); _ }
@@ -412,7 +412,8 @@ let infer motif =
                                     }
                                   ]
                                 , typ
-                                , body )
+                                , body
+                                , Ast_helper.Attr.empty_infix_ext_attrs )
                           }
                       | _ -> failwith "unhandled kind of flat repetition")
                   | { pexp_desc = Pexp_letop bindings; _ } as pat -> (
@@ -520,7 +521,8 @@ let repeat2_template (e : P.expression) (self : Ast_mapper.mapper) ~count:n ~env
               }
             ]
           , None
-          , Pfunction_body body )
+          , Pfunction_body body
+          , _ )
     ; _
     } ->
       let params =
@@ -531,6 +533,11 @@ let repeat2_template (e : P.expression) (self : Ast_mapper.mapper) ~count:n ~env
             })
       in
       { e with
-        pexp_desc = Pexp_function (params, None, Pfunction_body (self.expr self body))
+        pexp_desc =
+          Pexp_function
+            ( params
+            , None
+            , Pfunction_body (self.expr self body)
+            , Ast_helper.Attr.empty_infix_ext_attrs )
       }
   | _ -> failwith "unimplemented"

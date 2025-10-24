@@ -31,8 +31,11 @@ let ocamlformat_print =
     if Buffer.length buffer > 0 then Format_.pp_print_newline fs ();
     Buffer.contents buffer
   in
-  fun (type ext) (ext_fg : ext Extended_ast.t) ~(conf : Conf.t)
-      (ext_t : _ Parse_with_comments.with_comments) ->
+  fun (type ext)
+    (ext_fg : ext Extended_ast.t)
+    ~(conf : Conf.t)
+    (ext_t : _ Parse_with_comments.with_comments)
+  ->
     Profile.record "fmast_print" (fun () ->
         let open Fmt in
         let conf = maybe_add_debug conf in
@@ -176,13 +179,15 @@ module Location = struct
     [@@deriving sexp_of]
 
     let compare (_ : t) _ = 0
+    let equal (_ : t) _ = true
+    let hash_fold_t acc (_ : t) = hash_fold_unit acc ()
     let sexp_of_t t = if debug.pos then sexp_of_t t else sexp_of_unit ()
 
     type 'a loc = 'a Location.loc =
       { txt : 'a
       ; loc : t
       }
-    [@@deriving compare, sexp_of]
+    [@@deriving hash, equal, compare, sexp_of]
   end
 end
 
@@ -205,8 +210,7 @@ module Longident = struct
   let map_modpath t f =
     match t with
     | Lident _ | Lapply _ -> t
-    | Ldot (ident_path, field) ->
-        Ldot ({ txt = f ident_path.txt; loc = ident_path.loc }, field)
+    | Ldot (ident_path, field) -> Ldot (f ident_path, field)
 end
 
 module Ast_helper = struct
@@ -222,6 +226,19 @@ module Ast_helper = struct
 
     let none ?(loc = !default_loc) () =
       construct ~loc (located ~loc (Longident.Lident "None")) None
+
+    let unit ?(loc = !default_loc) ?attrs () =
+      construct ~loc ?attrs (located ~loc (Longident.Lident "()")) None
+
+    let unlabelled_tuple ?loc ?attrs l =
+      match l with
+      | [] -> unit ?loc ?attrs ()
+      | [ e ] -> e
+      | _ :: _ :: _ ->
+          tuple ?loc ?attrs
+            (List.map l ~f:(fun e ->
+                 Parsetree.Lte_simple { lte_label = None; lte_elt = e }))
+            Closed
 
     let ext_exp ?(loc = !default_loc) name e =
       Ast_helper.Pat.extension ({ txt = name; loc }, PStr [ Ast_helper.Str.eval e ])
@@ -262,14 +279,23 @@ module Ast_helper = struct
     let unit ?(loc = !default_loc) ?attrs () =
       construct ~loc ?attrs (located ~loc (Longident.Lident "()")) None
 
-    let tuple ?loc ?attrs l =
+    let unlabelled_tuple ?loc ?attrs l =
       match l with
       | [] -> unit ?loc ?attrs ()
       | [ e ] -> e
-      | _ :: _ :: _ -> tuple ?loc ?attrs l
+      | _ :: _ :: _ ->
+          tuple ?loc ?attrs
+            (List.map l ~f:(fun e ->
+                 Parsetree.Lte_simple { lte_label = None; lte_elt = e }))
 
-    let ext_exp ?(loc = !default_loc) name e =
-      Ast_helper.Exp.extension ({ txt = name; loc }, PStr [ Ast_helper.Str.eval e ])
+    let tuple ?loc ?attrs l =
+      match l with
+      | [] -> unit ?loc ?attrs ()
+      | [ Parsetree.Lte_simple { lte_label = None; lte_elt = e } ] -> e
+      | _ -> tuple ?loc ?attrs l
+
+    let ext_exp ?(loc = !default_loc) ?attrs name e =
+      Ast_helper.Exp.extension ?attrs ({ txt = name; loc }, PStr [ Ast_helper.Str.eval e ])
   end
 
   module Attr = struct
@@ -471,36 +497,41 @@ module Node = struct
 end
 
 module Flat_longident = struct
-  type t = string * cont list
+  type t = string Location.Ignore_location.loc * cont Location.Ignore_location.loc list
 
   and cont =
-    | Dot of string
+    | Dot of string Location.Ignore_location.loc
     | Apply_to of t
   [@@deriving sexp_of, equal, compare, hash]
 
-  let rec from_longident conts : Longident.t -> t = function
-    | Lident s -> (s, conts)
-    | Ldot (t, s) -> from_longident (Dot s :: conts) t
-    | Lapply (t1, t2) -> from_longident (Apply_to (from_longident [] t2) :: conts) t1
+  let rec from_longident conts : Longident.t Location.loc -> t =
+   fun { txt; loc } ->
+    match txt with
+    | Lident s -> ({ txt = s; loc }, conts)
+    | Ldot (t, s) -> from_longident ({ txt = Dot s; loc } :: conts) t
+    | Lapply (t1, t2) ->
+        from_longident ({ txt = Apply_to (from_longident [] t2); loc } :: conts) t1
 
   let from_longident id = from_longident [] id
 
-  let rec to_longident (s, conts) =
-    List.fold_left conts ~init:(Longident.Lident s) ~f:(fun acc cont ->
+  let rec to_longident ((s, conts) : t) =
+    List.fold_left conts ~init:{ Location.txt = Longident.Lident s.txt; loc = s.loc }
+      ~f:(fun acc { txt = cont; loc } ->
         match cont with
-        | Dot s -> Ldot (acc, s)
-        | Apply_to arg -> Lapply (acc, to_longident arg))
+        | Dot s -> { txt = Ldot (acc, s); loc }
+        | Apply_to arg -> { txt = Lapply (acc, to_longident arg); loc })
 
-  let to_list (s, conts) = Dot s :: conts
+  let to_list ((s, conts) : t) = { Location.txt = Dot s; loc = s.loc } :: conts
 
   let is_prefix t1 ~prefix:t2 =
-    List.is_prefix (to_list t1) ~prefix:(to_list t2) ~equal:equal_cont
+    List.is_prefix (to_list t1) ~prefix:(to_list t2)
+      ~equal:[%equal: cont Location.Ignore_location.loc]
 
   let chop_prefix t1 ~prefix =
     if is_prefix t1 ~prefix
     then
       match List.drop (to_list t1) (List.length (to_list prefix)) with
-      | Dot s :: conts -> Some (s, conts)
+      | { txt = Dot s; loc } :: conts -> Some ({ Location.txt = s.txt; loc }, conts)
       | _ -> None
     else None
 end

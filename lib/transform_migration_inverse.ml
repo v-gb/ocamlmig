@@ -48,18 +48,26 @@ let join_used_vars = function
 let rec inverse_equation (expr1 : P.expression) (expr2 : P.expression) =
   match expr2.pexp_desc with
   | Pexp_ident ident -> (expr1, ident)
-  | Pexp_function (params2, None, Pfunction_body body2) ->
+  | Pexp_function (params2, None, Pfunction_body body2, _) ->
       let args1 = List.map params2 ~f:inverse_function_param in
       inverse_equation { expr2 with pexp_desc = Pexp_apply (expr1, args1) } body2
   | Pexp_apply (fun_, args) ->
       let params1, used = List.map args ~f:inverse_function_arg |> List.unzip in
       ignore (join_used_vars used) (* ?? *);
       inverse_equation
-        { expr2 with pexp_desc = Pexp_function (params1, None, Pfunction_body expr1) }
+        { expr2 with
+          pexp_desc =
+            Pexp_function
+              (params1, None, Pfunction_body expr1, Ast_helper.Attr.empty_infix_ext_attrs)
+        }
         fun_
-  | Pexp_match (scrutinee, cases) ->
+  | Pexp_match (scrutinee, cases, _) ->
       let cases2 = inverse_cases cases in
-      inverse_equation { expr2 with pexp_desc = Pexp_match (expr1, cases2) } scrutinee
+      inverse_equation
+        { expr2 with
+          pexp_desc = Pexp_match (expr1, cases2, Ast_helper.Attr.empty_infix_ext_attrs)
+        }
+        scrutinee
   | _ -> Location.raise_errorf ~loc:expr2.pexp_loc "unsupported expression"
 
 and inverse_cases (cases : P.case list) =
@@ -96,8 +104,15 @@ and inverse_expr (e : P.expression) : P.pattern * Location.t Map.M(String).t =
       ( Ast_helper.Pat.var ~loc:e.pexp_loc ~attrs:e.pexp_attributes { txt = var; loc }
       , Map.singleton (module String) var loc )
   | Pexp_tuple l ->
-      let ps, used = List.unzip (List.map l ~f:inverse_expr) in
-      ( Ast_helper.Pat.tuple ~loc:e.pexp_loc ~attrs:e.pexp_attributes ps
+      let ps, used =
+        List.unzip
+          (List.map l ~f:(function
+            | Lte_simple { lte_label; lte_elt } ->
+                let pat, used = inverse_expr lte_elt in
+                (P.Lte_simple { lte_label; lte_elt = pat }, used)
+            | _ -> assert false))
+      in
+      ( Ast_helper.Pat.tuple ~loc:e.pexp_loc ~attrs:e.pexp_attributes ps Closed
       , join_used_vars used )
   | Pexp_construct (id, e_opt) ->
       let p_opt, used =
@@ -120,9 +135,14 @@ and inverse_pat (p : P.pattern) : P.expression =
   | Ppat_var var ->
       Ast_helper.Exp.ident ~loc:p.ppat_loc ~attrs:p.ppat_attributes
         { txt = Lident var.txt; loc = var.loc }
-  | Ppat_tuple l ->
-      Ast_helper.Exp.tuple ~loc:p.ppat_loc ~attrs:p.ppat_attributes
-        (List.map l ~f:inverse_pat)
+  | Ppat_tuple (l, Closed) ->
+      let es =
+        List.map l ~f:(function
+          | Lte_simple { lte_label; lte_elt } ->
+              P.Lte_simple { lte_label; lte_elt = inverse_pat lte_elt }
+          | _ -> assert false)
+      in
+      Ast_helper.Exp.tuple ~loc:p.ppat_loc ~attrs:p.ppat_attributes es
   | Ppat_construct (id, p_opt) ->
       let e_opt =
         Option.map

@@ -2,7 +2,7 @@ let _ = ( + ) [@migrate { repl = Base.( + ) }] [@@migrate_test "types"]
 
 let _ = ( + ) [@migrate { repl = Rel.( + ) }]
 [@@migrate_test
-  "File \"test/test_migration_check.ml\", line 3, characters 33-42:\n\
+  "File \"test/test_migration_check.ml\", line 3, characters 33-36:\n\
    Error: Unbound module Rel"]
 
 let _ = ( + ) [@migrate { repl = unbound }]

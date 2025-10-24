@@ -86,7 +86,8 @@ let children (ctx : Ocamlformat_lib.Ast.t) meth v =
                 ; pexp_loc_stack = []
                 }
               in
-              children := (Exp (Ast_helper.Exp.tuple [ e; e ]), `Expr e) :: !children
+              children :=
+                (Exp (Ast_helper.Exp.unlabelled_tuple [ e; e ]), `Expr e) :: !children
           | _ -> ());
           super.expr self v)
     ; pat =
@@ -100,7 +101,8 @@ let children (ctx : Ocamlformat_lib.Ast.t) meth v =
                 ; ppat_loc_stack = []
                 }
               in
-              children := (Pat (Ast_helper.Pat.tuple [ p; p ]), `Pat p) :: !children
+              children :=
+                (Pat (Ast_helper.Pat.unlabelled_tuple [ p; p ]), `Pat p) :: !children
           | _ -> ());
           super.pat self v)
     }
@@ -476,7 +478,7 @@ let printed_ast add_comments (loc : Location.t) ext ast =
   |> String.chop_suffix_if_exists ~suffix:"\n"
   |> String.split ~on:'\n'
   |> List.mapi ~f:(fun i s ->
-         if i = 0 then s else String.make current_indentation ' ' ^ s)
+      if i = 0 then s else String.make current_indentation ' ' ^ s)
   |> String.concat ~sep:"\n"
 
 let tokens ~ocaml_version str =

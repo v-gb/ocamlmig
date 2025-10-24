@@ -300,53 +300,99 @@ let drop_concrete_syntax_constructs =
             { pat with ppat_desc = Ppat_record (labels, z) }
         | _ -> pat)
   ; expr =
-      (fun self expr ->
-        let expr = super.expr self expr in
-        match expr.pexp_desc with
-        | Pexp_record (fields, orig) ->
-            let changed_something = ref false in
-            let fields =
-              List.map fields ~f:(fun ((field_name, typ, expr_opt) as field_up) ->
-                  if Option.is_none expr_opt
-                  then (
-                    let loc = field_name.loc in
-                    let by =
-                      Ast_helper.Exp.ident ~loc
-                        { txt = Lident (Longident.last field_name.txt); loc }
-                        ~attrs:[ Sattr.pun.build ~loc:!Ast_helper.default_loc () ]
-                    in
-                    changed_something := true;
-                    (field_name, typ, Some by))
-                  else field_up)
-            in
-            if !changed_something
-            then { expr with pexp_desc = Pexp_record (fields, orig) }
-            else expr
-        | Pexp_prefix (op, e1) ->
-            let fun_ =
-              let loc = op.loc in
-              Ast_helper.Exp.ident ~loc { txt = Lident op.txt; loc }
-                ~attrs:[ Sattr.pun.build ~loc:!Ast_helper.default_loc () ]
-            in
-            { expr with pexp_desc = Pexp_apply (fun_, [ (Nolabel, e1) ]) }
-        | Pexp_infix (op, e1, e2) ->
-            let fun_ =
-              let loc = op.loc in
-              Ast_helper.Exp.ident ~loc { txt = Lident op.txt; loc }
-                ~attrs:[ Sattr.pun.build ~loc:!Ast_helper.default_loc () ]
-            in
-            { expr with pexp_desc = Pexp_apply (fun_, [ (Nolabel, e1); (Nolabel, e2) ]) }
-        | Pexp_open (modname, e) ->
-            { expr with
-              pexp_desc =
-                Pexp_letopen
-                  ( Ast_helper.Opn.mk ~loc:expr.pexp_loc
-                      (Ast_helper.Mod.ident ~loc:modname.loc modname)
-                  , e )
-            ; pexp_attributes =
-                Sattr.pun.build ~loc:!Ast_helper.default_loc () :: expr.pexp_attributes
-            }
-        | _ -> expr)
+      (let deinfix_attrs (expr : P.expression)
+           ({ infix_attrs; infix_ext } : P.infix_ext_attrs) f =
+         let expr =
+           { expr with
+             pexp_attributes = expr.pexp_attributes @ infix_attrs
+           ; pexp_desc = f ()
+           }
+         in
+         match infix_ext with
+         | None -> expr
+         | Some infix ->
+             Ast_helper.Exp.ext_exp ~loc:infix.loc infix.txt expr
+               ~attrs:[ Sattr.pun.build ~loc:!Ast_helper.default_loc () ]
+       in
+       fun self expr ->
+         let expr =
+           match expr.pexp_desc with
+           | Pexp_function (a, b, c, infix_ext_attrs) ->
+               deinfix_attrs expr infix_ext_attrs (fun () ->
+                   Pexp_function (a, b, c, Ast_helper.Attr.empty_infix_ext_attrs))
+           | Pexp_letopen (a, b, infix_ext_attrs) ->
+               deinfix_attrs expr infix_ext_attrs (fun () ->
+                   Pexp_letopen (a, b, Ast_helper.Attr.empty_infix_ext_attrs))
+           | Pexp_letmodule (a, b, c, d, infix_ext_attrs) ->
+               deinfix_attrs expr infix_ext_attrs (fun () ->
+                   Pexp_letmodule (a, b, c, d, Ast_helper.Attr.empty_infix_ext_attrs))
+           | Pexp_while (a, b, infix_ext_attrs) ->
+               deinfix_attrs expr infix_ext_attrs (fun () ->
+                   Pexp_while (a, b, Ast_helper.Attr.empty_infix_ext_attrs))
+           | Pexp_try (a, b, infix_ext_attrs) ->
+               deinfix_attrs expr infix_ext_attrs (fun () ->
+                   Pexp_try (a, b, Ast_helper.Attr.empty_infix_ext_attrs))
+           | Pexp_match (a, b, infix_ext_attrs) ->
+               deinfix_attrs expr infix_ext_attrs (fun () ->
+                   Pexp_match (a, b, Ast_helper.Attr.empty_infix_ext_attrs))
+           | Pexp_lazy (a, infix_ext_attrs) ->
+               deinfix_attrs expr infix_ext_attrs (fun () ->
+                   Pexp_lazy (a, Ast_helper.Attr.empty_infix_ext_attrs))
+           | Pexp_pack (a, b, infix_ext_attrs) ->
+               deinfix_attrs expr infix_ext_attrs (fun () ->
+                   Pexp_pack (a, b, Ast_helper.Attr.empty_infix_ext_attrs))
+           | Pexp_sequence (a, b, ext) ->
+               deinfix_attrs expr { infix_attrs = []; infix_ext = ext } (fun () ->
+                   Pexp_sequence (a, b, None))
+           | _ -> expr
+         in
+         let expr = super.expr self expr in
+         match expr.pexp_desc with
+         | Pexp_record (fields, orig) ->
+             let changed_something = ref false in
+             let fields =
+               List.map fields ~f:(fun ((field_name, typ, expr_opt) as field_up) ->
+                   if Option.is_none expr_opt
+                   then (
+                     let loc = field_name.loc in
+                     let by =
+                       Ast_helper.Exp.ident ~loc
+                         { txt = Lident (Longident.last field_name.txt); loc }
+                         ~attrs:[ Sattr.pun.build ~loc:!Ast_helper.default_loc () ]
+                     in
+                     changed_something := true;
+                     (field_name, typ, Some by))
+                   else field_up)
+             in
+             if !changed_something
+             then { expr with pexp_desc = Pexp_record (fields, orig) }
+             else expr
+         | Pexp_prefix (op, e1) ->
+             let fun_ =
+               let loc = op.loc in
+               Ast_helper.Exp.ident ~loc { txt = Lident op.txt; loc }
+                 ~attrs:[ Sattr.pun.build ~loc:!Ast_helper.default_loc () ]
+             in
+             { expr with pexp_desc = Pexp_apply (fun_, [ (Nolabel, e1) ]) }
+         | Pexp_infix (op, e1, e2) ->
+             let fun_ =
+               let loc = op.loc in
+               Ast_helper.Exp.ident ~loc { txt = Lident op.txt; loc }
+                 ~attrs:[ Sattr.pun.build ~loc:!Ast_helper.default_loc () ]
+             in
+             { expr with pexp_desc = Pexp_apply (fun_, [ (Nolabel, e1); (Nolabel, e2) ]) }
+         | Pexp_open (modname, e) ->
+             { expr with
+               pexp_desc =
+                 Pexp_letopen
+                   ( Ast_helper.Opn.mk ~loc:expr.pexp_loc
+                       (Ast_helper.Mod.ident ~loc:modname.loc modname)
+                   , e
+                   , Ast_helper.Attr.empty_infix_ext_attrs )
+             ; pexp_attributes =
+                 Sattr.pun.build ~loc:!Ast_helper.default_loc () :: expr.pexp_attributes
+             }
+         | _ -> expr)
   ; value_binding =
       (fun self binding ->
         let binding = super.value_binding self binding in
@@ -443,7 +489,7 @@ let undrop_concrete_syntax_constructs =
                || is_migrate_filename loc)
                && Ocamlformat_lib.Std_longident.String_id.is_prefix op ->
             { expr with pexp_desc = Pexp_prefix ({ txt = op; loc }, e1) }
-        | Pexp_letopen ({ popen_expr = { pmod_desc = Pmod_ident modname; _ }; _ }, e)
+        | Pexp_letopen ({ popen_expr = { pmod_desc = Pmod_ident modname; _ }; _ }, e, _)
           when Sattr.exists Sattr.pun expr.pexp_attributes ->
             { expr with pexp_desc = Pexp_open (modname, e) }
         | _ -> expr)
@@ -456,7 +502,7 @@ let undrop_concrete_syntax_constructs =
           ; pvb_constraint = None
           ; pvb_body =
               Pfunction_body
-                ({ pexp_desc = Pexp_function (params, constraint_, inner_body); _ } as
+                ({ pexp_desc = Pexp_function (params, constraint_, inner_body, _); _ } as
                  outer_body)
           ; _
           }
@@ -497,18 +543,18 @@ let rec map_tail (e : P.expression) f =
   match e with
   | { pexp_desc = Pexp_let (a, e, b); _ } ->
       { e with pexp_desc = Pexp_let (a, map_tail e f, b) }
-  | { pexp_desc = Pexp_sequence (a, e); _ } ->
-      { e with pexp_desc = Pexp_sequence (a, map_tail e f) }
-  | { pexp_desc = Pexp_letmodule (a, b, c, e); _ } ->
-      { e with pexp_desc = Pexp_letmodule (a, b, c, map_tail e f) }
-  | { pexp_desc = Pexp_letexception (a, e); _ } ->
-      { e with pexp_desc = Pexp_letexception (a, map_tail e f) }
+  | { pexp_desc = Pexp_sequence (a, e, b); _ } ->
+      { e with pexp_desc = Pexp_sequence (a, map_tail e f, b) }
+  | { pexp_desc = Pexp_letmodule (a, b, c, e, g); _ } ->
+      { e with pexp_desc = Pexp_letmodule (a, b, c, map_tail e f, g) }
+  | { pexp_desc = Pexp_letexception (a, e, b); _ } ->
+      { e with pexp_desc = Pexp_letexception (a, map_tail e f, b) }
   | { pexp_desc = Pexp_open (a, e); _ } ->
       { e with pexp_desc = Pexp_open (a, map_tail e f) }
-  | { pexp_desc = Pexp_letopen (a, e); _ } ->
-      { e with pexp_desc = Pexp_letopen (a, map_tail e f) }
-  | { pexp_desc = Pexp_beginend e; _ } ->
-      { e with pexp_desc = Pexp_beginend (map_tail e f) }
+  | { pexp_desc = Pexp_letopen (a, e, b); _ } ->
+      { e with pexp_desc = Pexp_letopen (a, map_tail e f, b) }
+  | { pexp_desc = Pexp_beginend (e, a); _ } ->
+      { e with pexp_desc = Pexp_beginend (map_tail e f, a) }
   | { pexp_desc = Pexp_parens e; _ } -> { e with pexp_desc = Pexp_parens (map_tail e f) }
   | _ -> f e
 
@@ -531,10 +577,11 @@ let preserve_loc_to_preserve_comment_pos_expr ~(from : P.expression) to_ =
   let rec loop (e : P.expression) ~saw_funs =
     map_tail e (fun e ->
         match e with
-        | { pexp_desc = Pexp_function (params, tyopt, Pfunction_body body); _ } ->
+        | { pexp_desc = Pexp_function (params, tyopt, Pfunction_body body, attrs); _ } ->
             { e with
               pexp_desc =
-                Pexp_function (params, tyopt, Pfunction_body (loop body ~saw_funs:true))
+                Pexp_function
+                  (params, tyopt, Pfunction_body (loop body ~saw_funs:true), attrs)
             }
         | { pexp_desc = Pexp_apply (fun_, args); _ } when saw_funs ->
             { e with pexp_desc = Pexp_apply (loop fun_ ~saw_funs:false, args) }
@@ -616,16 +663,14 @@ let process_file' ~fmconf:conf ~source_path ~input_name_matching_compilation_com
   in
   Fmast.update_structure structure (process_ast file_type __ f)
   |> Option.map ~f:(fun (structure', other) ->
-         let source_contents' =
-           lazy
-             (Fmast.ocamlformat_print
-                (File_type.to_extended_ast file_type)
-                ~conf structure')
-         in
-         ( ( source_contents
-           , source_contents'
-           , Some (T (file_type, structure, structure', conf)) )
-         , other ))
+      let source_contents' =
+        lazy
+          (Fmast.ocamlformat_print (File_type.to_extended_ast file_type) ~conf structure')
+      in
+      ( ( source_contents
+        , source_contents'
+        , Some (T (file_type, structure, structure', conf)) )
+      , other ))
 
 let process_file ~fmconf ~source_path ~input_name_matching_compilation_command (f : f) =
   process_file' ~fmconf ~source_path ~input_name_matching_compilation_command
@@ -675,68 +720,84 @@ module Requalify = struct
                 , ((lid2, "Not_found") : Longident.t * string)];
             `No path)
 
-  let rec ident_of_path_exn : Path.t -> Longident.t = function
-    | Pident ident -> Lident (Ident.name ident)
-    | Pdot (p, s) -> Ldot (ident_of_path_exn p, s)
-    | Papply (p1, p2) -> Lapply (ident_of_path_exn p1, ident_of_path_exn p2)
+  let rec ident_of_path_exn ~loc : Path.t -> Longident.t Location.loc = function
+    | Pident ident -> { txt = Lident (Ident.name ident); loc }
+    | Pdot (p, s) -> { txt = Ldot (ident_of_path_exn ~loc p, { txt = s; loc }); loc }
+    | Papply (p1, p2) ->
+        { txt = Lapply (ident_of_path_exn ~loc p1, ident_of_path_exn ~loc p2); loc }
     | Pextra_ty _ -> raise Stdlib.Not_found
 
-  let rec idents_of_path : Path.t -> Fmast.Longident.t option list = function
+  let rec idents_of_path :
+      loc:_ -> Path.t -> Fmast.Longident.t Fmast.Location.loc option list =
+   fun ~loc -> function
     | Pident ident ->
         (* The file Foo might have a path Libname.Foo or Foo, depending on library
           wrapping, so we try to strip both Libname.Foo and Foo. *)
         if Ident.global ident
-        then [ None; Some (Lident (Ident.name ident)) ]
-        else [ Some (Lident (Ident.name ident)) ]
+        then [ None; Some { txt = Lident (Ident.name ident); loc } ]
+        else [ Some { txt = Lident (Ident.name ident); loc } ]
     | Pdot (p, s) ->
-        List.map (idents_of_path p) ~f:(function
-          | None -> Some (Fmast.Longident.Lident s)
-          | Some lid -> Some (Ldot (lid, s)))
+        List.map (idents_of_path ~loc p) ~f:(function
+          | None -> Some { Fmast.Location.txt = Fmast.Longident.Lident s; loc }
+          | Some lid -> Some { Fmast.Location.txt = Ldot (lid, { txt = s; loc }); loc })
     | Papply (p1, p2) ->
-        List.concat_map (idents_of_path p1) ~f:(function
+        List.concat_map (idents_of_path ~loc p1) ~f:(function
           | None -> []
           | Some lid1 ->
-              List.concat_map (idents_of_path p2) ~f:(function
+              List.concat_map (idents_of_path ~loc p2) ~f:(function
                 | None -> []
-                | Some lid2 -> [ Some (Fmast.Longident.Lapply (lid1, lid2)) ]))
+                | Some lid2 ->
+                    [ Some
+                        { Fmast.Location.txt = Fmast.Longident.Lapply (lid1, lid2); loc }
+                    ]))
     | Pextra_ty _ -> []
 
-  let idents_of_path path = List.filter_opt (idents_of_path path)
+  let idents_of_path ~loc path = List.filter_opt (idents_of_path ~loc path)
 
   let rec requalify : type a.
-      ?fail:(string -> _) -> (Path.t * a) Uast.ns -> _ -> _ -> Longident.t -> Longident.t
-      =
-   fun ?fail ns env1 env2 -> function
+         ?fail:(string -> _)
+      -> (Path.t * a) Uast.ns
+      -> _
+      -> _
+      -> Longident.t Location.loc
+      -> Longident.t Location.loc =
+   fun ?fail ns env1 env2 { txt; loc } ->
+    match txt with
     | Lident s -> (
         match same_resolution ns (Lident s, env1) (Lident s, env2) with
-        | `Unknown | `Yes -> Lident s
+        | `Unknown | `Yes -> { txt = Lident s; loc }
         | `No path -> (
-            let id = ident_of_path_exn path in
+            let id = ident_of_path_exn ~loc path in
             match fail with
             | None -> id
             | Some f -> (
-                match same_resolution ns (Lident s, env1) (id, env2) with
+                match same_resolution ns (Lident s, env1) (id.txt, env2) with
                 | `Unknown -> assert false
                 | `Yes -> id
                 | `No _ ->
                     f s;
-                    Lident s)))
-    | Ldot (lid, s) -> Ldot (requalify ?fail Module env1 env2 lid, s)
+                    { txt = Lident s; loc })))
+    | Ldot (lid, s) -> { txt = Ldot (requalify ?fail Module env1 env2 lid, s); loc }
     | Lapply (lid1, lid2) ->
-        Lapply (requalify ?fail Module env1 env2 lid1, requalify ?fail ns env1 env2 lid2)
+        { txt =
+            Lapply
+              (requalify ?fail Module env1 env2 lid1, requalify ?fail ns env1 env2 lid2)
+        ; loc
+        }
 
-  let rec try_unqualifying_ident ~same_resolution_as_initially (env : Env.summary) var =
+  let rec try_unqualifying_ident ~same_resolution_as_initially (env : Env.summary)
+      (var : Longident.t Location.loc) =
     let var =
       match env with
       | Env_open (_, path) -> (
           match
-            List.find_map (idents_of_path path) ~f:(fun prefix ->
+            List.find_map (idents_of_path ~loc:var.loc path) ~f:(fun prefix ->
                 let var = Flat_longident.from_longident var in
                 let prefix = Flat_longident.from_longident prefix in
                 Flat_longident.chop_prefix var ~prefix
                 |> Option.map ~f:Flat_longident.to_longident)
           with
-          | Some var' when same_resolution_as_initially var' -> var'
+          | Some var' when same_resolution_as_initially var'.txt -> var'
           | _ -> var)
       | _ -> var
     in
@@ -751,7 +812,7 @@ module Requalify = struct
         (fun self expr ->
           let expr = super.expr self expr in
           match expr with
-          | { pexp_desc = Pexp_ident { txt = var; loc }; _ } -> (
+          | { pexp_desc = Pexp_ident var; _ } -> (
               match envs expr with
               | None -> expr
               | Some (orig_env, new_base_env, rebased_env) -> (
@@ -759,16 +820,17 @@ module Requalify = struct
                   let var' =
                     var
                     |> requalify Value orig_env rebased_env __ ~fail:(fun id ->
-                           failed := Some id)
+                        failed := Some id)
                     |> try_unqualifying_ident (Env.summary new_base_env) __
                          ~same_resolution_as_initially:(fun new_var ->
                            match
-                             same_resolution Value (var, orig_env) (new_var, rebased_env)
+                             same_resolution Value (var.txt, orig_env)
+                               (new_var, rebased_env)
                            with
                            | `Yes -> true
                            | `No _ | `Unknown -> false)
                   in
-                  let expr = { expr with pexp_desc = Pexp_ident { txt = var'; loc } } in
+                  let expr = { expr with pexp_desc = Pexp_ident var' } in
                   match !failed with
                   | None -> expr
                   | Some id ->

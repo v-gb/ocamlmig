@@ -209,8 +209,8 @@ type 'a ns =
   | Module_type : (Path.t * Types.modtype_declaration) ns
   | Class : (Path.t * Types.class_declaration) ns
   | Class_type : (Path.t * Types.class_type_declaration) ns
-  | Constructor : Types.constructor_description ns
-  | Label : Types.label_description ns
+  | Constructor : Data_types.constructor_description ns
+  | Label : Data_types.label_description ns
 
 val find_by_name : 'a ns -> env -> Longident.t -> 'a
 val uid : 'a ns -> 'a -> Shape.Uid.t

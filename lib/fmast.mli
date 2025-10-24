@@ -85,7 +85,7 @@ module Longident : sig
 
   include Comparator.S with type t := t
 
-  val map_modpath : t -> (t -> t) -> t
+  val map_modpath : t -> (t Location.loc -> t Location.loc) -> t
 end
 
 module Ast_helper : sig
@@ -107,6 +107,14 @@ module Ast_helper : sig
     val some : ?loc:loc -> P.pattern -> P.pattern
     val none : ?loc:loc -> unit -> P.pattern
     val ext_exp : ?loc:loc -> string -> P.expression -> P.pattern
+
+    val unit :
+         ?loc:loc
+      -> ?attrs:Ocamlformat_parser_extended.Parsetree.attributes
+      -> unit
+      -> P.pattern
+
+    val unlabelled_tuple : ?loc:loc -> ?attrs:P.attributes -> P.pattern list -> P.pattern
   end
 
   module Exp : sig
@@ -137,7 +145,12 @@ module Ast_helper : sig
 
     val string : ?loc:loc -> ?quotation_delimiter:string -> string -> P.expression
     val int : ?loc:loc -> ?suffix:char -> int -> P.expression
-    val ext_exp : ?loc:loc -> string -> P.expression -> P.expression
+
+    val ext_exp :
+      ?loc:loc -> ?attrs:P.attributes -> string -> P.expression -> P.expression
+
+    val unlabelled_tuple :
+      ?loc:loc -> ?attrs:P.attributes -> P.expression list -> P.expression
   end
 
   module Attr : sig
@@ -232,15 +245,15 @@ module Node : sig
 end
 
 module Flat_longident : sig
-  type t = string * cont list
+  type t = string Location.loc * cont Location.loc list
 
   and cont =
-    | Dot of string
+    | Dot of string Location.loc
     | Apply_to of t
   [@@deriving equal, compare, hash, sexp_of]
 
-  val from_longident : Longident.t -> t
-  val to_longident : t -> Longident.t
+  val from_longident : Longident.t Location.loc -> t
+  val to_longident : t -> Longident.t Location.loc
   val is_prefix : t -> prefix:t -> bool
   val chop_prefix : t -> prefix:t -> t option
 end

@@ -307,7 +307,7 @@ let rec exec_of_expr (expr : P.expression) =
       match id.txt with Lident "#ocamlmigmarker" -> Special `Marker | _ -> Const)
   | Pexp_constant _ -> Const
   | Pexp_let (bindings, body, _) -> Sequence (exec_of_bindings bindings, exec_of_expr body)
-  | Pexp_function (params, _, body) ->
+  | Pexp_function (params, _, body, _) ->
       if
         List.exists params ~f:(fun param ->
             match param.pparam_desc with
@@ -320,9 +320,13 @@ let rec exec_of_expr (expr : P.expression) =
       if Sattr.exists Sattr.commutes expr.pexp_attributes
       then args_exec
       else Sequence (args_exec, Special `Call)
-  | Pexp_match (e, cases) -> Sequence (exec_of_expr e, exec_of_cases cases)
-  | Pexp_try (e, cases) -> either (exec_of_expr e, exec_of_cases cases)
-  | Pexp_tuple l -> unordereds (List.map l ~f:exec_of_expr)
+  | Pexp_match (e, cases, _) -> Sequence (exec_of_expr e, exec_of_cases cases)
+  | Pexp_try (e, cases, _) -> either (exec_of_expr e, exec_of_cases cases)
+  | Pexp_tuple l ->
+      unordereds
+        (List.map l ~f:(function
+          | Lte_simple { lte_elt; _ } -> exec_of_expr lte_elt
+          | _ -> assert false))
   | Pexp_construct (_, opt) -> exec_of_expr_opt opt
   | Pexp_variant (_, opt) -> exec_of_expr_opt opt
   | Pexp_record (fields, opt) ->
@@ -339,9 +343,9 @@ let rec exec_of_expr (expr : P.expression) =
         ~init:(exec_of_expr_opt (Option.map rest ~f:fst))
         ~f:(fun branch acc ->
           Sequence (exec_of_expr branch.if_cond, either (exec_of_expr branch.if_body, acc)))
-  | Pexp_sequence (e1, e2) -> sequence (exec_of_expr e1, exec_of_expr e2)
+  | Pexp_sequence (e1, e2, _) -> sequence (exec_of_expr e1, exec_of_expr e2)
   | Pexp_while _ -> Special `Loop
-  | Pexp_for (_, e1, e2, _, _) ->
+  | Pexp_for (_, e1, e2, _, _, _) ->
       sequence (unordered (exec_of_expr e1, exec_of_expr e2), Special `Loop)
   | Pexp_constraint (e, _) -> exec_of_expr e
   | Pexp_coerce (e, _, _) -> exec_of_expr e
@@ -350,7 +354,7 @@ let rec exec_of_expr (expr : P.expression) =
   | Pexp_setinstvar (_, e) -> sequence (exec_of_expr e, Special `Mutation)
   | Pexp_override l -> exec_of_expr_list (List.map l ~f:snd)
   | Pexp_letmodule _ | Pexp_letexception _ -> Special `Call
-  | Pexp_assert e -> either (exec_of_expr e, Special `Call)
+  | Pexp_assert (e, _) -> either (exec_of_expr e, Special `Call)
   | Pexp_lazy _ -> Const
   | Pexp_object _ -> Special `Call
   | Pexp_pack _ -> Special `Call
@@ -360,12 +364,13 @@ let rec exec_of_expr (expr : P.expression) =
   | Pexp_extension _ -> Special `Call
   | Pexp_unreachable -> Const
   | Pexp_hole -> Const
-  | Pexp_beginend e | Pexp_parens e -> exec_of_expr e
+  | Pexp_beginend (e, _) | Pexp_parens e -> exec_of_expr e
   | Pexp_cons l -> exec_of_expr_list l
   | Pexp_indexop_access _ -> Special `Call
   | Pexp_prefix (_, e) -> sequence (exec_of_expr e, Special `Call)
   | Pexp_infix (_, e1, e2) ->
       sequence (unordered (exec_of_expr e1, exec_of_expr e2), Special `Call)
+  | Pexp_construct_unit_beginend _ -> Const
 
 and exec_of_expr_opt opt = match opt with None -> Const | Some e -> exec_of_expr e
 and exec_of_expr_list l = unordereds (List.map l ~f:exec_of_expr)
@@ -475,11 +480,11 @@ let mapper_with_bound_vars (new_scope, end_scope) =
         P.function_body =
       match body with
       | Pfunction_body e -> Pfunction_body (self.expr self e)
-      | Pfunction_cases (cases, loc, attributes) ->
+      | Pfunction_cases (cases, loc, infix_ext_attrs) ->
           let cases = self.cases self cases in
           let loc = self.location self loc in
-          let attributes = self.attributes self attributes in
-          Pfunction_cases (cases, loc, attributes)
+          let infix_ext_attrs = self.infix_ext_attrs self infix_ext_attrs in
+          Pfunction_cases (cases, loc, infix_ext_attrs)
     in
     { super with
       pat =
@@ -521,7 +526,7 @@ let mapper_with_bound_vars (new_scope, end_scope) =
                     self.expr self body)
               in
               { expr with pexp_desc = Pexp_open (id, body') }
-          | Pexp_letopen (open_infos, body) ->
+          | Pexp_letopen (open_infos, body, attrs) ->
               let open_infos' =
                 { open_infos with
                   popen_expr = self.module_expr self open_infos.popen_expr
@@ -532,8 +537,8 @@ let mapper_with_bound_vars (new_scope, end_scope) =
                     found_open ();
                     self.expr self body)
               in
-              { expr with pexp_desc = Pexp_letopen (open_infos', body') }
-          | Pexp_function (params, typ_opt, body) ->
+              { expr with pexp_desc = Pexp_letopen (open_infos', body', attrs) }
+          | Pexp_function (params, typ_opt, body, attrs) ->
               restoring_context (fun () ->
                   let params' =
                     List.map params ~f:(fun param ->
@@ -549,16 +554,18 @@ let mapper_with_bound_vars (new_scope, end_scope) =
                   in
                   let typ_opt' = Option.map typ_opt ~f:(map_constraint self) in
                   let body' = map_function_body self body in
-                  { expr with pexp_desc = Pexp_function (params', typ_opt', body') })
-          | Pexp_match (e, cases) ->
+                  { expr with
+                    pexp_desc = Pexp_function (params', typ_opt', body', attrs)
+                  })
+          | Pexp_match (e, cases, attrs) ->
               let e' = self.expr self e in
               let cases' = self.cases self cases in
-              { expr with pexp_desc = Pexp_match (e', cases') }
-          | Pexp_try (e, cases) ->
+              { expr with pexp_desc = Pexp_match (e', cases', attrs) }
+          | Pexp_try (e, cases, attrs) ->
               let e' = self.expr self e in
               let cases' = self.cases self cases in
-              { expr with pexp_desc = Pexp_try (e', cases') }
-          | Pexp_for (p, e1, e2, dir, body) ->
+              { expr with pexp_desc = Pexp_try (e', cases', attrs) }
+          | Pexp_for (p, e1, e2, dir, body, attrs) ->
               let e1' = self.expr self e1 in
               let e2' = self.expr self e2 in
               let p', body' =
@@ -566,7 +573,7 @@ let mapper_with_bound_vars (new_scope, end_scope) =
                     let p' = self.pat self p in
                     (p', self.expr self body))
               in
-              { expr with pexp_desc = Pexp_for (p', e1', e2', dir, body') }
+              { expr with pexp_desc = Pexp_for (p', e1', e2', dir, body', attrs) }
           | Pexp_letop letop ->
               let bop_exp (bop : P.binding_op) =
                 let args', expr' =
@@ -705,7 +712,12 @@ let substitute subst e =
   if Map.is_empty subst
   then e
   else
-    let fvs = free_vars (Ast_helper.Exp.tuple (Map.data subst)) in
+    let fvs =
+      free_vars
+        (Ast_helper.Exp.tuple
+           (List.map (Map.data subst) ~f:(fun e ->
+                P.Lte_simple { lte_label = None; lte_elt = e })))
+    in
     (* The caller should ensure this isn't called in ambiguous cases (caused by open),
          we should avoid captures (both by taking scopes into account here, and by
          ensuring that [e] has no free vars that are bound anywhere in [by]).
@@ -805,8 +817,10 @@ let rec execution_commutes (e : P.expression) =
   | Pexp_ident _ -> true
   | Pexp_constant _ -> true
   | Pexp_construct (_, opt) | Pexp_variant (_, opt) -> execution_commutes_opt opt
-  | Pexp_tuple l -> execution_commutes_list l
-  | Pexp_function (params, _, body) -> (
+  | Pexp_tuple l ->
+      execution_commutes_list
+        (List.map l ~f:(function Lte_simple r -> r.lte_elt | _ -> assert false))
+  | Pexp_function (params, _, body, _) -> (
       List.exists params ~f:(fun param ->
           match param.pparam_desc with Pparam_newtype _ -> false | Pparam_val _ -> true)
       ||
@@ -1223,13 +1237,14 @@ let execute_let ~ctx ~type_index ~can_simplify ~value_constraint
 
 let rec map_tails (e : P.expression) f =
   match e with
-  | { pexp_desc = Pexp_match (matched, cases); _ } ->
+  | { pexp_desc = Pexp_match (matched, cases, attrs); _ } ->
       { e with
         pexp_desc =
           Pexp_match
             ( matched
             , List.map cases ~f:(fun case ->
-                  { case with pc_rhs = map_tails case.pc_rhs f }) )
+                  { case with pc_rhs = map_tails case.pc_rhs f })
+            , attrs )
       }
   | { pexp_desc = Pexp_ifthenelse (branches, else_); _ } ->
       { e with
@@ -1241,18 +1256,18 @@ let rec map_tails (e : P.expression) f =
       }
   | { pexp_desc = Pexp_let (a, e, b); _ } ->
       { e with pexp_desc = Pexp_let (a, map_tails e f, b) }
-  | { pexp_desc = Pexp_sequence (a, e); _ } ->
-      { e with pexp_desc = Pexp_sequence (a, map_tails e f) }
-  | { pexp_desc = Pexp_letmodule (a, b, c, e); _ } ->
-      { e with pexp_desc = Pexp_letmodule (a, b, c, map_tails e f) }
-  | { pexp_desc = Pexp_letexception (a, e); _ } ->
-      { e with pexp_desc = Pexp_letexception (a, map_tails e f) }
+  | { pexp_desc = Pexp_sequence (a, e, b); _ } ->
+      { e with pexp_desc = Pexp_sequence (a, map_tails e f, b) }
+  | { pexp_desc = Pexp_letmodule (a, b, c, e, g); _ } ->
+      { e with pexp_desc = Pexp_letmodule (a, b, c, map_tails e f, g) }
+  | { pexp_desc = Pexp_letexception (a, e, b); _ } ->
+      { e with pexp_desc = Pexp_letexception (a, map_tails e f, b) }
   | { pexp_desc = Pexp_open (a, e); _ } ->
       { e with pexp_desc = Pexp_open (a, map_tails e f) }
-  | { pexp_desc = Pexp_letopen (a, e); _ } ->
-      { e with pexp_desc = Pexp_letopen (a, map_tails e f) }
-  | { pexp_desc = Pexp_beginend e; _ } ->
-      { e with pexp_desc = Pexp_beginend (map_tails e f) }
+  | { pexp_desc = Pexp_letopen (a, e, b); _ } ->
+      { e with pexp_desc = Pexp_letopen (a, map_tails e f, b) }
+  | { pexp_desc = Pexp_beginend (e, a); _ } ->
+      { e with pexp_desc = Pexp_beginend (map_tails e f, a) }
   | { pexp_desc = Pexp_parens e; _ } -> { e with pexp_desc = Pexp_parens (map_tails e f) }
   | _ -> f e
 
@@ -1305,7 +1320,7 @@ let execute_apply ~process_call ~loc (fun_ : P.expression) args =
   if can_simplify fun_.pexp_loc loc then process_call ~apply_loc:loc args fun_ else None
 
 let has_context_match : P.expression -> _ = function
-  | { pexp_desc = Pexp_function ([], None, Pfunction_cases (case :: _, _, _)); _ } -> (
+  | { pexp_desc = Pexp_function ([], None, Pfunction_cases (case :: _, _, _), _); _ } -> (
       match case.pc_lhs with
       | { ppat_desc = Ppat_extension ({ txt = "context"; _ }, _); _ } -> true
       | _ -> false)
@@ -1389,8 +1404,9 @@ let simplify ~type_index ~ctx process_call =
         with_log (fun self expr ->
             let expr =
               match expr with
-              | { pexp_desc = Pexp_function ([], None, Pfunction_cases (cases, _, _)); _ }
-                -> (
+              | { pexp_desc = Pexp_function ([], None, Pfunction_cases (cases, _, _), _)
+                ; _
+                } -> (
                   match Sattr.find Sattr.orig expr.pexp_attributes with
                   | None -> super.expr self expr
                   | Some orig -> (
@@ -1401,7 +1417,7 @@ let simplify ~type_index ~ctx process_call =
                   match execute_if ~loc:expr.pexp_loc branches else_ ~can_simplify with
                   | None -> super.expr self expr
                   | Some (_, e, _) -> self.expr self e)
-              | { pexp_desc = Pexp_match (matched, cases); _ } -> (
+              | { pexp_desc = Pexp_match (matched, cases, _); _ } -> (
                   match execute_match matched (expr.pexp_loc, cases) ~can_simplify with
                   | None -> super.expr self expr
                   | Some (_, new_expr, _) -> self.expr self new_expr)
@@ -1440,7 +1456,7 @@ let simplify ~type_index ~ctx process_call =
                       [ { if_cond = tail; if_body; if_attrs; if_loc_then } ]
                       else_ ~loc:expr.pexp_loc ~can_simplify)
                 |> Option.value ~default:expr
-            | { pexp_desc = Pexp_match (matched, cases); _ } ->
+            | { pexp_desc = Pexp_match (matched, cases, _); _ } ->
                 case_of_case matched (fun tail ->
                     execute_match tail (expr.pexp_loc, cases) ~can_simplify)
                 |> Option.value ~default:expr
@@ -1637,7 +1653,7 @@ let reduce ~ctx ~type_index
 
 let process_call ~ctx ~type_index ~apply_loc args (to_expr : P.expression) =
   match to_expr.pexp_desc with
-  | Pexp_function (params, None, Pfunction_body body) -> (
+  | Pexp_function (params, None, Pfunction_body body, _) -> (
       match line_up_params_and_args ~ctx ~apply_loc params args body with
       | None -> None
       | Some (combined, body) -> Some (reduce ~ctx ~type_index combined body))
@@ -1695,7 +1711,7 @@ let find_extra_migration_uast ~fmconf (e : Typedtree.expression) =
       match find_attribute_payload_uast ~fmconf e.exp_attributes with
       | None -> None
       | Some payload -> Some (e, id, payload))
-  | Texp_tuple [ ({ exp_desc = Texp_ident (_, id1, _); _ } as e1); e2 ]
+  | Texp_tuple [ (None, ({ exp_desc = Texp_ident (_, id1, _); _ } as e1)); (None, e2) ]
   | Texp_construct
       ( { txt = Lident "::"; _ }
       , _
@@ -1726,7 +1742,10 @@ let find_extra_migration_fmast (e : P.expression) =
       match find_attribute_payload_fmast e.pexp_attributes with
       | None -> None
       | Some payload -> Some (e, id, `Id, payload))
-  | Pexp_tuple [ ({ pexp_desc = Pexp_ident id1; _ } as e1); e2 ]
+  | Pexp_tuple
+      [ Lte_simple { lte_label = None; lte_elt = { pexp_desc = Pexp_ident id1; _ } as e1 }
+      ; Lte_simple { lte_label = None; lte_elt = e2 }
+      ]
   | Pexp_list [ ({ pexp_desc = Pexp_ident id1; _ } as e1); e2 ] -> (
       (* The problem with these syntaxes is that you can't use [%context] and Rel.
          Maybe that's ok, but not sure. At least the fact that it's typed is less
@@ -1834,8 +1853,9 @@ end
    F(M).t -> Ldot (Lapply (F, M)) t
 *)
 let rec rel_opt : type a. a Uast.ns -> _ =
- fun ns ~resolved_modpath (l1 : Longident.t) (l2 : Longident.t) : Longident.t option ->
-  match l2 with
+ fun ns ~resolved_modpath (l1 : Longident.t) (l2 : Longident.t Location.loc) :
+     Longident.t Location.loc option ->
+  match l2.txt with
   | Lident s ->
       if s =: "Rel"
       then
@@ -1844,14 +1864,17 @@ let rec rel_opt : type a. a Uast.ns -> _ =
         | Ldot (base_mod, _) -> Some base_mod
         | Lapply _ -> assert false
       else Some l2
-  | Ldot (l2, s) ->
+  | Ldot (il2, s) ->
       Some
-        (match rel_opt ns ~resolved_modpath l1 l2 with
-        | None -> Lident s
-        | Some l2' -> Ldot (l2', s))
+        (match rel_opt ns ~resolved_modpath l1 il2 with
+        | None -> { txt = Lident s.txt; loc = s.loc }
+        | Some l2' -> { txt = Ldot (l2', s); loc = l2.loc })
   | Lapply (f, arg) ->
       Some
-        (Lapply (rel Module ~resolved_modpath l1 f, rel Module ~resolved_modpath l1 arg))
+        { txt =
+            Lapply (rel Module ~resolved_modpath l1 f, rel Module ~resolved_modpath l1 arg)
+        ; loc = l2.loc
+        }
 
 and rel : type a. a Uast.ns -> _ =
  fun ns ~resolved_modpath l1 l2 ->
@@ -1867,10 +1890,10 @@ and rel : type a. a Uast.ns -> _ =
               match Uast.without_type_based_disambiguation ns with
               | None -> l
               | Some (T T) -> (
-                  match Requalify.same_resolution ns (l', env) (l, env) with
+                  match Requalify.same_resolution ns (l'.txt, env) (l.txt, env) with
                   | `Unknown | `Yes -> l
                   | `No _ -> l'))))
-  | None -> Lident "Nomodulename"
+  | None -> { txt = Lident "Nomodulename"; loc = l2.loc }
 
 let relativize ~resolved_modpath path meth e =
   let super = Ast_mapper.default_mapper in
@@ -1880,25 +1903,24 @@ let relativize ~resolved_modpath path meth e =
         (fun self v ->
           let v = super.module_expr self v in
           match v.pmod_desc with
-          | Pmod_ident { txt = var; loc } ->
+          | Pmod_ident var ->
               let var' = rel Module ~resolved_modpath path var in
-              { v with pmod_desc = Pmod_ident { txt = var'; loc } }
+              { v with pmod_desc = Pmod_ident var' }
           | _ -> v)
     ; expr =
         (fun self v ->
           let v = super.expr self v in
           match v with
-          | { pexp_desc = Pexp_ident { txt = var; loc }; _ } ->
+          | { pexp_desc = Pexp_ident var; _ } ->
               let var' = rel Value ~resolved_modpath path var in
-              { v with pexp_desc = Pexp_ident { txt = var'; loc } }
-          | { pexp_desc = Pexp_construct ({ txt = var; loc }, arg); _ } ->
+              { v with pexp_desc = Pexp_ident var' }
+          | { pexp_desc = Pexp_construct (var, arg); _ } ->
               let var' = rel Constructor ~resolved_modpath path var in
-              { v with pexp_desc = Pexp_construct ({ txt = var'; loc }, arg) }
+              { v with pexp_desc = Pexp_construct (var', arg) }
           | { pexp_desc = Pexp_record (fields, arg); _ } ->
               let fields' =
-                List.map fields ~f:(fun ({ txt = var; loc }, a, b) ->
-                    let var' = rel Label ~resolved_modpath path var in
-                    (({ txt = var'; loc } : _ Location.loc), a, b))
+                List.map fields ~f:(fun (var, a, b) ->
+                    (rel Label ~resolved_modpath path var, a, b))
               in
               { v with pexp_desc = Pexp_record (fields', arg) }
           | _ -> v)
@@ -1907,8 +1929,8 @@ let relativize ~resolved_modpath path meth e =
           let v = super.typ self v in
           match v with
           | { ptyp_desc = Ptyp_constr (id, args); _ } ->
-              let id' = rel Type ~resolved_modpath path id.txt in
-              { v with ptyp_desc = Ptyp_constr ({ id with txt = id' }, args) }
+              let id' = rel Type ~resolved_modpath path id in
+              { v with ptyp_desc = Ptyp_constr (id', args) }
           | _ -> v)
     }
   in
@@ -1951,7 +1973,7 @@ let payload_from_exn_decl_fmast ~fmconf ~type_index ~id_for_logging:id (nsv, v)
   | elt :: _ -> (
       match construct_of elt with
       | None -> None
-      | Some (construct_desc : Types.constructor_description) -> (
+      | Some (construct_desc : Data_types.constructor_description) -> (
           match construct_desc.cstr_tag with
           | Cstr_extension _ -> (
               match
@@ -1973,9 +1995,9 @@ let rec find_map_lident_prefix (lid : Longident.t) f =
   match lid with
   | Lident _ | Lapply _ -> f lid
   | Ldot (left, right) -> (
-      match find_map_lident_prefix left f with
+      match find_map_lident_prefix left.txt f with
       | None -> f lid
-      | Some res -> Some (Longident.Ldot (res, right)))
+      | Some res -> Some (Longident.Ldot ({ left with txt = res }, right)))
 
 let find_map_lident_prefix ~start lid f =
   match start with
@@ -1984,29 +2006,30 @@ let find_map_lident_prefix ~start lid f =
       match lid with
       | Lident _ | Lapply _ -> None
       | Ldot (left, right) -> (
-          match find_map_lident_prefix left f with
+          match find_map_lident_prefix left.txt f with
           | None -> None
-          | Some res -> Some (Longident.Ldot (res, right))))
+          | Some res -> Some (Longident.Ldot ({ left with txt = res }, right))))
 
-let resolved_modpath_from_env env path =
+let resolved_modpath_from_env ~loc env path =
   lazy
     (let env = Envaux.env_of_only_summary env in
      let ident =
        path
-       |> Requalify.ident_of_path_exn __
+       |> Requalify.ident_of_path_exn ~loc __
+       |> __.Location.txt
        |> Longident.map_modpath __ (fun modpath ->
-              Requalify.try_unqualifying_ident
-                ~same_resolution_as_initially:(fun new_var ->
-                  match
-                    Requalify.same_resolution Module (modpath, env) (new_var, env)
-                  with
-                  | `Yes -> true
-                  | `No _ | `Unknown -> false)
-                (Env.summary env) modpath)
+           Requalify.try_unqualifying_ident
+             ~same_resolution_as_initially:(fun new_var ->
+               match
+                 Requalify.same_resolution Module (modpath.txt, env) (new_var, env)
+               with
+               | `Yes -> true
+               | `No _ | `Unknown -> false)
+             (Env.summary env) modpath)
      in
      (ident, env))
 
-let resolved_modpath ~type_index nsv v ~path_of =
+let resolved_modpath ~loc ~type_index nsv v ~path_of =
   match Build.Type_index.find type_index nsv v with
   | [] -> None
   | elt :: _ -> (
@@ -2014,7 +2037,7 @@ let resolved_modpath ~type_index nsv v ~path_of =
       | None -> None
       | Some path ->
           let env = Build.Type_index.env nsv elt in
-          Some (resolved_modpath_from_env env path))
+          Some (resolved_modpath_from_env ~loc env path))
 
 let find_module_decl_payload (type a b) ~fmconf ~type_index ~module_migrations
     ((nsv : (_, b, _, _) Fmast.Node.t), v) ((lidns : a Uast.ns), (lid : Longident.t))
@@ -2059,14 +2082,11 @@ let find_module_decl_payload (type a b) ~fmconf ~type_index ~module_migrations
                     match payload.repl.loc_updated with
                     | { pexp_desc = Pexp_construct (repl_lid, None); _ } ->
                         let repl_lid =
-                          { repl_lid with
-                            txt =
-                              rel Module lid repl_lid.txt
-                                ~resolved_modpath:
-                                  (Some (resolved_modpath_from_env env path))
-                          }
+                          rel Module lid repl_lid
+                            ~resolved_modpath:
+                              (Some (resolved_modpath_from_env ~loc:repl_lid.loc env path))
                         in
-                        Requalify.try_unqualifying_ident (Env.summary env) repl_lid.txt
+                        Requalify.try_unqualifying_ident (Env.summary env) repl_lid
                           ~same_resolution_as_initially:(fun new_lid ->
                             match
                               Requalify.same_resolution Module (repl_lid.txt, env)
@@ -2074,14 +2094,15 @@ let find_module_decl_payload (type a b) ~fmconf ~type_index ~module_migrations
                             with
                             | `Yes -> true
                             | `No _ | `Unknown -> false)
+                        |> __.Location.txt
                         |> Some __
                     | _ ->
                         if !log || debug.all
                         then print_s [%sexp (lid : Longident.t), "repl is not a path"];
                         None))))
     |> Option.map ~f:(fun flid ->
-           changed_something := true;
-           Fmast.Node.update nsv v ~desc:(build flid))
+        changed_something := true;
+        Fmast.Node.update nsv v ~desc:(build flid))
 
 let type_index_from_payload ~initial_env payload =
   match
@@ -2233,7 +2254,7 @@ let requalify ((expr : P.expression), expr_type_index) new_base_env =
             (fun self v ->
               let v = super.expr self v in
               match v with
-              | { pexp_desc = Pexp_ident { txt = var; loc }; _ } -> (
+              | { pexp_desc = Pexp_ident var; _ } -> (
                   match
                     Build.Type_index.exp expr_type_index (Conv.Ufm.location v.pexp_loc)
                   with
@@ -2247,13 +2268,13 @@ let requalify ((expr : P.expression), expr_type_index) new_base_env =
                         |> Requalify.try_unqualifying_ident (Env.summary new_base_env) __
                              ~same_resolution_as_initially:(fun new_var ->
                                match
-                                 Requalify.same_resolution Value (var, orig_env)
+                                 Requalify.same_resolution Value (var.txt, orig_env)
                                    (new_var, rebased_env)
                                with
                                | `Yes -> true
                                | `No _ | `Unknown -> false)
                       in
-                      { v with pexp_desc = Pexp_ident { txt = var'; loc } })
+                      { v with pexp_desc = Pexp_ident var' })
               | _ -> v)
         }
       in
@@ -2330,7 +2351,8 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                     let to_expr =
                       relativize id.txt __.expr to_expr
                         ~resolved_modpath:
-                          (resolved_modpath ~type_index Exp v ~path_of:(function
+                          (resolved_modpath ~loc:to_expr.pexp_loc ~type_index Exp v
+                             ~path_of:(function
                             | { exp_desc = Texp_ident (path, _, _); _ } -> Some path
                             | _ -> None))
                     in
@@ -2372,19 +2394,17 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                     warn_about_disabled_ocamlformat ();
                     add_depends (libraries, pps);
                     let id2 =
-                      { id2 with
-                        txt =
-                          rel Constructor id.txt id2.txt
-                            ~resolved_modpath:
-                              (resolved_modpath ~type_index Exp v ~path_of:(function
-                                | { exp_desc =
-                                      Texp_construct
-                                        (_, { cstr_tag = Cstr_extension (path, _); _ }, _)
-                                  ; _
-                                  } ->
-                                    Some path
-                                | _ -> None))
-                      }
+                      rel Constructor id.txt id2
+                        ~resolved_modpath:
+                          (resolved_modpath ~loc:id2.loc ~type_index Exp v
+                             ~path_of:(function
+                            | { exp_desc =
+                                  Texp_construct
+                                    (_, { cstr_tag = Cstr_extension (path, _); _ }, _)
+                              ; _
+                              } ->
+                                Some path
+                            | _ -> None))
                     in
                     changed_something := true;
                     { v with
@@ -2400,10 +2420,10 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                       ~build:(fun newid -> Pexp_construct ({ id with txt = newid }, body))
                       ~changed_something
                     |> Option.value ~default:v)
-            | Pexp_new id ->
+            | Pexp_new (id, attrs) ->
                 find_module_decl_payload ~fmconf ~type_index
                   ~module_migrations:ctx.module_migrations (Exp, v) (Class, id.txt)
-                  ~build:(fun newid -> Pexp_new { id with txt = newid })
+                  ~build:(fun newid -> Pexp_new ({ id with txt = newid }, attrs))
                   ~changed_something
                 |> Option.value ~default:v
             | Pexp_field (record, id) ->
@@ -2465,20 +2485,17 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                 warn_about_disabled_ocamlformat ();
                 add_depends (libraries, pps);
                 let id2 =
-                  { id2 with
-                    txt =
-                      rel Constructor id.txt id2.txt
-                        ~resolved_modpath:
-                          (resolved_modpath ~type_index Pat v ~path_of:(function
-                            | T
-                                { pat_desc =
-                                    Tpat_construct
-                                      (_, { cstr_tag = Cstr_extension (path, _); _ }, _, _)
-                                ; _
-                                } ->
-                                Some path
-                            | _ -> None))
-                  }
+                  rel Constructor id.txt id2
+                    ~resolved_modpath:
+                      (resolved_modpath ~loc:id2.loc ~type_index Pat v ~path_of:(function
+                        | T
+                            { pat_desc =
+                                Tpat_construct
+                                  (_, { cstr_tag = Cstr_extension (path, _); _ }, _, _)
+                            ; _
+                            } ->
+                            Some path
+                        | _ -> None))
                 in
                 changed_something := true;
                 { v with
@@ -2574,14 +2591,11 @@ let inline ~fmconf ~type_index ~extra_migrations_cmts ~artifacts:(comp_unit, art
                 warn_about_disabled_ocamlformat ();
                 add_depends (libraries, pps);
                 let id2 =
-                  { id2 with
-                    txt =
-                      rel Type id.txt id2.txt
-                        ~resolved_modpath:
-                          (resolved_modpath ~type_index Typ v ~path_of:(function
-                            | { ctyp_desc = Ttyp_constr (path, _, _); _ } -> Some path
-                            | _ -> None))
-                  }
+                  rel Type id.txt id2
+                    ~resolved_modpath:
+                      (resolved_modpath ~loc:id2.loc ~type_index Typ v ~path_of:(function
+                        | { ctyp_desc = Ttyp_constr (path, _, _); _ } -> Some path
+                        | _ -> None))
                 in
                 changed_something := true;
                 { v with

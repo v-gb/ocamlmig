@@ -27,13 +27,30 @@ module Fmu = struct
 
   let rec longident : From.Longident.t -> To.Longident.t = function
     | Lident s -> Lident s
-    | Ldot (t, s) -> Ldot (longident t, s)
-    | Lapply (t1, t2) -> Lapply (longident t1, longident t2)
+    | Ldot (t, s) -> Ldot (located longident t, located Fn.id s)
+    | Lapply (t1, t2) -> Lapply (located longident t1, located longident t2)
 
   let arg_label : From.Asttypes.arg_label -> To.Asttypes.arg_label = function
     | Nolabel -> Nolabel
     | Labelled s -> Labelled { txt = s; loc = Fmast.Location.none }
     | Optional s -> Optional { txt = s; loc = Fmast.Location.none }
+
+  let tuple_with_pun l f =
+    List.map l ~f:(fun (label, v) : _ To.Parsetree.labeled_tuple_element_with_pun ->
+        Lte_simple
+          { lte_label =
+              Option.map label ~f:(fun label : _ To.Location.loc ->
+                  { loc = To.Location.none; txt = label })
+          ; lte_elt = f v
+          })
+
+  let tuple l f =
+    List.map l ~f:(fun (label, v) : _ To.Parsetree.labeled_tuple_element ->
+        { lte_label =
+            Option.map label ~f:(fun label : _ To.Location.loc ->
+                { loc = To.Location.none; txt = label })
+        ; lte_elt = f v
+        })
 
   let rec expr : From.P.expression -> To.P.expression =
    fun { pexp_desc; pexp_loc; pexp_loc_stack; pexp_attributes } ->
@@ -61,28 +78,41 @@ module Fmu = struct
                     | _ -> raise Stdlib.Exit)
                 })
           , Option.map constr ~f:(fun _ -> raise Stdlib.Exit)
-          , match body with
+          , (match body with
             | Pfunction_cases (l, loc, attrs) ->
-                Pfunction_cases (cases l, location loc, attributes attrs)
-            | Pfunction_body body -> Pfunction_body (expr body) )
+                Pfunction_cases
+                  ( cases l
+                  , location loc
+                  , { infix_attrs = attributes attrs; infix_ext = None } )
+            | Pfunction_body body -> Pfunction_body (expr body))
+          , To.Ast_helper.Attr.empty_infix_ext_attrs )
     | Pexp_construct (id, o) -> Pexp_construct (located longident id, Option.map o ~f:expr)
     | Pexp_record (fields, base) ->
         Pexp_record
           ( List.map fields ~f:(fun (field, value) ->
                 (located longident field, None, Some (expr value)))
           , Option.map base ~f:expr )
-    | Pexp_tuple l -> Pexp_tuple (List.map l ~f:expr)
+    | Pexp_tuple l -> Pexp_tuple (tuple_with_pun l expr)
     | Pexp_variant (s, e) ->
         Pexp_variant
           ( { txt = { txt = s; loc = To.Location.none }; loc = To.Location.none }
           , Option.map e ~f:expr )
-    | Pexp_sequence (e1, e2) -> Pexp_sequence (expr e1, expr e2)
+    | Pexp_sequence (e1, e2) -> Pexp_sequence (expr e1, expr e2, None)
     | Pexp_let (rec_flag, vbs, e) ->
         Pexp_let (value_bindings ~rec_flag vbs, expr e, To.Location.none)
-    | Pexp_open (decl, e) -> Pexp_letopen (open_infos ~f:module_expr decl, expr e)
+    | Pexp_open (decl, e) ->
+        Pexp_letopen
+          ( open_infos ~f:module_expr decl
+          , expr e
+          , To.Ast_helper.Attr.empty_infix_ext_attrs )
     | Pexp_coerce (e, ty_opt, ty) -> Pexp_coerce (expr e, Option.map ty_opt ~f:typ, typ ty)
     | Pexp_letmodule (name, me, e) ->
-        Pexp_letmodule (located Fn.id name, [], module_expr me, expr e)
+        Pexp_letmodule
+          ( located Fn.id name
+          , []
+          , module_expr me
+          , expr e
+          , To.Ast_helper.Attr.empty_infix_ext_attrs )
     | Pexp_letop { let_; ands; body } ->
         let binding_op : From.P.binding_op -> To.P.binding_op =
          fun { pbop_op; pbop_pat; pbop_exp; pbop_loc } ->
@@ -105,21 +135,28 @@ module Fmu = struct
         Pexp_ifthenelse
           ( [ { if_cond = expr e1
               ; if_body = expr e2
-              ; if_attrs = []
+              ; if_attrs = To.Ast_helper.Attr.empty_infix_ext_attrs
               ; if_loc_then = To.Location.none
               }
             ]
           , Option.map e3 ~f:(fun e -> (expr e, To.Location.none)) )
-    | Pexp_while (e1, e2) -> Pexp_while (expr e1, expr e2)
-    | Pexp_try (e, l) -> Pexp_try (expr e, cases l)
-    | Pexp_match (e, l) -> Pexp_match (expr e, cases l)
+    | Pexp_while (e1, e2) ->
+        Pexp_while (expr e1, expr e2, To.Ast_helper.Attr.empty_infix_ext_attrs)
+    | Pexp_try (e, l) ->
+        Pexp_try (expr e, cases l, To.Ast_helper.Attr.empty_infix_ext_attrs)
+    | Pexp_match (e, l) ->
+        Pexp_match (expr e, cases l, To.Ast_helper.Attr.empty_infix_ext_attrs)
     | Pexp_extension (name, p) -> Pexp_extension (located Fn.id name, payload p)
     | Pexp_unreachable -> Pexp_unreachable
     | Pexp_constraint (e, ty) -> Pexp_constraint (expr e, typ ty)
     | Pexp_field (e, f) -> Pexp_field (expr e, located longident f)
-    | Pexp_lazy e -> Pexp_lazy (expr e)
+    | Pexp_lazy e -> Pexp_lazy (expr e, To.Ast_helper.Attr.empty_infix_ext_attrs)
     | Pexp_array l -> Pexp_array (List.map l ~f:expr)
-    | Pexp_pack me -> Pexp_pack (module_expr me, None)
+    | Pexp_pack (me, ty) ->
+        Pexp_pack
+          ( module_expr me
+          , Option.map ty ~f:package_type
+          , To.Ast_helper.Attr.empty_infix_ext_attrs )
     | Pexp_setfield _ | Pexp_for _ | Pexp_send _ | Pexp_new _ | Pexp_setinstvar _
     | Pexp_override _ | Pexp_letexception _ | Pexp_assert _ | Pexp_poly _ | Pexp_object _
     | Pexp_newtype _ ->
@@ -148,7 +185,7 @@ module Fmu = struct
           , typ ty2 )
     | Ptyp_constr (id, params) ->
         Ptyp_constr (located longident id, List.map params ~f:typ)
-    | Ptyp_tuple l -> Ptyp_tuple (List.map l ~f:typ)
+    | Ptyp_tuple l -> Ptyp_tuple (tuple l typ)
     | Ptyp_object _ | Ptyp_class _ | Ptyp_alias _ | Ptyp_variant _ | Ptyp_poly _
     | Ptyp_package _ | Ptyp_open _ | Ptyp_extension _ ->
         raise Stdlib.Exit
@@ -224,7 +261,9 @@ module Fmu = struct
         Ppat_variant
           ( { txt = { txt = s; loc = To.Location.none }; loc = To.Location.none }
           , Option.map e ~f:pat )
-    | Ppat_tuple l -> Ppat_tuple (List.map l ~f:pat)
+    | Ppat_tuple (l, closed) ->
+        Ppat_tuple
+          (tuple_with_pun l pat, match closed with Open -> Open | Closed -> Closed)
     | Ppat_constraint (p, ty) -> Ppat_constraint (pat p, typ ty)
     | Ppat_extension (name, p) -> Ppat_extension (located Fn.id name, payload p)
     | Ppat_alias (p, name) -> Ppat_alias (pat p, located Fn.id name)
@@ -280,6 +319,8 @@ module Fmu = struct
     | Pstr_recmodule _ | Pstr_modtype _ | Pstr_open _ | Pstr_class _ | Pstr_class_type _
     | Pstr_include _ | Pstr_attribute _ | Pstr_extension _ ->
         raise Stdlib.Exit
+
+  and package_type : From.P.package_type -> To.P.package_type = fun _ -> raise Stdlib.Exit
 end
 
 module Ufm = struct
@@ -295,21 +336,62 @@ module Ufm = struct
 
   let rec longident : From.Longident.t -> To.Longident.t = function
     | Lident s -> Lident s
-    | Ldot (t, s) -> Ldot (longident t, s)
-    | Lapply (t1, t2) -> Lapply (longident t1, longident t2)
+    | Ldot (t, s) -> Ldot (located longident t, located Fn.id s)
+    | Lapply (t1, t2) -> Lapply (located longident t1, located longident t2)
 
   let arg_label : From.Asttypes.arg_label -> To.Asttypes.arg_label = function
     | Nolabel -> Nolabel
     | Labelled s -> Labelled s.txt
     | Optional s -> Optional s.txt
 
+  let tuple (type a) l f =
+    List.map l
+      ~f:(fun ({ lte_label; lte_elt } : a From.Parsetree.labeled_tuple_element) ->
+        (Option.map lte_label ~f:__.txt, f lte_elt))
+
+  let tuple_with_pun (type a b typ)
+      (l : (a, typ) From.Parsetree.labeled_tuple_element_with_pun list) f ~f_new :
+      (string option * b) list =
+    List.map l ~f:(function
+      | Lte_simple { lte_label; lte_elt } -> (Option.map lte_label ~f:__.txt, f lte_elt)
+      | Lte_pun label -> (Some label.txt, f_new ~type_constraint:None label)
+      | Lte_constrained_pun { loc = _; label; type_constraint } ->
+          (Some label.txt, f_new ~type_constraint:(Some type_constraint) label))
+
+  let maybe_ext ext e : To.P.expression =
+    match ext with
+    | None -> e
+    | Some name ->
+        { pexp_desc =
+            Pexp_extension
+              ( located Fn.id name
+              , PStr [ { pstr_desc = Pstr_eval (e, []); pstr_loc = e.pexp_loc } ] )
+        ; pexp_loc = e.pexp_loc
+        ; pexp_loc_stack = []
+        ; pexp_attributes = []
+        }
+
   let rec expr : From.P.expression -> To.P.expression =
    fun { pexp_desc; pexp_loc; pexp_loc_stack; pexp_attributes } ->
-    { pexp_desc = expr_desc pexp_desc
-    ; pexp_loc = location pexp_loc
-    ; pexp_loc_stack = List.map ~f:location pexp_loc_stack
-    ; pexp_attributes = attributes pexp_attributes
-    }
+    let e : To.P.expression =
+      { pexp_desc = expr_desc pexp_desc
+      ; pexp_loc = location pexp_loc
+      ; pexp_loc_stack = List.map ~f:location pexp_loc_stack
+      ; pexp_attributes = attributes pexp_attributes
+      }
+    in
+    match pexp_desc with
+    | Pexp_function (_, _, _, ext_attrs)
+    | Pexp_letopen (_, _, ext_attrs)
+    | Pexp_letmodule (_, _, _, _, ext_attrs)
+    | Pexp_while (_, _, ext_attrs)
+    | Pexp_try (_, _, ext_attrs)
+    | Pexp_match (_, _, ext_attrs)
+    | Pexp_lazy (_, ext_attrs)
+    | Pexp_pack (_, _, ext_attrs) ->
+        infix_ext_attrs ext_attrs e
+    | Pexp_sequence (_, _, ext) -> infix_ext_attrs { infix_attrs = []; infix_ext = ext } e
+    | _ -> e
 
   and expr_desc : From.P.expression_desc -> To.P.expression_desc = function
     | Pexp_ident ident -> Pexp_ident (located longident ident)
@@ -317,7 +399,7 @@ module Ufm = struct
     | Pexp_apply (e, l) ->
         Pexp_apply
           (expr e, List.map l ~f:(fun (label, value) -> (arg_label label, expr value)))
-    | Pexp_function (params, constr, body) ->
+    | Pexp_function (params, constr, body, _handled_earlier) ->
         Pexp_function
           ( List.map params ~f:(fun { pparam_loc; pparam_desc } : To.P.function_param ->
                 { pparam_loc = location pparam_loc
@@ -329,8 +411,21 @@ module Ufm = struct
                 })
           , Option.map constr ~f:(fun _ -> raise Stdlib.Exit)
           , match body with
-            | Pfunction_cases (l, loc, attrs) ->
-                Pfunction_cases (cases l, location loc, attributes attrs)
+            | Pfunction_cases (l, loc, { infix_ext; infix_attrs }) -> (
+                match infix_ext with
+                | None -> Pfunction_cases (cases l, location loc, attributes infix_attrs)
+                | Some ext ->
+                    (* Only happens with the full syntax fun ... -> function%foo ...
+                       With just function%foo ..., the extension is on the expr node. *)
+                    Pfunction_body
+                      (To.Ast_helper.Exp.extension
+                         ( located Fn.id ext
+                         , PStr
+                             [ To.Ast_helper.Str.eval
+                                 (To.Ast_helper.Exp.function_ [] None
+                                    (Pfunction_cases (cases l, location loc, []))
+                                    ~attrs:(attributes infix_attrs))
+                             ] )))
             | Pfunction_body body -> Pfunction_body (expr body) )
     | Pexp_construct (id, o) -> Pexp_construct (located longident id, Option.map o ~f:expr)
     | Pexp_record (fields, base) ->
@@ -340,16 +435,25 @@ module Ufm = struct
                 let value = Option.value_exn value_opt in
                 (located longident field, expr value))
           , Option.map base ~f:expr )
-    | Pexp_tuple l -> Pexp_tuple (List.map l ~f:expr)
+    | Pexp_tuple l ->
+        Pexp_tuple
+          (tuple_with_pun l expr ~f_new:(fun ~type_constraint label ->
+               let e =
+                 let loc = location label.loc in
+                 To.Ast_helper.Exp.ident ~loc { txt = Lident label.txt; loc }
+               in
+               assert (Option.is_none type_constraint);
+               e))
     | Pexp_variant (s, e) -> Pexp_variant (s.txt.txt, Option.map e ~f:expr)
-    | Pexp_sequence (e1, e2) -> Pexp_sequence (expr e1, expr e2)
+    | Pexp_sequence (e1, e2, _handled_earlier) -> Pexp_sequence (expr e1, expr e2)
     | Pexp_let (vbs, e, _) ->
         let rec_flag, vbs = value_bindings vbs in
         Pexp_let (rec_flag, vbs, expr e)
-    | Pexp_letopen (decl, e) -> Pexp_open (open_infos ~f:module_expr decl, expr e)
+    | Pexp_letopen (decl, e, _handled_earlier) ->
+        Pexp_open (open_infos ~f:module_expr decl, expr e)
     | Pexp_open _ -> assert false
     | Pexp_coerce (e, ty_opt, ty) -> Pexp_coerce (expr e, Option.map ty_opt ~f:typ, typ ty)
-    | Pexp_letmodule (name, params, me, e) ->
+    | Pexp_letmodule (name, params, me, e, _handled_earlier) ->
         assert (List.is_empty params);
         Pexp_letmodule (located Fn.id name, module_expr me, expr e)
     | Pexp_letop { let_; ands; body; loc_in = _ } ->
@@ -376,25 +480,34 @@ module Ufm = struct
         Pexp_ifthenelse
           (expr if_cond, expr if_body, Option.map e3 ~f:(fun (e, _) -> expr e))
     | Pexp_ifthenelse _ -> assert false
-    | Pexp_while (e1, e2) -> Pexp_while (expr e1, expr e2)
-    | Pexp_try (e, l) -> Pexp_try (expr e, cases l)
-    | Pexp_match (e, l) -> Pexp_match (expr e, cases l)
+    | Pexp_while (e1, e2, _handled_earlier) -> Pexp_while (expr e1, expr e2)
+    | Pexp_try (e, l, _handled_earlier) -> Pexp_try (expr e, cases l)
+    | Pexp_match (e, l, _handled_earlier) -> Pexp_match (expr e, cases l)
     | Pexp_extension (name, p) -> Pexp_extension (located Fn.id name, payload p)
     | Pexp_unreachable -> Pexp_unreachable
     | Pexp_constraint (e, ty) -> Pexp_constraint (expr e, typ ty)
     | Pexp_field (e, f) -> Pexp_field (expr e, located longident f)
-    | Pexp_lazy e -> Pexp_lazy (expr e)
+    | Pexp_lazy (e, _handled_earlier) -> Pexp_lazy (expr e)
     | Pexp_array l -> Pexp_array (List.map l ~f:expr)
-    | Pexp_pack (me, ty) ->
+    | Pexp_pack (me, ty, _handled_earlier) ->
         assert (Option.is_none ty);
-        Pexp_pack (module_expr me)
+        Pexp_pack (module_expr me, None)
     | Pexp_hole | Pexp_setfield _ | Pexp_for _ | Pexp_send _ | Pexp_new _
     | Pexp_setinstvar _ | Pexp_override _ | Pexp_letexception _ | Pexp_assert _
     | Pexp_object _ ->
         raise Stdlib.Exit
     | Pexp_list _ | Pexp_beginend _ | Pexp_parens _ | Pexp_cons _ | Pexp_indexop_access _
-    | Pexp_prefix _ | Pexp_infix _ ->
+    | Pexp_prefix _ | Pexp_infix _ | Pexp_construct_unit_beginend _ ->
         assert false
+
+  and infix_ext_attrs ({ infix_attrs; infix_ext } : From.Parsetree.infix_ext_attrs) e =
+    (* Order matters: let%a[%b] ... means [%a let[@b] ...] and not [%a let ...][@b]. *)
+    let e =
+      match infix_attrs with
+      | [] -> e
+      | _ :: _ -> { e with pexp_attributes = e.pexp_attributes @ attributes infix_attrs }
+    in
+    maybe_ext infix_ext e
 
   and cases : From.P.case list -> To.P.case list = fun l -> List.map l ~f:case
 
@@ -423,7 +536,7 @@ module Ufm = struct
         ty.ptyp_desc
     | Ptyp_constr (id, params) ->
         Ptyp_constr (located longident id, List.map params ~f:typ)
-    | Ptyp_tuple l -> Ptyp_tuple (List.map l ~f:typ)
+    | Ptyp_tuple l -> Ptyp_tuple (tuple l typ)
     | Ptyp_object _ | Ptyp_class _ | Ptyp_alias _ | Ptyp_variant _ | Ptyp_poly _
     | Ptyp_package _ | Ptyp_open _ | Ptyp_extension _ ->
         raise Stdlib.Exit
@@ -505,7 +618,16 @@ module Ufm = struct
           , Option.map o ~f:(fun (types, p) -> (List.map types ~f:(located Fn.id), pat p))
           )
     | Ppat_variant (s, e) -> Ppat_variant (s.txt.txt, Option.map e ~f:pat)
-    | Ppat_tuple l -> Ppat_tuple (List.map l ~f:pat)
+    | Ppat_tuple (l, open_closed) ->
+        Ppat_tuple
+          ( tuple_with_pun l pat ~f_new:(fun ~type_constraint label ->
+                let p =
+                  let loc = location label.loc in
+                  To.Ast_helper.Pat.var ~loc { txt = label.txt; loc }
+                in
+                assert (Option.is_none type_constraint);
+                p)
+          , match open_closed with Open -> Open | Closed -> Closed )
     | Ppat_constraint (p, ty) -> Ppat_constraint (pat p, typ ty)
     | Ppat_extension (name, p) -> Ppat_extension (located Fn.id name, payload p)
     | Ppat_alias (p, name) -> Ppat_alias (pat p, located Fn.id name)

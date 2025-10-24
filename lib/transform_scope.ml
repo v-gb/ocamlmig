@@ -170,33 +170,39 @@ let qualify_for_unopen file_type ~changed_something ~artifacts ~type_index
     | Pdot (Pident global, root') -> Ident.global global && root' =: root
     | _ -> false
   in
-  let rec maybe_reroot root (lid : Longident.t) (path : Path.t) : Longident.t option =
-    match (lid, path) with
+  let rec maybe_reroot root (lid : Longident.t Location.loc) (path : Path.t) :
+      Longident.t Location.loc option =
+    let loc v = Location.mkloc v lid.loc in
+    match (lid.txt, path) with
     | Lident s, Pdot (rest, s')
       when (* We look for Root.foo and Global.Root.foo, because the Global might be
               introduced by dune's aliases. Maybe we should simply chop off a suffix
               of [path] instead? *)
            is_root' root rest ->
         assert (s =: s');
-        Some (Ldot (Lident root, s))
+        Some (loc (Longident.Ldot (loc (Longident.Lident root), loc s)))
     | Ldot (lid1, s1), Pdot (path1, s2) -> (
-        assert (s1 =: s2);
+        assert (s1.txt =: s2);
         match maybe_reroot root lid1 path1 with
         | None -> None
-        | Some lid -> Some (Ldot (lid, s1)))
+        | Some lid -> Some (loc (Longident.Ldot (lid, s1))))
     | Lapply (lid1, lid2), Papply (path1, path2) ->
         let lidl = maybe_reroot root lid1 path1 in
         let lidr = maybe_reroot root lid2 path2 in
         if Option.is_none lidl && Option.is_none lidr
         then None
         else
-          Some (Lapply (Option.value lidl ~default:lid1, Option.value lidr ~default:lid2))
+          Some
+            (loc
+               (Longident.Lapply
+                  (Option.value lidl ~default:lid1, Option.value lidr ~default:lid2)))
     | _ -> None
   in
-  let rec maybe_reroot' root (lid : Longident.t) : Longident.t =
-    match lid with
-    | Lident s -> Ldot (Lident root, s)
-    | Ldot (lid1, s1) -> Ldot (maybe_reroot' root lid1, s1)
+  let rec maybe_reroot' root (lid : Longident.t Location.loc) : Longident.t =
+    let loc v = Location.mkloc v lid.loc in
+    match lid.txt with
+    | Lident s -> Ldot (loc (Longident.Lident root), loc s)
+    | Ldot (lid1, s1) -> Ldot (loc (maybe_reroot' root lid1), s1)
     | Lapply _ -> assert false (* can only happen for types, not values *)
   in
   let initial_env = Envaux.env_of_only_summary cmt_infos.cmt_initial_env in
@@ -224,13 +230,13 @@ let qualify_for_unopen file_type ~changed_something ~artifacts ~type_index
         match Uast.find_by_name idns env (Conv.Ufm.longident id.txt) with
         | exception Stdlib.Not_found -> src
         | path, _td -> (
-            match maybe_reroot root id.txt path with
+            match maybe_reroot root id path with
             | None -> src
             | Some new_id ->
                 (* could compute merely_aliased here, same as for values *)
                 changed_something := true;
                 Fmast.Node.update srcnode src
-                  ~desc:(build { id with txt = new_id })
+                  ~desc:(build { id with txt = new_id.txt })
                   ~attributes:
                     (Sattr.touched.build ~loc:!Ast_helper.default_loc ()
                     :: Fmast.Node.attributes srcnode src)))
@@ -275,7 +281,7 @@ let qualify_for_unopen file_type ~changed_something ~artifacts ~type_index
               label_may_have_been_provided_by_open (ns, id) cd
                 (Build.Type_index.env srcnode texpr)
             then (
-              let new_id = maybe_reroot' root id.txt in
+              let new_id = maybe_reroot' root id in
               changed_something := true;
               Fmast.Node.update srcnode src
                 ~desc:(build { id with txt = new_id })
@@ -295,10 +301,10 @@ let qualify_for_unopen file_type ~changed_something ~artifacts ~type_index
             match match_record texpr with
             | Some find_exn_fields
               when label_may_have_been_provided_by_open (Label, label)
-                     (find_exn_fields ~f:(fun (lbl : Types.label_description) ->
+                     (find_exn_fields ~f:(fun (lbl : Data_types.label_description) ->
                           lbl.lbl_name =: Longident.last label.txt))
                      (Build.Type_index.env srcnode texpr) ->
-                let new_label = maybe_reroot' root label.txt in
+                let new_label = maybe_reroot' root label in
                 changed_field := true;
                 changed_something := true;
                 ( { label with txt = new_label }
@@ -422,7 +428,7 @@ let qualify_for_unopen file_type ~changed_something ~artifacts ~type_index
               let expr =
                 match expr.pexp_desc with
                 | Pexp_open (id, e)
-                | Pexp_letopen ({ popen_expr = { pmod_desc = Pmod_ident id; _ }; _ }, e)
+                | Pexp_letopen ({ popen_expr = { pmod_desc = Pmod_ident id; _ }; _ }, e, _)
                   when is_root id.txt ->
                     if only_in_structure
                     then expr (* don't recurse down *)
@@ -447,7 +453,7 @@ let qualify_for_unopen file_type ~changed_something ~artifacts ~type_index
                           (* happens with __, because of ppx_partial *)
                           expr
                       | path, vd -> (
-                          match maybe_reroot root id.txt path with
+                          match maybe_reroot root id path with
                           | None -> expr
                           | Some new_id ->
                               let merely_aliased =
@@ -468,7 +474,7 @@ let qualify_for_unopen file_type ~changed_something ~artifacts ~type_index
                               else (
                                 changed_something := true;
                                 { expr with
-                                  pexp_desc = Pexp_ident { id with txt = new_id }
+                                  pexp_desc = Pexp_ident { id with txt = new_id.txt }
                                 ; pexp_attributes =
                                     Sattr.touched.build ~loc:!Ast_helper.default_loc ()
                                     :: expr.pexp_attributes
@@ -494,7 +500,8 @@ let qualify_for_unopen file_type ~changed_something ~artifacts ~type_index
                                   if f lbl then Some lbl else None))
                       | _ -> None)
                     (fun fields -> Pexp_record (fields, init))
-              | Pexp_new id -> update_gen (Exp, expr) (Class, id) (fun id -> Pexp_new id)
+              | Pexp_new (id, attrs) ->
+                  update_gen (Exp, expr) (Class, id) (fun id -> Pexp_new (id, attrs))
               | _ -> expr)
     ; structure_item =
         update_migrate_test_payload ~match_attr:(__ =: "migrate_test.unopen")
@@ -575,7 +582,11 @@ let qualify_for_open (type a) (file_type : a File_type.t) ~changed_something ~ar
             *)
             match Build.comp_unit_of_uid constructor_desc.cstr_uid with
             | Some "Stdlib" ->
-                Some (Ldot (Lident "Stdlib", Longident.last id.txt) : Longident.t)
+                Some
+                  (Ldot
+                     ( Location.mknoloc (Longident.Lident "Stdlib")
+                     , Location.mknoloc (Longident.last id.txt) )
+                    : Longident.t)
             | _ ->
                 (* Almost all exceptions should be defined at toplevel, so we could try to
                    turn the compilation unit into Library.Module.Constructor. Not sure if
@@ -658,12 +669,12 @@ let qualify_for_open (type a) (file_type : a File_type.t) ~changed_something ~ar
                           if merely_aliased
                           then expr
                           else
-                            match Requalify.ident_of_path_exn path with
+                            match Requalify.ident_of_path_exn ~loc:id.loc path with
                             | exception Stdlib.Not_found -> expr
                             | new_id ->
                                 changed_something := true;
                                 { expr with
-                                  pexp_desc = Pexp_ident { id with txt = new_id }
+                                  pexp_desc = Pexp_ident { id with txt = new_id.txt }
                                 ; pexp_attributes =
                                     Sattr.touched.build ~loc:!Ast_helper.default_loc ()
                                     :: expr.pexp_attributes
@@ -736,22 +747,25 @@ let unqualify file_type ~changed_something structure ~artifacts ~type_index
   let _ = cmt_infos in
   let roots = Set.of_list (module String) roots in
   let maybe_deroot =
-    let rec loop (lid : Longident.t) : Longident.t option =
-      match lid with
+    let rec loop (lid : Longident.t Location.loc) : Longident.t Location.loc option =
+      match lid.txt with
       | Lident s -> if Set.mem roots s then None else Some lid
       | Ldot (lid1, s1) -> (
           match loop lid1 with
-          | None -> Some (Lident s1)
-          | Some lid1 -> Some (Ldot (lid1, s1)))
+          | None -> Some { txt = Lident s1.txt; loc = s1.loc }
+          | Some lid1 -> Some { txt = Ldot (lid1, s1); loc = lid.loc })
       | Lapply (lid1, lid2) ->
           Some
-            (Lapply
-               ( Option.value (loop lid1) ~default:lid1
-               , Option.value (loop lid2) ~default:lid2 ))
+            { txt =
+                Lapply
+                  ( Option.value (loop lid1) ~default:lid1
+                  , Option.value (loop lid2) ~default:lid2 )
+            ; loc = lid.loc
+            }
     in
     fun lid ->
       match loop lid with
-      | Some lid' when not (Fmast.Longident.compare lid lid' = 0) -> Some lid'
+      | Some lid' when not (Fmast.Longident.compare lid.txt lid'.txt = 0) -> Some lid'
       | _ -> None
   in
   let super = Ast_mapper.default_mapper in
@@ -775,12 +789,12 @@ let unqualify file_type ~changed_something structure ~artifacts ~type_index
                         (* happens with __, because of ppx_partial *)
                         expr
                     | path, vd -> (
-                        match maybe_deroot id.txt with
+                        match maybe_deroot id with
                         | None -> expr
                         | Some new_id ->
                             let merely_aliased =
                               match
-                                Env.find_value_by_name (Conv.Ufm.longident new_id) env
+                                Env.find_value_by_name (Conv.Ufm.longident new_id.txt) env
                               with
                               | exception Stdlib.Not_found -> false
                               | path', vd' ->
@@ -789,7 +803,7 @@ let unqualify file_type ~changed_something structure ~artifacts ~type_index
                                     print_s
                                       [%sexp
                                         "right env?"
-                                      , (new_id : Longident.t)
+                                      , (new_id.txt : Longident.t)
                                       , (path' : Uast.Path.t)
                                       , (vd'.val_uid : Uast.Shape.Uid.t)];
                                   merely_aliased ~artifacts (path, vd, env)
@@ -800,13 +814,13 @@ let unqualify file_type ~changed_something structure ~artifacts ~type_index
                               print_s
                                 [%sexp
                                   (id.txt : Longident.t)
-                                , (new_id : Longident.t)
+                                , (new_id.txt : Longident.t)
                                 , ~~(merely_aliased : bool)];
                             if merely_aliased
                             then (
                               changed_something := true;
                               { expr with
-                                pexp_desc = Pexp_ident { id with txt = new_id }
+                                pexp_desc = Pexp_ident { id with txt = new_id.txt }
                               ; pexp_attributes =
                                   Sattr.touched.build ~loc:!Ast_helper.default_loc ()
                                   :: expr.pexp_attributes

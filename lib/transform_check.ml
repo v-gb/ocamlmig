@@ -10,7 +10,7 @@ let exprs_and_repls e repl =
   if Transform_migration.has_context_match repl
   then
     match repl.pexp_desc with
-    | Pexp_function ([], None, Pfunction_cases (cases, _, _)) ->
+    | Pexp_function ([], None, Pfunction_cases (cases, _, _), _) ->
         List.concat_map cases ~f:(fun case ->
             match case.pc_lhs with
             | { ppat_desc = Ppat_extension ({ txt = "context"; _ }, PTyp user_typ); _ } ->
@@ -63,9 +63,8 @@ let find_migration_sigi_fmast ~type_index (sigi : signature_item) =
       Transform_migration.find_attribute_payload_fmast
         (val_desc.pval_attributes.attrs_before @ val_desc.pval_attributes.attrs_after)
       |> Option.map ~f:(fun migration ->
-             ( migration
-             , Build.Type_index.find (force type_index) Typ val_desc.pval_type |> List.hd
-             ))
+          ( migration
+          , Build.Type_index.find (force type_index) Typ val_desc.pval_type |> List.hd ))
   | _ -> None
 
 let run_structure (type a) changed_something (file_type : a File_type.t) (structure : a)
@@ -117,7 +116,7 @@ let run_structure (type a) changed_something (file_type : a File_type.t) (struct
       Ast_helper.Str.eval ~loc
         (match errors with
         | [] -> Ast_helper.Exp.string ~loc "types"
-        | _ -> Ast_helper.Exp.tuple ~loc (List.map errors ~f:expr_of_exn))
+        | _ -> Ast_helper.Exp.unlabelled_tuple ~loc (List.map errors ~f:expr_of_exn))
     in
     let signature_item ~mty_type self v =
       let next () =
@@ -171,9 +170,9 @@ let run_structure (type a) changed_something (file_type : a File_type.t) (struct
                     }
                     repl
                   |> List.iter ~f:(fun (e, repl) ->
-                         let env = force env in
-                         try ignore (type_extra_migration ~env ~type_index e repl)
-                         with e -> errors := e :: !errors));
+                      let env = force env in
+                      try ignore (type_extra_migration ~env ~type_index e repl)
+                      with e -> errors := e :: !errors));
               super.expr self expr)
       ; structure_item =
           (fun self v ->

@@ -45,9 +45,9 @@ module Vcs = struct
   let files t =
     transient_line "loading files";
     (match t.system with
-    | `JJ -> run_process Raise [ "jj"; "file"; "list" ] |> String.split_lines
-    | `Hg -> run_process Raise [ "hg"; "files" ] |> String.split_lines
-    | `Git -> run_process Raise [ "git"; "ls-files"; "--"; t.rel ] |> String.split_lines)
+      | `JJ -> run_process Raise [ "jj"; "file"; "list" ] |> String.split_lines
+      | `Hg -> run_process Raise [ "hg"; "files" ] |> String.split_lines
+      | `Git -> run_process Raise [ "git"; "ls-files"; "--"; t.rel ] |> String.split_lines)
     |> Cwdpath.create_list
 end
 
@@ -177,23 +177,23 @@ let wrap str =
   str
   |> String.split_lines
   |> List.map ~f:(function
-       | "" -> ""
-       | line ->
-           let line_rest = String.lstrip line in
-           let line_indent =
-             String.prefix line (String.length line - String.length line_rest)
-           in
-           String.split line_rest ~on:' '
-           |> (let size = ref 0 in
-               List.group ~break:(fun elt _ ->
-                   size := !size + 1 + String.length elt;
-                   if !size > width
-                   then (
-                     size := 0;
-                     true)
-                   else false))
-           |> List.map ~f:(fun l -> line_indent ^ String.concat ~sep:" " l)
-           |> String.concat ~sep:"\n")
+    | "" -> ""
+    | line ->
+        let line_rest = String.lstrip line in
+        let line_indent =
+          String.prefix line (String.length line - String.length line_rest)
+        in
+        String.split line_rest ~on:' '
+        |> (let size = ref 0 in
+            List.group ~break:(fun elt _ ->
+                size := !size + 1 + String.length elt;
+                if !size > width
+                then (
+                  size := 0;
+                  true)
+                else false))
+        |> List.map ~f:(fun l -> line_indent ^ String.concat ~sep:" " l)
+        |> String.concat ~sep:"\n")
   |> String.concat_lines
 
 type detailed_fmconf =
@@ -443,10 +443,10 @@ let migrate =
                                       (Build.input_name_matching_compilation_command
                                          cmt_infos))
                               |> Option.iter ~f:(fun (contents, { libraries; pps }) ->
-                                     Queue.enqueue deps (`Path source_path, libraries, pps);
-                                     diff_or_write ~format
-                                       ~original_formatting:(Some fm_orig) source_path
-                                       ~write contents)));
+                                  Queue.enqueue deps (`Path source_path, libraries, pps);
+                                  diff_or_write ~format
+                                    ~original_formatting:(Some fm_orig) source_path ~write
+                                    contents)));
                   List.iter
                     (Dune_files.add_dependencies ~dune_root (Queue.to_list deps))
                     ~f:(fun (`Path file_path, before, after) ->
@@ -657,14 +657,14 @@ let transform =
                              line of the file, then modify the rest of the program to \
                              preserve behavior."
                         |> map ~f:(fun s ->
-                               let s, conservative = root_and_conservative s in
-                               let s, bang =
-                                 match String.chop_suffix s ~suffix:"!" with
-                                 | None -> (s, false)
-                                 | Some rest -> (rest, true)
-                               in
-                               Transform_scope.Open
-                                 { name = Unit_info.modulize s; bang; conservative })
+                            let s, conservative = root_and_conservative s in
+                            let s, bang =
+                              match String.chop_suffix s ~suffix:"!" with
+                              | None -> (s, false)
+                              | Some rest -> (rest, true)
+                            in
+                            Transform_scope.Open
+                              { name = Unit_info.modulize s; bang; conservative })
                       ; flag "-unqualify"
                           (required (Arg_type.comma_separated module_name))
                           ~doc:
@@ -1092,7 +1092,7 @@ let internal_cmi =
                        in
                        { oattr_name = uid_string }
                        :: List.map decl.val_attributes ~f:(fun attr ->
-                              { oattr_name = attr.attr_name.txt }))
+                           { oattr_name = attr.attr_name.txt }))
                   }
                 in
                 let vd =

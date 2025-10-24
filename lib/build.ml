@@ -525,16 +525,16 @@ module Artifacts = struct
     List.find_map t.load_path_dirs ~f:(fun dir ->
         Load_path.Dir.find_normalized dir "stdlib.cmi")
     |> Option.bind ~f:(fun stdlib_cmi ->
-           let libdir = Filename.dirname (Filename.dirname stdlib_cmi) in
-           Load_path.Dir.find_normalized
-             (Load_path.Dir.create (Filename.concat libdir library_dir) ~hidden:false)
-             (base_library_name ^ ".cmt")
-           |> Option.map ~f:(fun cmt_path ->
-                  let cmt_path =
-                    (* This is a path relative to cmt_dirs, which is a cwdpath *)
-                    Cwdpath.create cmt_path
-                  in
-                  (cmt_path, create_loaded_cmt t Impl ~comp_unit ~cmt_path)))
+        let libdir = Filename.dirname (Filename.dirname stdlib_cmi) in
+        Load_path.Dir.find_normalized
+          (Load_path.Dir.create (Filename.concat libdir library_dir) ~hidden:false)
+          (base_library_name ^ ".cmt")
+        |> Option.map ~f:(fun cmt_path ->
+            let cmt_path =
+              (* This is a path relative to cmt_dirs, which is a cwdpath *)
+              Cwdpath.create cmt_path
+            in
+            (cmt_path, create_loaded_cmt t Impl ~comp_unit ~cmt_path)))
 
   let locate_cmt_from_library_name t ~dune_root ~library_name =
     (* The side migration code will look for an entry in this cache. Maybe we should
@@ -610,17 +610,17 @@ module Artifacts = struct
     | Some (_, loaded_cmt) ->
         Map.find (force loaded_cmt.ident_occurrences) idloc
         |> Option.map ~f:(fun shape ->
-               let shape =
-                 lazy
-                   (match shape with
-                   | Resolved _ | Resolved_alias _ | Approximated _
-                   | Internal_error_missing_uid ->
-                       shape
-                   | Unresolved shape ->
-                       let module M = (val loaded_cmt.m) in
-                       M.reduce_for_uid Env.empty shape)
-               in
-               decl_from_reduce_for_uid_result t (force shape))
+            let shape =
+              lazy
+                (match shape with
+                | Resolved _ | Resolved_alias _ | Approximated _
+                | Internal_error_missing_uid ->
+                    shape
+                | Unresolved shape ->
+                    let module M = (val loaded_cmt.m) in
+                    M.reduce_for_uid Env.empty shape)
+            in
+            decl_from_reduce_for_uid_result t (force shape))
 end
 
 module Type_index = struct
