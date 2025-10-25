@@ -919,6 +919,17 @@ let () =
           ()]
     end)
 
+(* Can't test this yet, as the ppx used to compile the test don't support it.
+let () =
+  test "labelled tuples"
+    (module struct
+      let f (x, y) = x + y [@@migrate { repl = (fun (x, y) -> f2 (~x, y)) }]
+
+      let _ = f (1, 2)
+      [@@migrate_test let _ = f2 (~x:1, 2)]
+    end)
+   *)
+
 let () =
   test "constructor replacement"
     (module struct
