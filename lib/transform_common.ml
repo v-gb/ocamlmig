@@ -316,35 +316,42 @@ let drop_concrete_syntax_constructs =
        in
        fun self expr ->
          let expr =
-           match expr.pexp_desc with
-           | Pexp_function (a, b, c, infix_ext_attrs) ->
-               deinfix_attrs expr infix_ext_attrs (fun () ->
-                   Pexp_function (a, b, c, Ast_helper.Attr.empty_infix_ext_attrs))
-           | Pexp_letopen (a, b, infix_ext_attrs) ->
-               deinfix_attrs expr infix_ext_attrs (fun () ->
-                   Pexp_letopen (a, b, Ast_helper.Attr.empty_infix_ext_attrs))
-           | Pexp_letmodule (a, b, c, d, infix_ext_attrs) ->
-               deinfix_attrs expr infix_ext_attrs (fun () ->
-                   Pexp_letmodule (a, b, c, d, Ast_helper.Attr.empty_infix_ext_attrs))
-           | Pexp_while (a, b, infix_ext_attrs) ->
-               deinfix_attrs expr infix_ext_attrs (fun () ->
-                   Pexp_while (a, b, Ast_helper.Attr.empty_infix_ext_attrs))
-           | Pexp_try (a, b, infix_ext_attrs) ->
-               deinfix_attrs expr infix_ext_attrs (fun () ->
-                   Pexp_try (a, b, Ast_helper.Attr.empty_infix_ext_attrs))
-           | Pexp_match (a, b, infix_ext_attrs) ->
-               deinfix_attrs expr infix_ext_attrs (fun () ->
-                   Pexp_match (a, b, Ast_helper.Attr.empty_infix_ext_attrs))
-           | Pexp_lazy (a, infix_ext_attrs) ->
-               deinfix_attrs expr infix_ext_attrs (fun () ->
-                   Pexp_lazy (a, Ast_helper.Attr.empty_infix_ext_attrs))
-           | Pexp_pack (a, b, infix_ext_attrs) ->
-               deinfix_attrs expr infix_ext_attrs (fun () ->
-                   Pexp_pack (a, b, Ast_helper.Attr.empty_infix_ext_attrs))
-           | Pexp_sequence (a, b, ext) ->
-               deinfix_attrs expr { infix_attrs = []; infix_ext = ext } (fun () ->
-                   Pexp_sequence (a, b, None))
-           | _ -> expr
+           if true
+           then expr
+           (* To normalize the tree, I'd need to undo the change, but how? It's not
+              clear how to do this for the infix attrs. Maybe by overriding the
+              location? Or maybe it'd be easier to just give up on ocamlformat, as the
+              AST is only going to get more hostile over time. *)
+           else
+             match expr.pexp_desc with
+             | Pexp_function (a, b, c, infix_ext_attrs) ->
+                 deinfix_attrs expr infix_ext_attrs (fun () ->
+                     Pexp_function (a, b, c, Ast_helper.Attr.empty_infix_ext_attrs))
+             | Pexp_letopen (a, b, infix_ext_attrs) ->
+                 deinfix_attrs expr infix_ext_attrs (fun () ->
+                     Pexp_letopen (a, b, Ast_helper.Attr.empty_infix_ext_attrs))
+             | Pexp_letmodule (a, b, c, d, infix_ext_attrs) ->
+                 deinfix_attrs expr infix_ext_attrs (fun () ->
+                     Pexp_letmodule (a, b, c, d, Ast_helper.Attr.empty_infix_ext_attrs))
+             | Pexp_while (a, b, infix_ext_attrs) ->
+                 deinfix_attrs expr infix_ext_attrs (fun () ->
+                     Pexp_while (a, b, Ast_helper.Attr.empty_infix_ext_attrs))
+             | Pexp_try (a, b, infix_ext_attrs) ->
+                 deinfix_attrs expr infix_ext_attrs (fun () ->
+                     Pexp_try (a, b, Ast_helper.Attr.empty_infix_ext_attrs))
+             | Pexp_match (a, b, infix_ext_attrs) ->
+                 deinfix_attrs expr infix_ext_attrs (fun () ->
+                     Pexp_match (a, b, Ast_helper.Attr.empty_infix_ext_attrs))
+             | Pexp_lazy (a, infix_ext_attrs) ->
+                 deinfix_attrs expr infix_ext_attrs (fun () ->
+                     Pexp_lazy (a, Ast_helper.Attr.empty_infix_ext_attrs))
+             | Pexp_pack (a, b, infix_ext_attrs) ->
+                 deinfix_attrs expr infix_ext_attrs (fun () ->
+                     Pexp_pack (a, b, Ast_helper.Attr.empty_infix_ext_attrs))
+             | Pexp_sequence (a, b, ext) ->
+                 deinfix_attrs expr { infix_attrs = []; infix_ext = ext } (fun () ->
+                     Pexp_sequence (a, b, None))
+             | _ -> expr
          in
          let expr = super.expr self expr in
          match expr.pexp_desc with
