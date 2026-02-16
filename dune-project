@@ -1,4 +1,4 @@
-(lang dune 3.15)
+(lang dune 3.18)
 
 (formatting
  (enabled_for ocaml))
@@ -83,5 +83,6 @@
    (re (>= 1.10.3))
    ;; ENDMARKER ocamlformat
  ))
+(warnings (duplicate_deps disabled))
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project
