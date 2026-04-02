@@ -73,36 +73,17 @@ let children (ctx : Ocamlformat_lib.Ast.t) meth v =
           (match v.pexp_desc with
           | Pexp_construct (id, Some _) ->
               (* This allows diffing the constructor name separately from the
-                   payload, which is useful because open/unopen etc will modify
-                   constructors, and it's unnecessary to reformat the whole payload
-                   just for that.
-
-                   We only do this with a payload, otherwise our made-up Pexp_construct
-                   child would cause the ast to be infinite. *)
-              let e =
-                { P.pexp_desc = Pexp_construct (id, None)
-                ; pexp_attributes = []
-                ; pexp_loc = id.loc
-                ; pexp_loc_stack = []
-                }
-              in
-              children :=
-                (Exp (Ast_helper.Exp.unlabelled_tuple [ e; e ]), `Expr e) :: !children
+                 payload, which is useful because open/unopen etc will modify
+                 constructors, and it's unnecessary to reformat the whole payload
+                 just for that. *)
+              children := (Exp v, `Constructor id) :: !children
           | _ -> ());
           super.expr self v)
     ; pat =
         (fun self v ->
           (match v.ppat_desc with
           | Ppat_construct (id, Some _) ->
-              let p =
-                { P.ppat_desc = Ppat_construct (id, None)
-                ; ppat_attributes = []
-                ; ppat_loc = id.loc
-                ; ppat_loc_stack = []
-                }
-              in
-              children :=
-                (Pat (Ast_helper.Pat.unlabelled_tuple [ p; p ]), `Pat p) :: !children
+              children := (Pat v, `Constructor id) :: !children
           | _ -> ());
           super.pat self v)
     }
@@ -240,6 +221,7 @@ type diff =
   | `Typ of core_type * core_type xt
   | `Cf of class_field * class_field xt
   | `Cty of class_type * class_type xt
+  | `Constructor of Longident.t Location.loc * Longident.t Location.loc
   ]
 [@@deriving sexp_of]
 
@@ -305,6 +287,9 @@ let rec diff2 ~source (vs : diff) (f : diff_out -> unit) =
   | `Typ (v1, v2) -> diff2_meth ~source __.typ vs v1 v2.ast (Typ v2.ast) f
   | `Cf (v1, v2) -> diff2_meth ~source __.class_field vs v1 v2.ast (Clf v2.ast) f
   | `Cty (v1, v2) -> diff2_meth ~source __.class_type vs v1 v2.ast (Cty v2.ast) f
+  | `Constructor (v1, v2) ->
+      (* This compares ignoring loc *)
+      if Longident.compare v1.txt v2.txt = 0 then () else f (vs : diff :> diff_out)
 
 and diff_str_sig : type a elt.
        file_type:a Transform_common.File_type.t
@@ -414,8 +399,9 @@ and diff2_meth : type a.
         | `Typ v1, `Typ v2 -> diff2 ~source (`Typ (v1, Ast.sub_typ ~ctx v2)) f
         | `Cf v1, `Cf v2 -> diff2 ~source (`Cf (v1, Ast.sub_cf ~ctx v2)) f
         | `Cty v1, `Cty v2 -> diff2 ~source (`Cty (v1, Ast.sub_cty ~ctx v2)) f
+        | `Constructor v1, `Constructor v2 -> diff2 ~source (`Constructor (v1, v2)) f
         | ( ( `Expr _ | `Pat _ | `Stri _ | `Sigi _ | `Me _ | `Mty _ | `Typ _ | `Cf _
-            | `Cty _ )
+            | `Cty _ | `Constructor _ )
           , _ ) ->
             assert false)
   else f (vs : diff :> diff_out)
@@ -787,6 +773,7 @@ let print ~ocaml_version ~debug_diff ~source_contents file_type ast1 ast2 =
     | `Add (loc, _) -> loc
     | `Add_stri (loc, _) -> loc
     | `Add_sigi (loc, _) -> loc
+    | `Constructor (v, _) -> v.loc
   in
   match diff2 file_type ast1 ast2 with
   | `Whole_structure ->
@@ -812,33 +799,20 @@ let print ~ocaml_version ~debug_diff ~source_contents file_type ast1 ast2 =
           prev := Some x);
       (* ideally, we'd pass the context into the printing function, so ocamlformat can
      print parens nicely, instead of this hack *)
-      let parens_if ?(parens_are_impossible = false) b str =
-        if parens_are_impossible
-        then { unambiguous = str; ambiguous = None }
-        else
-          let unambiguous = "(" ^ str ^ ")" in
-          { unambiguous; ambiguous = (if b then None else Some str) }
+      let parens_if b str =
+        let unambiguous = "(" ^ str ^ ")" in
+        { unambiguous; ambiguous = (if b then None else Some str) }
       in
       stitch_code_together ~file_type ~ocaml_version ~debug_diff source_contents (fun f ->
           List.iter l ~f:(function
             | `Expr (e1, e2) ->
                 f e1.pexp_loc
                   (parens_if (Ast.parenze_exp e2)
-                     (printed_ast add_comments e1.pexp_loc Expression e2.ast)
-                     (* impossible because we may rewrite Foo a as Bar a by only rewriting
-                     the constructor, but (Bar) a cannot be valid *)
-                     ~parens_are_impossible:
-                       (match e1.pexp_desc with
-                       | Pexp_construct (_, None) -> true
-                       | _ -> false))
+                     (printed_ast add_comments e1.pexp_loc Expression e2.ast))
             | `Pat (p1, p2) ->
                 f p1.ppat_loc
                   (parens_if (Ast.parenze_pat p2)
-                     (printed_ast add_comments p1.ppat_loc Pattern p2.ast)
-                     ~parens_are_impossible:
-                       (match p1.ppat_desc with
-                       | Ppat_construct (_, None) -> true
-                       | _ -> false))
+                     (printed_ast add_comments p1.ppat_loc Pattern p2.ast))
             | `Stri (s1, s2) ->
                 (* This is technically ambiguous, and similarly in `Rem and `Add_stri,
                   for two reasons:
@@ -897,6 +871,17 @@ let print ~ocaml_version ~debug_diff ~source_contents file_type ast1 ast2 =
                 f v1.pcty_loc
                   (parens_if (Ast.parenze_cty v2)
                      (printed_ast add_comments v1.pcty_loc Class_type v2.ast))
+            | `Constructor (v1, v2) ->
+                f v1.loc
+                  { unambiguous =
+                      printed_ast add_comments v1.loc Expression
+                        { P.pexp_desc = Pexp_construct (v2, None)
+                        ; pexp_attributes = []
+                        ; pexp_loc = v2.loc
+                        ; pexp_loc_stack = []
+                        }
+                  ; ambiguous = None
+                  }
             | `Rem loc ->
                 (* see `Stri about ambiguity *)
                 f loc { unambiguous = ""; ambiguous = None }
