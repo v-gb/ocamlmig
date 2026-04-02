@@ -56,6 +56,7 @@ build: [
   ]
 ]
 dev-repo: "git+https://github.com/v-gb/ocamlmig.git"
+x-maintenance-intent: ["(any).(any).(latest)"]
 # due to core_unix, but why do we need to restate it? Maybe they added windows to
 # the opam CI without ensuring that existing packages work on it.
 available: os != "win32"

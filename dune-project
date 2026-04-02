@@ -12,6 +12,7 @@
 (maintainers "Valentin Gatien-Baron <valentin.gatienbaron@gmail.com>")
 (license "LGPL-2.1-only WITH OCaml-LGPL-linking-exception")
 (documentation https://github.com/v-gb/ocamlmig/blob/main/README.md)
+(maintenance_intent "(any).(any).(latest)")
 
 ; (pin
 ;  (url "git+https://github.com/v-gb/ocamlformat#r-49fc0660ec931943a97b13f10ac9eadbe0cd63f3")
