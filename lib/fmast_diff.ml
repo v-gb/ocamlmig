@@ -812,20 +812,33 @@ let print ~ocaml_version ~debug_diff ~source_contents file_type ast1 ast2 =
           prev := Some x);
       (* ideally, we'd pass the context into the printing function, so ocamlformat can
      print parens nicely, instead of this hack *)
-      let parens_if b str =
-        let unambiguous = "(" ^ str ^ ")" in
-        { unambiguous; ambiguous = (if b then None else Some str) }
+      let parens_if ?(parens_are_impossible = false) b str =
+        if parens_are_impossible
+        then { unambiguous = str; ambiguous = None }
+        else
+          let unambiguous = "(" ^ str ^ ")" in
+          { unambiguous; ambiguous = (if b then None else Some str) }
       in
       stitch_code_together ~file_type ~ocaml_version ~debug_diff source_contents (fun f ->
           List.iter l ~f:(function
             | `Expr (e1, e2) ->
                 f e1.pexp_loc
                   (parens_if (Ast.parenze_exp e2)
-                     (printed_ast add_comments e1.pexp_loc Expression e2.ast))
+                     (printed_ast add_comments e1.pexp_loc Expression e2.ast)
+                     (* impossible because we may rewrite Foo a as Bar a by only rewriting
+                     the constructor, but (Bar) a cannot be valid *)
+                     ~parens_are_impossible:
+                       (match e1.pexp_desc with
+                       | Pexp_construct (_, None) -> true
+                       | _ -> false))
             | `Pat (p1, p2) ->
                 f p1.ppat_loc
                   (parens_if (Ast.parenze_pat p2)
-                     (printed_ast add_comments p1.ppat_loc Pattern p2.ast))
+                     (printed_ast add_comments p1.ppat_loc Pattern p2.ast)
+                     ~parens_are_impossible:
+                       (match p1.ppat_desc with
+                       | Ppat_construct (_, None) -> true
+                       | _ -> false))
             | `Stri (s1, s2) ->
                 (* This is technically ambiguous, and similarly in `Rem and `Add_stri,
                   for two reasons:
