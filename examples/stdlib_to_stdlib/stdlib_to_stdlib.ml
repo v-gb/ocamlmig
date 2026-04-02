@@ -4,11 +4,8 @@
     This is intended to be used this way:
     {v ocamlmig migrate -extra-migration ocamlmig.stdlib_to_stdlib v} *)
 
-(*
-let _ = [ ( == ); phys_equal ] [@@migrate]
-let _ = [ ( != ); (fun a b -> not (phys_equal a b)) ] [@@migrate]
- *)
-
+let _ = [ ( == ); Repr.phys_equal ] [@@migrate]
+let _ = [ ( != ); (fun a b -> not (Repr.phys_equal a b)) ] [@@migrate]
 let _ = [ succ; Int.succ ] [@migrate]
 let _ = [ pred; Int.pred ] [@migrate]
 let _ = [ abs; Int.abs ] [@migrate]
