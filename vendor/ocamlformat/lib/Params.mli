@@ -84,6 +84,8 @@ module Exp : sig
   val box_fun_decl_after_pro : ctx0:Ast.t -> Fmt.t -> Fmt.t
   (** Box a function decl from after the [pro] to the arrow. *)
 
+  val end_break_beginend : ctx0:Ast.t -> box:bool -> Fmt.t
+
   val box_beginend : Conf.t -> ctx0:Ast.t -> ctx:Ast.t -> bool
 
   val box_beginend_subexpr : Conf.t -> ctx0:Ast.t -> ctx:Ast.t -> bool
@@ -207,6 +209,8 @@ type if_then_else =
   ; box_keyword_and_expr: Fmt.t -> Fmt.t
   ; branch_pro: Fmt.t
   ; wrap_parens: Fmt.t -> Fmt.t
+  ; beginend_loc: Location.t option
+        (** Location of the [beign..end] node, if any, for placing comments. *)
   ; box_expr: bool option
   ; expr_pro: Fmt.t option
   ; expr_eol: Fmt.t option
@@ -216,6 +220,8 @@ type if_then_else =
 
 val get_if_then_else :
      Conf.t
+  -> cmts_before_opt:(Location.t -> Fmt.t option)
+  -> has_cmts_before:(Location.t -> bool)
   -> pro:Fmt.t
   -> first:bool
   -> last:bool
@@ -230,6 +236,17 @@ val get_if_then_else :
   -> cmts_before_kw:Fmt.t
   -> cmts_after_kw:Fmt.t option
   -> if_then_else
+(** [cmts_before_opt] return the comment before the given location with no breaks around it. *)
+
+val is_special_or_nested_special_beginend : expression_desc -> bool
+(** [is_special_or_nested_special_beginend] returns [true] when comments after
+    the keyword should be extracted without breaks (raw) to prevent oscillation
+    between "after keyword" and "before expression" placements. *)
+
+val raw_cmts_branch_pro : Conf.t -> Fmt.t -> Fmt.t
+(** [raw_cmts_branch_pro c cmts] returns the branch_pro for raw comments
+    extracted after a keyword, using the correct indentation for the current
+    if-then-else mode. *)
 
 val match_indent : ?default:int -> Conf.t -> parens:bool -> ctx:Ast.t -> int
 (** [match_indent c ~ctx ~default] returns the indentation used for the
@@ -240,6 +257,9 @@ val match_indent : ?default:int -> Conf.t -> parens:bool -> ctx:Ast.t -> int
 val comma_sep : Conf.t -> Fmt.t
 (** [comma_sep c] returns the format string used to separate two elements
     with a comma, depending on the `break-separators` option. *)
+
+val get_pexp_struct_item_break_in : Conf.t -> structure_item Ast.xt -> Fmt.t
+(** Break before [in] in a [Pexp_struct_item]. *)
 
 module Align : sig
   (** Implement the [align_symbol_open_paren] option. *)

@@ -85,6 +85,7 @@ module Typ = struct
   let alias ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_alias (a, b))
   let variant ?loc ?attrs a b c = mk ?loc ?attrs (Ptyp_variant (a, b, c))
   let poly ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_poly (a, b))
+  let functor_ ?loc ?attrs a b c d = mk ?loc ?attrs (Ptyp_functor (a, b, c, d))
   let package ?loc ?attrs p = mk ?loc ?attrs (Ptyp_package p)
   let extension ?loc ?attrs a = mk ?loc ?attrs (Ptyp_extension a)
   let open_ ?loc ?attrs mod_ident t = mk ?loc ?attrs (Ptyp_open (mod_ident, t))
@@ -135,6 +136,8 @@ module Typ = struct
             Ptyp_open (mod_ident, loop core_type)
         | Ptyp_extension (s, arg) ->
             Ptyp_extension (s, arg)
+        | Ptyp_functor (label, name, ptyp, codomain) ->
+            Ptyp_functor (label, name, loop_package_type ptyp, loop codomain)
       in
       {t with ptyp_desc = desc}
     and loop_row_field field =
@@ -155,14 +158,15 @@ module Typ = struct
       { field with pof_desc; }
     and loop_package_type ptyp =
       { ptyp with
-        ppt_cstrs = List.map (fun (n,typ) -> (n,loop typ) ) ptyp.ppt_cstrs }
+        ppt_constraints =
+          List.map (fun (n,typ) -> (n,loop typ) ) ptyp.ppt_constraints }
     in
     loop t
 *)
   let package_type ?(loc = !default_loc) ?(attrs = []) p c =
     {ppt_loc = loc;
      ppt_path = p;
-     ppt_cstrs = c;
+     ppt_constraints = c;
      ppt_attrs = attrs}
 end
 
@@ -242,10 +246,6 @@ module Exp = struct
   let indexop_access ?loc ?attrs pia_lhs pia_kind pia_paren pia_rhs =
     mk ?loc ?attrs (Pexp_indexop_access {pia_lhs; pia_kind; pia_paren; pia_rhs})
   let override ?loc ?attrs a = mk ?loc ?attrs (Pexp_override a)
-  let letmodule ?loc ?attrs ?(infix_ext_attrs=Attr.empty_infix_ext_attrs) a b c d =
-    mk ?loc ?attrs (Pexp_letmodule (a, b, c, d, infix_ext_attrs))
-  let letexception ?loc ?attrs ?(infix_ext_attrs=Attr.empty_infix_ext_attrs) a b =
-    mk ?loc ?attrs (Pexp_letexception (a, b, infix_ext_attrs))
   let assert_ ?loc ?attrs ?(infix_ext_attrs=Attr.empty_infix_ext_attrs) a =
     mk ?loc ?attrs (Pexp_assert (a, infix_ext_attrs))
   let lazy_ ?loc ?attrs ?(infix_ext_attrs=Attr.empty_infix_ext_attrs) a =
@@ -255,12 +255,12 @@ module Exp = struct
   let pack ?loc ?attrs ?(infix_ext_attrs=Attr.empty_infix_ext_attrs) a b =
     mk ?loc ?attrs (Pexp_pack (a, b, infix_ext_attrs))
   let open_ ?loc ?attrs a b = mk ?loc ?attrs (Pexp_open (a, b))
-  let letopen ?loc ?attrs ?(infix_ext_attrs=Attr.empty_infix_ext_attrs) a b =
-    mk ?loc ?attrs (Pexp_letopen (a, b, infix_ext_attrs))
   let letop ?loc ?attrs ~loc_in let_ ands body =
     mk ?loc ?attrs (Pexp_letop {let_; ands; body; loc_in})
   let extension ?loc ?attrs a = mk ?loc ?attrs (Pexp_extension a)
   let unreachable ?loc ?attrs () = mk ?loc ?attrs Pexp_unreachable
+  let struct_item ?loc ?attrs ?(infix_ext_attrs=Attr.empty_infix_ext_attrs) si e =
+    mk ?loc ?attrs (Pexp_struct_item (si, e, infix_ext_attrs))
   (* Added *)
   let hole ?loc ?attrs () = mk ?loc ?attrs Pexp_hole
   (* *)
@@ -298,7 +298,7 @@ module Mty = struct
   let ident ?loc ?attrs a = mk ?loc ?attrs (Pmty_ident a)
   let alias ?loc ?attrs a = mk ?loc ?attrs (Pmty_alias a)
   let signature ?loc ?attrs a = mk ?loc ?attrs (Pmty_signature a)
-  let functor_ ?loc ?attrs a b short = mk ?loc ?attrs (Pmty_functor (a, b, short))
+  let functor_ ?loc ?attrs a b = mk ?loc ?attrs (Pmty_functor (a, b))
   let with_ ?loc ?attrs a b = mk ?loc ?attrs (Pmty_with (a, b))
   let typeof_ ?loc ?attrs a = mk ?loc ?attrs (Pmty_typeof a)
   let extension ?loc ?attrs a = mk ?loc ?attrs (Pmty_extension a)
@@ -583,7 +583,7 @@ module Type = struct
   let mk ?(loc = !default_loc) ?(attrs = Attr.empty_ext_attrs)
         ?(docs = empty_docs) ?(text = [])
       ?(params = [])
-      ?(cstrs = [])
+      ?(constraints = [])
       ?(kind = Ptype_abstract)
       ?(priv = Public)
       ?manifest
@@ -591,7 +591,7 @@ module Type = struct
     {
      ptype_name = name;
      ptype_params = params;
-     ptype_cstrs = cstrs;
+     ptype_constraints = constraints;
      ptype_kind = kind;
      ptype_private = priv;
      ptype_manifest = manifest;

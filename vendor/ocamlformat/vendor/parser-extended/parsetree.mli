@@ -199,17 +199,20 @@ and core_type_desc =
   | Ptyp_package of package_type  (** [(module S)]. *)
   | Ptyp_open of Longident.t loc * core_type (** [M.(T)] *)
   | Ptyp_extension of extension  (** [[%id]]. *)
+  | Ptyp_functor of arg_label * string loc * package_type * core_type
+        (** [(module M : S) -> ...] : module-dependent arrow *)
+
 
 and package_type =
     {
      ppt_path: Longident.t loc;
-     ppt_cstrs: (Longident.t loc * core_type) list;
+     ppt_constraints: (Longident.t loc * core_type) list;
      ppt_loc: Location.t;
      ppt_attrs: attributes;
     }
 (** As {!package_type} typed values:
-         - [{ppt_path: S; ppt_cstrs: []}] represents [(module S)],
-         - [{ppt_path: S; ppt_cstrs: [(t1, T1) ; ... ; (tn, Tn)]}]
+         - [{ppt_path: S; ppt_constraints: []}] represents [(module S)],
+         - [{ppt_path: S; ppt_constraints: [(t1, T1) ; ... ; (tn, Tn)]}]
           represents [(module S with type t1 = T1 and ... and tn = Tn)].
        *)
 
@@ -325,11 +328,11 @@ and pattern_desc =
   | Ppat_type of Longident.t loc  (** Pattern [#tconst] *)
   | Ppat_lazy of pattern  (** Pattern [lazy P] *)
   | Ppat_unpack of string option loc * package_type option
-      (** [Ppat_unpack(p, s)] represents:
-            - [(module P)] when [p] is [Some "P"] and [s] is [None]
-            - [(module _)] when [p] is [None] and [s] is [None]
-            - [(module P : S)] when [p] is [Some "P"] and [s] is [Some "S"]
-            - [(module _ : S)] when [p] is [None] and [s] is [Some "S"]
+      (** [Ppat_unpack(s, ptyp)] represents:
+            - [(module P : S)] when [s] is [Some "P"] and [ptyp] is [Some "S"]
+            - [(module _ : S)] when [s] is [None] and [ptyp] is [Some "S"]
+            - [(module P)] when [s] is [Some "P"] and [ptyp] is [None]
+            - [(module _)] when [s] is [None] and [ptyp] is [None]
          *)
   | Ppat_exception of pattern  (** Pattern [exception P] *)
   | Ppat_effect of pattern * pattern (* Pattern [effect P P] *)
@@ -455,10 +458,8 @@ and expression_desc =
   | Pexp_setinstvar of label loc * expression  (** [x <- 2] *)
   | Pexp_override of (label loc * expression) list
       (** [{< x1 = E1; ...; xn = En >}] *)
-  | Pexp_letmodule of string option loc * functor_parameter loc list * module_expr * expression * infix_ext_attrs
-      (** [let module M = ME in E] *)
-  | Pexp_letexception of extension_constructor * expression * infix_ext_attrs
-      (** [let exception C in E] *)
+  | Pexp_struct_item of structure_item * expression * infix_ext_attrs
+     (** [let SI in E] *)
   | Pexp_assert of expression * infix_ext_attrs
       (** [assert E].
 
@@ -481,9 +482,6 @@ and expression_desc =
       (** - [(module M)] is represented as [Pexp_pack(M, None)]
           - [(module M : S)] is represented as [Pexp_pack(M, Some S)] *)
   | Pexp_open of Longident.t loc * expression  (** [M.(E)] *)
-  | Pexp_letopen of open_declaration * expression * infix_ext_attrs
-      (** - [let open M in E]
-          - [let open! M in E] *)
   | Pexp_letop of letop
       (** - [let* P = E0 in E1]
             - [let* P0 = E00 and* P1 = E01 in E1] *)
@@ -641,7 +639,7 @@ and type_declaration =
      ptype_name: string loc;
      ptype_params: (core_type * variance_and_injectivity) list;
       (** [('a1,...'an) t] *)
-     ptype_cstrs: (core_type * core_type * Location.t) list;
+     ptype_constraints: (core_type * core_type * Location.t) list;
       (** [... constraint T1=T1'  ... constraint Tn=Tn'] *)
      ptype_kind: type_kind;
      ptype_private: private_flag;  (** for [= private ...] *)
@@ -673,6 +671,10 @@ and type_declaration =
  - [type t = ..]
               when [type_kind] is {{!type_kind.Ptype_open}[Ptype_open]},
                and [manifest]  is [None].
+ - [type t = external "gmp"]
+              when [type_kind] is
+                 {{!type_kind.Ptype_external}[Ptype_external("gmp")]}
+               and [manifest]  is [None].
 *)
 
 and type_kind =
@@ -680,6 +682,7 @@ and type_kind =
   | Ptype_variant of constructor_declaration list
   | Ptype_record of label_declaration list  (** Invariant: non-empty list *)
   | Ptype_open
+  | Ptype_external of string
 
 and label_declaration =
     {
@@ -979,9 +982,9 @@ and module_type =
 and module_type_desc =
   | Pmty_ident of Longident.t loc  (** [Pmty_ident(S)] represents [S] *)
   | Pmty_signature of signature  (** [sig ... end] *)
-  | Pmty_functor of functor_parameter loc list * module_type * bool
-      (** [functor (X1 : MT1) ... (Xn : MTn) -> MT], third argument codes
-          whether the short syntax is used. *)
+  | Pmty_functor of functor_parameters_type * module_type
+      (** [functor (X1 : MT1) ... (Xn : MTn) -> MT -> ... -> MT]. The [functor]
+          keyword is optional. *)
   | Pmty_with of module_type * with_constraint list  (** [MT with ...] *)
   | Pmty_typeof of module_expr  (** [module type of ME] *)
   | Pmty_extension of extension  (** [[%id]] *)
@@ -993,6 +996,14 @@ and functor_parameter =
       (** [Named(name, MT)] represents:
             - [(X : MT)] when [name] is [Some X],
             - [(_ : MT)] when [name] is [None] *)
+
+and functor_parameters_type =
+  | Pfunctorty_short of functor_parameter loc list
+      (** [(A : T) (_ : T) ... ->]. *)
+  | Pfunctorty_keyword of attributes * functor_parameter loc list
+      (** [functor (A : T) (_ : T) ... ->]. *)
+  | Pfunctorty_unnamed of module_type
+      (** [T ->]. *)
 
 and signature = signature_item list
 

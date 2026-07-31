@@ -22,7 +22,10 @@ let read_cmt cmt_path =
 let comp_unit_of_uid (uid : Shape.Uid.t) =
   match uid with
   | Internal | Predef _ -> None
-  | Compilation_unit comp_unit | Item { comp_unit; _ } -> Some comp_unit
+  | Compilation_unit comp_unit
+  | Item { comp_unit; _ }
+  | Local_opaque_item { comp_unit; _ } ->
+      Some comp_unit
 
 let is_dune_root dir = Sys.file_exists (Filename.concat dir "_build")
 
@@ -392,54 +395,58 @@ module Artifacts = struct
            let foo = M.foo
         ]}
 
-     the compiler gives M the shape { desc = Leaf; uid = X }, and M.foo the shape
-     { desc = Leaf; approximated = true; uid = X } (in Shape.proj). I guess this is
-     behavior that merlin needs, baked into the compiler. For our purpose, we want either
-     the real definition (to look for [@@migrate]), or a normal form (if someone created a
-     side migration with let _ = foo [@migrate ...] and we're now looking at whether some
-     use of foo has a side migration). The only thing we can do with approximate data is
-     ignore it, but it means we can't even attach migrations to any such identifier. It's
-     preferable for us to transform all approximated nodes into unique leaves, because
-     even though we won't have the real definition either way, at least we'll be able to
-     compute a normal form. *)
+     the compiler until 5.4, the compile gave M the shape { desc = Leaf; uid = X },
+     and M.foo the shape { desc = Leaf; approximated = true; uid = X } (in
+     Shape.proj). I guess this is behavior that merlin needs, baked into the compiler.
+     At 5.5, the compile gives M the shape { desc = Pack ..; uid = X }, and M.foo
+     the shape { desc = Proj ({desc = Pack _; uid = X }, "foo"); uid = _ }, where
+     at least in the case of Filename.dirname, the outer uid is absent.
+
+     For our purpose, we want either the real definition (to look for [@@migrate]), or
+     a normal form (if someone created a side migration with let _ = foo [@migrate ...]
+     and we're now looking at whether some use of foo has a side migration). The only
+     thing we can do with approximate data is ignore it, but it means we can't even
+     attach migrations to any such identifier. It's preferable for us to transform all
+     approximated nodes into unique leaves, because even though we won't have the real
+     definition either way, at least we'll be able to compute a normal form.
+
+     With 5.5, we don't have this approximated data anymore, but we don't have a
+     uid either. Maybe we can change the code to not need uids, but it's not totally
+     obvious how. So for now, we provide a uid for Proj (Pack, _) same as we did
+     when it was approximated. *)
   let no_approximated_shapes_thank_you ~which ~comp_unit shape =
     let ids = ref 0 in
     let cache = Shape.Uid.Tbl.create 12 in
+    let generate_uid uid shape shape2 =
+      let uid =
+        match uid with
+        | Some x -> x
+        | None ->
+            Shape.Uid.mk
+              ~current_unit:
+                (Some
+                   (Unit_info.make which comp_unit ~check_modname:false
+                      ~source_file:"wontbeused"))
+      in
+      match uid with
+      | Item { comp_unit = _; id; from = _ } as foo ->
+          let module Obj = Stdlib.Obj in
+          let field_idx = 1 in
+          assert (id = Obj.obj (Obj.field (Obj.repr foo) field_idx));
+          ids := !ids + 1;
+          let foo2 = Sys.opaque_identity (Obj.dup (Obj.repr foo)) in
+          Obj.set_field (Obj.repr foo2) field_idx (Obj.repr (approx_id + !ids));
+          Some (Sys.opaque_identity (Obj.obj foo2 : Shape.Uid.t))
+      | _ ->
+          raise_s
+            [%sexp
+              "unexpected approximated shape"
+            , (shape2 : Uast.Shape.t)
+            , (shape : Uast.Shape.t)]
+    in
     let rec loop_t ({ uid; desc; approximated } as shape2 : Shape.t) : Shape.t =
       if approximated
-      then
-        { uid =
-            (if approximated
-             then
-               let uid =
-                 match uid with
-                 | Some x -> x
-                 | None ->
-                     Shape.Uid.mk
-                       ~current_unit:
-                         (Some
-                            (Unit_info.make which comp_unit ~check_modname:false
-                               ~source_file:"wontbeused"))
-               in
-               match uid with
-               | Item { comp_unit = _; id; from = _ } as foo ->
-                   let module Obj = Stdlib.Obj in
-                   let field_idx = 1 in
-                   assert (id = Obj.obj (Obj.field (Obj.repr foo) field_idx));
-                   ids := !ids + 1;
-                   let foo2 = Sys.opaque_identity (Obj.dup (Obj.repr foo)) in
-                   Obj.set_field (Obj.repr foo2) field_idx (Obj.repr (approx_id + !ids));
-                   Some (Sys.opaque_identity (Obj.obj foo2 : Shape.Uid.t))
-               | _ ->
-                   raise_s
-                     [%sexp
-                       "unexpected approximated shape"
-                     , (shape2 : Uast.Shape.t)
-                     , (shape : Uast.Shape.t)]
-             else uid)
-        ; desc = Leaf
-        ; approximated = false
-        }
+      then { uid = generate_uid uid shape shape2; desc = Leaf; approximated = false }
       else
         match
           match uid with
@@ -448,11 +455,19 @@ module Artifacts = struct
         with
         | Some t -> t
         | None ->
-            let t : Shape.t = { uid; desc = loop_desc desc; approximated } in
+            let t : Shape.t =
+              match loop_desc desc with
+              | Proj ({ desc = Pack _ | Leaf; _ }, _) when Option.is_none uid ->
+                  { uid = generate_uid uid shape shape2
+                  ; desc = Leaf
+                  ; approximated = false
+                  }
+              | desc -> { uid; desc; approximated }
+            in
             Option.iter uid ~f:(fun uid -> Shape.Uid.Tbl.replace cache uid t);
             t
-    and loop_desc = function
-      | (Var _ | Leaf | Comp_unit _ | Error _) as desc -> desc
+    and loop_desc : Shape.desc -> Shape.desc = function
+      | (Var _ | Leaf | Comp_unit _ | Error _ | Pack _) as desc -> desc
       | Abs (var, t) -> Abs (var, loop_t t)
       | App (t1, t2) -> App (loop_t t1, loop_t t2)
       | Struct map -> Struct (Shape.Item.Map.map loop_t map)
@@ -628,7 +643,7 @@ module Artifacts = struct
               lazy
                 (match shape with
                 | Resolved _ | Resolved_alias _ | Approximated _
-                | Internal_error_missing_uid ->
+                | Internal_error_missing_uid | Resolved_local_use _ | Missing_uid _ ->
                     shape
                 | Unresolved shape ->
                     let module M = (val loaded_cmt.m) in

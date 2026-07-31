@@ -428,7 +428,13 @@ let qualify_for_unopen file_type ~changed_something ~artifacts ~type_index
               let expr =
                 match expr.pexp_desc with
                 | Pexp_open (id, e)
-                | Pexp_letopen ({ popen_expr = { pmod_desc = Pmod_ident id; _ }; _ }, e, _)
+                | Pexp_struct_item
+                    ( { pstr_desc =
+                          Pstr_open { popen_expr = { pmod_desc = Pmod_ident id; _ }; _ }
+                      ; _
+                      }
+                    , e
+                    , _ )
                   when is_root id.txt ->
                     if only_in_structure
                     then expr (* don't recurse down *)

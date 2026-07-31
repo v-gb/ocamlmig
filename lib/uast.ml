@@ -190,6 +190,10 @@ module Shape = struct
           ; id : int
           ; from : Unit_info.intf_or_impl
           }
+      | Local_opaque_item of
+          { comp_unit : string
+          ; id : int
+          }
       | Internal
       | Predef of string
     [@@deriving sexp_of]
@@ -230,6 +234,7 @@ module Shape = struct
     | Abs of var * t
     | App of t * t
     | Struct of t Item.Map.t
+    | Pack of Ident.t
     | Alias of t
     | Leaf
     | Proj of t * Item.t
@@ -256,8 +261,10 @@ module Shape_reduce = struct
   type result = Shape_reduce.result =
     | Resolved of Shape.Uid.t
     | Resolved_alias of Shape.Uid.t * result
+    | Resolved_local_use of Shape.Uid.t
     | Unresolved of Shape.t
     | Approximated of Shape.Uid.t option
+    | Missing_uid of Shape.t
     | Internal_error_missing_uid
   [@@deriving sexp_of]
 end
@@ -280,7 +287,7 @@ include struct
       failwith (Format.asprintf "could not parse type: %a." Location.report_exception exn)
 
   let match_typ ~env texpr ~user_type:typ =
-    try Ctype.is_moregeneral env false typ texpr
+    try Ctype.is_moregeneral env typ texpr
     with Assert_failure _ ->
       (* When dealing with inline records [moregeneral] above calls
          [Env.find_type_full] in a context that should never occur in the
@@ -303,7 +310,7 @@ module Env_summary = struct
     | Env_class of t * Ident.t * (Types.class_declaration[@sexp.opaque])
     | Env_cltype of t * Ident.t * (Types.class_type_declaration[@sexp.opaque])
     | Env_open of t * Path.t
-    | Env_functor_arg of t * Ident.t
+    | Env_not_aliasable of t * Ident.t
     | Env_constraints of t * (Types.type_declaration Path.Map.t[@sexp.opaque])
     | Env_copy_types of t
     | Env_persistent of t * Ident.t
@@ -355,7 +362,8 @@ module Env_summary = struct
           :: acc)
           a
     | Env_open (a, b) -> sexps_of_t ([%sexp `open_, (b : Path.t)] :: acc) a
-    | Env_functor_arg (a, b) -> sexps_of_t ([%sexp `functor_arg, (b : Ident.t)] :: acc) a
+    | Env_not_aliasable (a, b) ->
+        sexps_of_t ([%sexp `not_aliasable, (b : Ident.t)] :: acc) a
     | Env_constraints (a, b) ->
         sexps_of_t
           ([%sexp `constraints, (b : (Types.type_declaration Path.Map.t[@sexp.opaque]))]
@@ -390,7 +398,7 @@ module Env_summary = struct
     | Env_class (a, _, _)
     | Env_cltype (a, _, _)
     | Env_open (a, _)
-    | Env_functor_arg (a, _)
+    | Env_not_aliasable (a, _)
     | Env_constraints (a, _)
     | Env_copy_types a
     | Env_persistent (a, _)
@@ -412,7 +420,7 @@ module Env_summary = struct
     | Env_class (_, b, c) -> Env_class (next, b, c)
     | Env_cltype (_, b, c) -> Env_cltype (next, b, c)
     | Env_open (_, b) -> Env_open (next, b)
-    | Env_functor_arg (_, b) -> Env_functor_arg (next, b)
+    | Env_not_aliasable (_, b) -> Env_not_aliasable (next, b)
     | Env_constraints (_, b) -> Env_constraints (next, b)
     | Env_copy_types _ -> Env_copy_types next
     | Env_persistent (_, b) -> Env_persistent (next, b)

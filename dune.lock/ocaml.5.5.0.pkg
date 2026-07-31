@@ -1,4 +1,4 @@
-(version 5.4.1)
+(version 5.5.0)
 
 (build
  (all_platforms
@@ -34,6 +34,6 @@
  (gen_ocaml_config.ml
   (fetch
    (url
-    https://raw.githubusercontent.com/dra27/ocaml/977f2d05a98a5aeec260b5ba200f72c4e79e4fdc/tools/opam/gen_ocaml_config.ml)
+    https://raw.githubusercontent.com/ocaml/ocaml/5799ec070df18cec96e5d828bc8e10b86cb0ed2c/tools/opam/gen_ocaml_config.ml)
    (checksum
-    sha256=d8d5d7e354bca87df3e8aa9c3bf8544cfba7aa92f4dba72ec5fb51bf9b92cfa8))))
+    sha512=e679b89e87cda2f012fd13685807b7f1e1037fc0fc8f525aebec5a299d5634960f532a3dbf2fe519d9a5e19759f8dd99170999c252c35dd5762d4d0509f4179a))))

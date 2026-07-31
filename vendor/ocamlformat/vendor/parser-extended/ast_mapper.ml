@@ -98,39 +98,49 @@ let map_tuple f1 f2 (x, y) = (f1 x, f2 y)
 let map_tuple3 f1 f2 f3 (x, y, z) = (f1 x, f2 y, f3 z)
 let map_opt f = function None -> None | Some x -> Some (f x)
 
-let map_loc f sub { loc; txt } = {loc = sub.location sub loc; txt = f sub txt}
-let map_string_loc sub loc = map_loc (fun _sub (x : string) -> x) sub loc
-let map_string_opt_loc sub loc = map_loc (fun _sub (x : string option) -> x) sub loc
+let map_loc map_txt sub {loc; txt} =
+  {loc = sub.location sub loc;
+   txt = map_txt sub txt}
+
+(* using 'map_loc iter_string' is more robust than 'map_loc (Fun.const Fun.id)',
+   as it forces us to reconsider the code if the datatype change and
+   the new data requires deeper iteration. *)
+let map_string _sub (s : string) = s
+
+let map_string_opt _sub (s : string option) = s
 
 let rec map_lid sub lid =
   let open Longident in
   match lid with
   | Lident id -> Lident id
   | Ldot (lid, id) ->
-      Ldot (map_loc_lid sub lid, map_string_loc sub id)
+      let lid = map_loc_lid sub lid in
+      let id = map_loc map_string sub id in
+      Ldot (lid, id)
   | Lapply (lid, lid') ->
-    Lapply(map_loc_lid sub lid, map_loc_lid sub lid')
+    let lid = map_loc_lid sub lid in
+    let lid' = map_loc_lid sub lid' in
+    Lapply(lid, lid')
 
 and map_loc_lid sub loc_lid =
   map_loc map_lid sub loc_lid
 
-let variant_var sub x =
-  map_loc map_string_loc sub x
+let map_variant_var sub v = map_loc map_string sub v
 
-let map_package_type sub {ppt_loc; ppt_path; ppt_cstrs; ppt_attrs} =
+let map_package_type sub {ppt_loc; ppt_path; ppt_constraints; ppt_attrs} =
   let loc = sub.location sub ppt_loc in
   let attrs = sub.attributes sub ppt_attrs in
   Typ.package_type ~loc ~attrs (map_loc_lid sub ppt_path)
-    (List.map (map_tuple (map_loc_lid sub) (sub.typ sub)) ppt_cstrs)
+    (List.map (map_tuple (map_loc_lid sub) (sub.typ sub)) ppt_constraints)
 
 let map_arg_label sub = function
   | Asttypes.Nolabel -> Asttypes.Nolabel
-  | Labelled x -> Labelled (map_string_loc sub x)
-  | Optional x -> Optional (map_string_loc sub x)
+  | Labelled x -> Labelled (map_loc map_string sub x)
+  | Optional x -> Optional (map_loc map_string sub x)
 
 let map_value_constraint' sub = function
   | Pvc_constraint {locally_abstract_univars=vars; typ} ->
-      let locally_abstract_univars = List.map (map_string_loc sub) vars in
+      let locally_abstract_univars = List.map (map_loc map_string sub) vars in
       let typ = sub.typ sub typ in
       Pvc_constraint { locally_abstract_univars; typ }
   | Pvc_coercion { ground; coercion } ->
@@ -139,7 +149,7 @@ let map_value_constraint' sub = function
       Pvc_coercion { ground; coercion }
 
 let map_tuple_elt sub f te =
-    let lte_label = Option.map (map_string_loc sub) te.lte_label in
+    let lte_label = Option.map (map_loc map_string sub) te.lte_label in
     { lte_label; lte_elt = f sub te.lte_elt }
 
 let map_tuple_elts sub f elts =
@@ -147,10 +157,10 @@ let map_tuple_elts sub f elts =
 
 let map_tuple_elts_with_pun sub typ_f f elts =
   let elt = function
-    | Lte_pun s -> Lte_pun (map_string_loc sub s)
+    | Lte_pun s -> Lte_pun (map_loc map_string sub s)
     | Lte_constrained_pun { loc; label; type_constraint } ->
         let loc = sub.location sub loc in
-        let label = map_string_loc sub label in
+        let label = map_loc map_string sub label in
         let type_constraint = typ_f sub type_constraint in
         Lte_constrained_pun { loc; label; type_constraint }
     | Lte_simple lte -> Lte_simple (map_tuple_elt sub f lte)
@@ -162,7 +172,7 @@ module FP = struct
     (sub.arg_label sub lab, map_opt (sub.expr sub) def, sub.pat sub p)
 
   let map_param_newtype sub (ty : string loc list) : string loc list =
-    List.map (map_string_loc sub) ty
+    List.map (map_loc map_string sub) ty
 
   let map_expr' sub = function
     | Pparam_val x -> Pparam_val (map_param_val sub x)
@@ -234,7 +244,9 @@ module T = struct
     let loc = sub.location sub prf_loc in
     let attrs = sub.attributes sub prf_attributes in
     let desc = match prf_desc with
-      | Rtag (l, b, tl) -> Rtag (variant_var sub l, b, List.map (sub.typ sub) tl)
+      | Rtag (l, b, tl) ->
+          Rtag (map_loc map_variant_var sub l, b,
+                List.map (sub.typ sub) tl)
       | Rinherit t -> Rinherit (sub.typ sub t)
     in
     Rf.mk ~loc ~attrs desc
@@ -247,7 +259,7 @@ module T = struct
     let loc = sub.location sub pof_loc in
     let attrs = sub.attributes sub pof_attributes in
     let desc = match pof_desc with
-      | Otag (l, t) -> Otag (map_string_loc sub l, sub.typ sub t)
+      | Otag (l, t) -> Otag (map_loc map_string sub l, sub.typ sub t)
       | Oinherit t -> Oinherit (sub.typ sub t)
     in
     Of.mk ~loc ~attrs desc
@@ -277,21 +289,26 @@ module T = struct
     | Ptyp_class (lid, tl) ->
         class_ ~loc ~attrs (map_loc_lid sub lid) (List.map (sub.typ sub) tl)
     | Ptyp_alias (t, s) ->
-        let s = map_string_loc sub s in
+        let s = map_loc map_string sub s in
         alias ~loc ~attrs (sub.typ sub t) s
     | Ptyp_variant (rl, b, ll) ->
         variant ~loc ~attrs (List.map (row_field sub) rl) b
-          (map_opt (List.map (variant_var sub)) ll)
-    | Ptyp_poly (sl, t) -> poly ~loc ~attrs
-                             (List.map (map_string_loc sub) sl) (sub.typ sub t)
+          (map_opt (List.map (map_loc map_variant_var sub)) ll)
+    | Ptyp_poly (sl, t) ->
+        poly ~loc ~attrs
+          (List.map (map_loc map_string sub) sl)
+          (sub.typ sub t)
     | Ptyp_package pt ->
         package ~loc ~attrs (sub.package_type sub pt)
     | Ptyp_open (mod_ident, t) ->
         open_ ~loc ~attrs (map_loc_lid sub mod_ident) (sub.typ sub t)
     | Ptyp_extension x -> extension ~loc ~attrs (sub.extension sub x)
+    | Ptyp_functor (lab, s, ptyp, t) ->
+        functor_ ~loc ~attrs lab (map_loc map_string sub s)
+          (sub.package_type sub ptyp) (sub.typ sub t)
 
   let map_type_declaration sub
-      {ptype_name; ptype_params; ptype_cstrs;
+      {ptype_name; ptype_params; ptype_constraints;
        ptype_kind;
        ptype_private;
        ptype_manifest;
@@ -299,12 +316,13 @@ module T = struct
        ptype_loc} =
     let loc = sub.location sub ptype_loc in
     let attrs = sub.ext_attrs sub ptype_attributes in
-    Type.mk ~loc ~attrs (map_string_loc sub ptype_name)
+    Type.mk ~loc ~attrs (map_loc map_string sub ptype_name)
       ~params:(List.map (map_fst (sub.typ sub)) ptype_params)
       ~priv:(Flag.map_private sub ptype_private)
-      ~cstrs:(List.map
-                (map_tuple3 (sub.typ sub) (sub.typ sub) (sub.location sub))
-                ptype_cstrs)
+      ~constraints:
+        (List.map
+           (map_tuple3 (sub.typ sub) (sub.typ sub) (sub.location sub))
+           ptype_constraints)
       ~kind:(sub.type_kind sub ptype_kind)
       ?manifest:(map_opt (sub.typ sub) ptype_manifest)
 
@@ -314,6 +332,7 @@ module T = struct
         Ptype_variant (List.map (sub.constructor_declaration sub) l)
     | Ptype_record l -> Ptype_record (List.map (sub.label_declaration sub) l)
     | Ptype_open -> Ptype_open
+    | Ptype_external name -> Ptype_external name
 
   let map_constructor_arguments sub = function
     | Pcstr_tuple l -> Pcstr_tuple (List.map (sub.typ sub) l)
@@ -345,7 +364,7 @@ module T = struct
 
   let map_extension_constructor_kind sub = function
       Pext_decl(vars, ctl, cto) ->
-        Pext_decl(List.map (map_string_loc sub) vars,
+        Pext_decl(List.map (map_loc map_string sub) vars,
                   map_constructor_arguments sub ctl,
                   map_opt (sub.typ sub) cto)
     | Pext_rebind li ->
@@ -359,14 +378,14 @@ module T = struct
     let loc = sub.location sub pext_loc in
     let attrs = sub.attributes sub pext_attributes in
     Te.constructor ~loc ~attrs
-      (map_string_loc sub pext_name)
+      (map_loc map_string sub pext_name)
       (map_extension_constructor_kind sub pext_kind)
 
-  let map_package_type sub {ppt_loc; ppt_path; ppt_cstrs; ppt_attrs} =
+  let map_package_type sub {ppt_loc; ppt_path; ppt_constraints; ppt_attrs} =
     let loc = sub.location sub ppt_loc in
     let attrs = sub.attributes sub ppt_attrs in
     Typ.package_type ~loc ~attrs (map_loc_lid sub ppt_path)
-      (List.map (map_tuple (map_loc_lid sub) (sub.typ sub)) ppt_cstrs)
+      (List.map (map_tuple (map_loc_lid sub) (sub.typ sub)) ppt_constraints)
 
 end
 
@@ -396,10 +415,10 @@ module CT = struct
     match desc with
     | Pctf_inherit ct -> inherit_ ~loc ~attrs (sub.class_type sub ct)
     | Pctf_val (s, mv, t) ->
-        val_ ~loc ~attrs (map_string_loc sub s) (Flag.map_mutable_virtual sub mv)
+        val_ ~loc ~attrs (map_loc map_string sub s) (Flag.map_mutable_virtual sub mv)
           (sub.typ sub t)
     | Pctf_method (s, pv, t) ->
-        method_ ~loc ~attrs (map_string_loc sub s) (Flag.map_private_virtual sub pv)
+        method_ ~loc ~attrs (map_loc map_string sub s) (Flag.map_private_virtual sub pv)
           (sub.typ sub t)
     | Pctf_constraint (t1, t2) ->
         constraint_ ~loc ~attrs (sub.typ sub t1) (sub.typ sub t2)
@@ -412,13 +431,22 @@ module CT = struct
       (List.map (sub.class_type_field sub) pcsig_fields)
 end
 
-let map_functor_param sub = function
+let map_functor_param' sub = function
   | Unit -> Unit
-  | Named (s, mt) -> Named (map_string_opt_loc sub s, sub.module_type sub mt)
+  | Named (s, mt) -> Named (map_loc map_string_opt sub s, sub.module_type sub mt)
 
 let map_functor_param sub {loc; txt} =
   let loc = sub.location sub loc in
-  {loc; txt = map_functor_param sub txt}
+  {loc; txt = map_functor_param' sub txt}
+
+let map_functor_params sub params =
+  List.map (map_functor_param sub) params
+
+let map_functor_parameters_type sub = function
+  | Pfunctorty_short p -> Pfunctorty_short (map_functor_params sub p)
+  | Pfunctorty_keyword (attrs, p) ->
+      Pfunctorty_keyword (sub.attributes sub attrs, map_functor_params sub p)
+  | Pfunctorty_unnamed mt -> Pfunctorty_unnamed (sub.module_type sub mt)
 
 module MT = struct
   (* Type expressions for the module language *)
@@ -431,11 +459,10 @@ module MT = struct
     | Pmty_ident s -> ident ~loc ~attrs (map_loc_lid sub s)
     | Pmty_alias s -> alias ~loc ~attrs (map_loc_lid sub s)
     | Pmty_signature sg -> signature ~loc ~attrs (sub.signature sub sg)
-    | Pmty_functor (params, mt, short) ->
+    | Pmty_functor (params, mt) ->
         functor_ ~loc ~attrs
-          (List.map (map_functor_param sub) params)
+          (map_functor_parameters_type sub params)
           (sub.module_type sub mt)
-          short
     | Pmty_with (mt, l) ->
         with_ ~loc ~attrs (sub.module_type sub mt)
           (List.map (sub.with_constraint sub) l)
@@ -498,7 +525,7 @@ module M = struct
     | Pmod_structure str -> structure ~loc ~attrs (sub.structure sub str)
     | Pmod_functor (params, body) ->
         functor_ ~loc ~attrs
-          (List.map (map_functor_param sub) params)
+          (map_functor_params sub params)
           (sub.module_expr sub body)
     | Pmod_apply (m1, m2) ->
         apply ~loc ~attrs (sub.module_expr sub m1) (sub.module_expr sub m2)
@@ -556,7 +583,7 @@ module E = struct
              map_opt (sub.expr sub) def,
              sub.pat sub p)
       | Pparam_newtype ty ->
-          Pparam_newtype (List.map (map_string_loc sub) ty)
+          Pparam_newtype (List.map (map_loc map_string sub) ty)
     in
     { pparam_loc = loc; pparam_desc = desc }
 
@@ -610,7 +637,7 @@ module E = struct
     | Pexp_construct (lid, arg) ->
         construct ~loc ~attrs (map_loc_lid sub lid) (map_opt (sub.expr sub) arg)
     | Pexp_variant (lab, eo) ->
-        variant ~loc ~attrs (variant_var sub lab) (map_opt (sub.expr sub) eo)
+        variant ~loc ~attrs (map_loc map_variant_var sub lab) (map_opt (sub.expr sub) eo)
     | Pexp_record (l, eo) ->
         let fields =
           List.map
@@ -635,7 +662,7 @@ module E = struct
         ifthenelse ~loc ~attrs (List.map (map_if_branch sub) eN)
           (map_opt map_else e2)
     | Pexp_sequence (e1, e2, ext) ->
-        let ext = map_opt (map_string_loc sub) ext in
+        let ext = map_opt (map_loc map_string sub) ext in
         sequence ~loc ~attrs ?ext (sub.expr sub e1) (sub.expr sub e2)
     | Pexp_while (e1, e2, iea) ->
         while_ ~loc ~attrs ~infix_ext_attrs:(sub.infix_ext_attrs sub iea) (sub.expr sub e1) (sub.expr sub e2)
@@ -648,10 +675,10 @@ module E = struct
     | Pexp_constraint (e, t) ->
         constraint_ ~loc ~attrs (sub.expr sub e) (sub.typ sub t)
     | Pexp_send (e, s) ->
-        send ~loc ~attrs (sub.expr sub e) (map_string_loc sub s)
+        send ~loc ~attrs (sub.expr sub e) (map_loc map_string sub s)
     | Pexp_new (lid, iea) -> new_ ~loc ~attrs ~infix_ext_attrs:(sub.infix_ext_attrs sub iea) (map_loc_lid sub lid)
     | Pexp_setinstvar (s, e) ->
-        setinstvar ~loc ~attrs (map_string_loc sub s) (sub.expr sub e)
+        setinstvar ~loc ~attrs (map_loc map_string sub s) (sub.expr sub e)
     | Pexp_indexop_access {pia_lhs; pia_kind; pia_paren; pia_rhs} ->
         let pia_kind =
           match pia_kind with
@@ -663,18 +690,7 @@ module E = struct
           (map_opt (sub.expr sub) pia_rhs)
     | Pexp_override sel ->
         override ~loc ~attrs
-          (List.map (map_tuple (map_string_loc sub) (sub.expr sub)) sel)
-    | Pexp_letmodule (s, args, me, e, iea) ->
-        letmodule ~loc ~attrs (map_string_opt_loc sub s)
-          ~infix_ext_attrs:(sub.infix_ext_attrs sub iea)
-          (List.map (map_functor_param sub) args)
-          (sub.module_expr sub me)
-          (sub.expr sub e)
-    | Pexp_letexception (cd, e, iea) ->
-        letexception ~loc ~attrs
-          ~infix_ext_attrs:(sub.infix_ext_attrs sub iea)
-          (sub.extension_constructor sub cd)
-          (sub.expr sub e)
+          (List.map (map_tuple (map_loc map_string sub) (sub.expr sub)) sel)
     | Pexp_assert (e, iea) -> assert_ ~loc ~attrs ~infix_ext_attrs:(sub.infix_ext_attrs sub iea) (sub.expr sub e)
     | Pexp_lazy (e, iea) -> lazy_ ~loc ~attrs ~infix_ext_attrs:(sub.infix_ext_attrs sub iea) (sub.expr sub e)
     | Pexp_object (cls, iea) -> object_ ~loc ~attrs ~infix_ext_attrs:(sub.infix_ext_attrs sub iea) (sub.class_structure sub cls)
@@ -683,13 +699,13 @@ module E = struct
           (sub.module_expr sub me)
           (map_opt (map_package_type sub) pt)
     | Pexp_open (o, e) -> open_ ~loc ~attrs (map_loc_lid sub o) (sub.expr sub e)
-    | Pexp_letopen (o, e, iea) ->
-        letopen ~loc ~attrs ~infix_ext_attrs:(sub.infix_ext_attrs sub iea) (sub.open_declaration sub o) (sub.expr sub e)
     | Pexp_letop {let_; ands; body; loc_in} ->
         letop ~loc ~attrs ~loc_in:(sub.location sub loc_in) (sub.binding_op sub let_)
           (List.map (sub.binding_op sub) ands) (sub.expr sub body)
     | Pexp_extension x -> extension ~loc ~attrs (sub.extension sub x)
     | Pexp_unreachable -> unreachable ~loc ~attrs ()
+    | Pexp_struct_item (si, e, iea) ->
+        struct_item ~loc ~attrs ~infix_ext_attrs:(sub.infix_ext_attrs sub iea) (sub.structure_item sub si) (sub.expr sub e)
     (* Added *)
     | Pexp_hole -> hole ~loc ~attrs ()
     (* *)
@@ -697,15 +713,15 @@ module E = struct
     | Pexp_parens e -> parens ~loc ~attrs (sub.expr sub e)
     | Pexp_cons l -> cons ~loc ~attrs (List.map (sub.expr sub) l)
     | Pexp_prefix (op, e) ->
-        prefix ~loc ~attrs (map_string_loc sub op) (sub.expr sub e)
+        prefix ~loc ~attrs (map_loc map_string sub op) (sub.expr sub e)
     | Pexp_infix (op, e1, e2) ->
-        infix ~loc ~attrs (map_string_loc sub op) (sub.expr sub e1) (sub.expr sub e2)
+        infix ~loc ~attrs (map_loc map_string sub op) (sub.expr sub e1) (sub.expr sub e2)
     | Pexp_construct_unit_beginend iea ->
         construct_unit_beginend ~loc ~attrs iea
 
   let map_binding_op sub {pbop_op; pbop_pat; pbop_args; pbop_typ; pbop_exp; pbop_is_pun; pbop_loc} =
     let open Exp in
-    let op = map_string_loc sub pbop_op in
+    let op = map_loc map_string sub pbop_op in
     let pat = sub.pat sub pbop_pat in
     let args = List.map (sub.expr_function_param sub) pbop_args in
     let typ = map_opt (sub.value_constraint sub) pbop_typ in
@@ -730,8 +746,8 @@ module P = struct
     let attrs = sub.attributes sub attrs in
     match desc with
     | Ppat_any -> any ~loc ~attrs ()
-    | Ppat_var s -> var ~loc ~attrs (map_string_loc sub s)
-    | Ppat_alias (p, s) -> alias ~loc ~attrs (sub.pat sub p) (map_string_loc sub s)
+    | Ppat_var s -> var ~loc ~attrs (map_loc map_string sub s)
+    | Ppat_alias (p, s) -> alias ~loc ~attrs (sub.pat sub p) (map_loc map_string sub s)
     | Ppat_constant c -> constant ~loc ~attrs (sub.constant sub c)
     | Ppat_interval (c1, c2) ->
         interval ~loc ~attrs (sub.constant sub c1) (sub.constant sub c2)
@@ -740,10 +756,10 @@ module P = struct
     | Ppat_construct (l, p) ->
         construct ~loc ~attrs (map_loc_lid sub l)
           (map_opt
-             (fun (vl, p) -> List.map (map_string_loc sub) vl, sub.pat sub p)
+             (fun (vl, p) -> List.map (map_loc map_string sub) vl, sub.pat sub p)
              p)
     | Ppat_variant (l, p) ->
-        variant ~loc ~attrs (variant_var sub l) (map_opt (sub.pat sub) p)
+        variant ~loc ~attrs (map_loc map_variant_var sub l) (map_opt (sub.pat sub) p)
     | Ppat_record (lpl, cf) ->
         let fields =
           List.map
@@ -762,7 +778,7 @@ module P = struct
     | Ppat_type s -> type_ ~loc ~attrs (map_loc_lid sub s)
     | Ppat_lazy p -> lazy_ ~loc ~attrs (sub.pat sub p)
     | Ppat_unpack (s, pt) ->
-        unpack ~loc ~attrs (map_string_opt_loc sub s) (map_opt (map_package_type sub) pt)
+        unpack ~loc ~attrs (map_loc map_string_opt sub s) (map_opt (map_package_type sub) pt)
     | Ppat_open (lid,p) -> open_ ~loc ~attrs (map_loc_lid sub lid) (sub.pat sub p)
     | Ppat_exception p -> exception_ ~loc ~attrs (sub.pat sub p)
     | Ppat_effect(p1, p2) ->
@@ -820,12 +836,12 @@ module CE = struct
     match desc with
     | Pcf_inherit (o, ce, s) ->
         inherit_ ~loc ~attrs o (sub.class_expr sub ce)
-          (map_opt (map_string_loc sub) s)
+          (map_opt (map_loc map_string sub) s)
     | Pcf_val (s, mv, k) ->
-        val_ ~loc ~attrs (map_string_loc sub s) (Flag.map_mutable_virtual sub mv)
+        val_ ~loc ~attrs (map_loc map_string sub s) (Flag.map_mutable_virtual sub mv)
           (map_value_kind sub k)
     | Pcf_method (s, pv, k) ->
-        method_ ~loc ~attrs (map_string_loc sub s) (Flag.map_private_virtual sub pv)
+        method_ ~loc ~attrs (map_loc map_string sub s) (Flag.map_private_virtual sub pv)
           (map_method_kind sub k)
     | Pcf_constraint (t1, t2) ->
         constraint_ ~loc ~attrs (sub.typ sub t1) (sub.typ sub t2)
@@ -848,7 +864,7 @@ module CE = struct
      ~params:(List.map (map_fst (sub.typ sub)) pl)
      ~args:(List.map (sub.class_function_param sub) pci_args)
      ?constraint_:(map_opt (sub.class_type sub) pci_constraint)
-      (map_string_loc sub pci_name)
+      (map_loc map_string sub pci_name)
       (f pci_expr)
 end
 
@@ -890,11 +906,11 @@ let default_mapper =
       (fun this {pval_name; pval_type; pval_prim; pval_loc;
                  pval_attributes} ->
         Val.mk
-          (map_string_loc this pval_name)
+          (map_loc map_string this pval_name)
           (this.typ this pval_type)
           ~attrs:(this.ext_attrs this pval_attributes)
           ~loc:(this.location this pval_loc)
-          ~prim:(List.map (map_string_loc this) pval_prim)
+          ~prim:(List.map (map_loc map_string this) pval_prim)
       );
 
     pat = P.map;
@@ -904,7 +920,7 @@ let default_mapper =
     module_declaration =
       (fun this {pmd_name; pmd_args; pmd_type; pmd_ext_attrs; pmd_loc} ->
          Md.mk
-           (map_string_opt_loc this pmd_name)
+           (map_loc map_string_opt this pmd_name)
            (List.map (map_functor_param this) pmd_args)
            (this.module_type this pmd_type)
            ~attrs:(this.ext_attrs this pmd_ext_attrs)
@@ -916,7 +932,7 @@ let default_mapper =
         { pms_name; pms_manifest; pms_ext_attrs;
            pms_loc } ->
          Ms.mk
-           (map_string_loc this pms_name)
+           (map_loc map_string this pms_name)
            (map_loc_lid this pms_manifest)
            ~attrs:(this.ext_attrs this pms_ext_attrs)
            ~loc:(this.location this pms_loc)
@@ -925,7 +941,7 @@ let default_mapper =
     module_type_declaration =
       (fun this {pmtd_name; pmtd_type; pmtd_ext_attrs; pmtd_loc} ->
          Mtd.mk
-           (map_string_loc this pmtd_name)
+           (map_loc map_string this pmtd_name)
            ?typ:(map_opt (this.module_type this) pmtd_type)
            ~attrs:(this.ext_attrs this pmtd_ext_attrs)
            ~loc:(this.location this pmtd_loc)
@@ -933,7 +949,7 @@ let default_mapper =
 
     module_binding =
       (fun this {pmb_name; pmb_args; pmb_expr; pmb_ext_attrs; pmb_loc} ->
-         Mb.mk (map_string_opt_loc this pmb_name)
+         Mb.mk (map_loc map_string_opt this pmb_name)
            (List.map (map_functor_param this) pmb_args)
            (this.module_expr this pmb_expr)
            ~attrs:(this.ext_attrs this pmb_ext_attrs)
@@ -988,8 +1004,8 @@ let default_mapper =
       (fun this {pcd_name; pcd_vars; pcd_args;
                  pcd_res; pcd_loc; pcd_attributes} ->
         Type.constructor
-          (map_string_loc this pcd_name)
-          ~vars:(List.map (map_string_loc this) pcd_vars)
+          (map_loc map_string this pcd_name)
+          ~vars:(List.map (map_loc map_string this) pcd_vars)
           ~args:(T.map_constructor_arguments this pcd_args)
           ?res:(map_opt (this.typ this) pcd_res)
           ~loc:(this.location this pcd_loc)
@@ -999,7 +1015,7 @@ let default_mapper =
     label_declaration =
       (fun this {pld_name; pld_type; pld_loc; pld_mutable; pld_attributes} ->
          Type.field
-           (map_string_loc this pld_name)
+           (map_loc map_string this pld_name)
            (this.typ this pld_type)
            ~mut:(Flag.map_mutable this pld_mutable)
            ~loc:(this.location this pld_loc)
@@ -1020,10 +1036,10 @@ let default_mapper =
 
     location = (fun _this l -> l);
 
-    extension = (fun this (s, e) -> (map_string_loc this s, this.payload this e));
+    extension = (fun this (s, e) -> (map_loc map_string this s, this.payload this e));
     attribute = (fun this a ->
       {
-        attr_name = map_string_loc this a.attr_name;
+        attr_name = map_loc map_string this a.attr_name;
         attr_payload = this.payload this a.attr_payload;
         attr_loc = this.location this a.attr_loc
       }
@@ -1031,13 +1047,13 @@ let default_mapper =
     attributes = (fun this l -> List.map (this.attribute this) l);
     ext_attrs = (fun this e ->
         {
-          attrs_extension = map_opt (map_string_loc this) e.attrs_extension;
+          attrs_extension = map_opt (map_loc map_string this) e.attrs_extension;
           attrs_before = this.attributes this e.attrs_before;
           attrs_after = this.attributes this e.attrs_after;
         });
     infix_ext_attrs = (fun this e ->
       {
-        infix_ext = map_opt (map_string_loc this) e.infix_ext;
+        infix_ext = map_opt (map_loc map_string this) e.infix_ext;
         infix_attrs = this.attributes this e.infix_attrs;
       });
     payload =
@@ -1058,7 +1074,7 @@ let default_mapper =
 
     toplevel_directive =
       (fun this d ->
-         { pdir_name= map_string_loc this d.pdir_name
+         { pdir_name= map_loc map_string this d.pdir_name
          ; pdir_arg= map_opt (this.directive_argument this) d.pdir_arg
          ; pdir_loc= this.location this d.pdir_loc } );
 

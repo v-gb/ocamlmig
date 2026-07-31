@@ -158,15 +158,19 @@ let internalize_attribute_mapper =
   let super = Ast_mapper.default_mapper in
   { super with expr = (fun self v -> super.expr self (internalize_attribute v)) }
 
+let reraise_s bt s =
+  Exn.raise_with_original_backtrace (Error.to_exn (Error.create_s s)) bt
+
 let fmexpr_of_uexpr ~fmconf e =
   let expr =
     try Conv.Fmu.expr e
     with Stdlib.Exit ->
+      let bt = Backtrace.Exn.most_recent () in
       let e_str = Format.asprintf "%a" Uast.Pprintast.expression e in
-      if in_test then raise_s [%sexp "can't fmexpr_of_uexpr", (e_str : string)];
+      if in_test then reraise_s bt [%sexp "can't fmexpr_of_uexpr", (e_str : string)];
       Ocamlformat_lib.Extended_ast.Parse.ast Expression
         ~ocaml_version:(ocaml_version fmconf) ~preserve_beginend:false
-        ~input_name:e.pexp_loc.loc_start.pos_fname e_str
+        ~prefer_let_puns:None ~input_name:e.pexp_loc.loc_start.pos_fname e_str
   in
   expr
   |> Ocamlformat_lib.Extended_ast.map Expression internalize_attribute_mapper
@@ -353,13 +357,12 @@ let rec exec_of_expr (expr : P.expression) =
   | Pexp_new _ -> Special `Call
   | Pexp_setinstvar (_, e) -> sequence (exec_of_expr e, Special `Mutation)
   | Pexp_override l -> exec_of_expr_list (List.map l ~f:snd)
-  | Pexp_letmodule _ | Pexp_letexception _ -> Special `Call
+  | Pexp_struct_item _ -> Special `Call
   | Pexp_assert (e, _) -> either (exec_of_expr e, Special `Call)
   | Pexp_lazy _ -> Const
   | Pexp_object _ -> Special `Call
   | Pexp_pack _ -> Special `Call
   | Pexp_open (_, e) -> exec_of_expr e
-  | Pexp_letopen _ -> Special `Call
   | Pexp_letop _ -> Special `Call
   | Pexp_extension _ -> Special `Call
   | Pexp_unreachable -> Const
@@ -526,18 +529,14 @@ let mapper_with_bound_vars (new_scope, end_scope) =
                     self.expr self body)
               in
               { expr with pexp_desc = Pexp_open (id, body') }
-          | Pexp_letopen (open_infos, body, attrs) ->
-              let open_infos' =
-                { open_infos with
-                  popen_expr = self.module_expr self open_infos.popen_expr
-                }
-              in
+          | Pexp_struct_item (({ pstr_desc = Pstr_open _; _ } as si), body, attrs) ->
+              let si' = self.structure_item self si in
               let body' =
                 restoring_context (fun () ->
                     found_open ();
                     self.expr self body)
               in
-              { expr with pexp_desc = Pexp_letopen (open_infos', body', attrs) }
+              { expr with pexp_desc = Pexp_struct_item (si', body', attrs) }
           | Pexp_function (params, typ_opt, body, attrs) ->
               restoring_context (fun () ->
                   let params' =
@@ -1258,14 +1257,10 @@ let rec map_tails (e : P.expression) f =
       { e with pexp_desc = Pexp_let (a, map_tails e f, b) }
   | { pexp_desc = Pexp_sequence (a, e, b); _ } ->
       { e with pexp_desc = Pexp_sequence (a, map_tails e f, b) }
-  | { pexp_desc = Pexp_letmodule (a, b, c, e, g); _ } ->
-      { e with pexp_desc = Pexp_letmodule (a, b, c, map_tails e f, g) }
-  | { pexp_desc = Pexp_letexception (a, e, b); _ } ->
-      { e with pexp_desc = Pexp_letexception (a, map_tails e f, b) }
+  | { pexp_desc = Pexp_struct_item (a, b, c); _ } ->
+      { e with pexp_desc = Pexp_struct_item (a, map_tails b f, c) }
   | { pexp_desc = Pexp_open (a, e); _ } ->
       { e with pexp_desc = Pexp_open (a, map_tails e f) }
-  | { pexp_desc = Pexp_letopen (a, e, b); _ } ->
-      { e with pexp_desc = Pexp_letopen (a, map_tails e f, b) }
   | { pexp_desc = Pexp_beginend (e, a); _ } ->
       { e with pexp_desc = Pexp_beginend (map_tails e f, a) }
   | { pexp_desc = Pexp_parens e; _ } -> { e with pexp_desc = Pexp_parens (map_tails e f) }

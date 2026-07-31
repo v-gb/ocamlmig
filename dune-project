@@ -26,7 +26,7 @@
  (synopsis "OCaml source code rewriting tool")
  (description "Ocamlmig is a command line tool to rewrite ocaml source code, especially to make updating to newer interfaces easier.")
  (depends
-  (ocaml (and (>= 5.4) (< 5.5)))
+  (ocaml (and (>= 5.5) (< 5.6)))
    (dune (>= 3.22))
    ;;
    base
@@ -36,7 +36,7 @@
    ppx_partial
    ;; MARKER ocamlformat
    (ocaml
-    (>= 4.08))
+    (>= 4.14))
    (alcotest
     (and
      (= 1 0)

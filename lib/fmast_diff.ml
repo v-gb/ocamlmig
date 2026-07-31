@@ -114,6 +114,7 @@ let children (ctx : Ocamlformat_lib.Ast.t) meth v =
     | Mod _ -> `Child
     | Sig _ -> `Child
     | Str _ -> `Child
+    | Str_exp _ -> `Uncertain_whether_this_matters (* XXX *)
     | Clf _ -> `Child
     | Ctf _ -> `Ref
     | Tli _ -> `Dont_care_I_think
@@ -190,7 +191,9 @@ let children (ctx : Ocamlformat_lib.Ast.t) meth v =
           Ref.set_temporarily ctx (Bo v) ~f:(fun () -> super.binding_op self v))
     ; module_binding =
         (fun self v ->
-          Ref.set_temporarily ctx (Mb v) ~f:(fun () -> super.module_binding self v))
+          Ref.set_temporarily ctx
+            (Mb (!ctx, v))
+            ~f:(fun () -> super.module_binding self v))
     ; module_declaration =
         (fun self v ->
           Ref.set_temporarily ctx (Md v) ~f:(fun () -> super.module_declaration self v))

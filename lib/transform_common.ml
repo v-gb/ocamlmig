@@ -327,12 +327,9 @@ let drop_concrete_syntax_constructs =
              | Pexp_function (a, b, c, infix_ext_attrs) ->
                  deinfix_attrs expr infix_ext_attrs (fun () ->
                      Pexp_function (a, b, c, Ast_helper.Attr.empty_infix_ext_attrs))
-             | Pexp_letopen (a, b, infix_ext_attrs) ->
+             | Pexp_struct_item (a, b, infix_ext_attrs) ->
                  deinfix_attrs expr infix_ext_attrs (fun () ->
-                     Pexp_letopen (a, b, Ast_helper.Attr.empty_infix_ext_attrs))
-             | Pexp_letmodule (a, b, c, d, infix_ext_attrs) ->
-                 deinfix_attrs expr infix_ext_attrs (fun () ->
-                     Pexp_letmodule (a, b, c, d, Ast_helper.Attr.empty_infix_ext_attrs))
+                     Pexp_struct_item (a, b, Ast_helper.Attr.empty_infix_ext_attrs))
              | Pexp_while (a, b, infix_ext_attrs) ->
                  deinfix_attrs expr infix_ext_attrs (fun () ->
                      Pexp_while (a, b, Ast_helper.Attr.empty_infix_ext_attrs))
@@ -391,9 +388,10 @@ let drop_concrete_syntax_constructs =
          | Pexp_open (modname, e) ->
              { expr with
                pexp_desc =
-                 Pexp_letopen
-                   ( Ast_helper.Opn.mk ~loc:expr.pexp_loc
-                       (Ast_helper.Mod.ident ~loc:modname.loc modname)
+                 Pexp_struct_item
+                   ( Ast_helper.Str.open_ ~loc:expr.pexp_loc
+                       (Ast_helper.Opn.mk ~loc:expr.pexp_loc
+                          (Ast_helper.Mod.ident ~loc:modname.loc modname))
                    , e
                    , Ast_helper.Attr.empty_infix_ext_attrs )
              ; pexp_attributes =
@@ -496,7 +494,13 @@ let undrop_concrete_syntax_constructs =
                || is_migrate_filename loc)
                && Ocamlformat_lib.Std_longident.String_id.is_prefix op ->
             { expr with pexp_desc = Pexp_prefix ({ txt = op; loc }, e1) }
-        | Pexp_letopen ({ popen_expr = { pmod_desc = Pmod_ident modname; _ }; _ }, e, _)
+        | Pexp_struct_item
+            ( { pstr_desc =
+                  Pstr_open { popen_expr = { pmod_desc = Pmod_ident modname; _ }; _ }
+              ; _
+              }
+            , e
+            , _ )
           when Sattr.exists Sattr.pun expr.pexp_attributes ->
             { expr with pexp_desc = Pexp_open (modname, e) }
         | _ -> expr)
@@ -552,14 +556,10 @@ let rec map_tail (e : P.expression) f =
       { e with pexp_desc = Pexp_let (a, map_tail e f, b) }
   | { pexp_desc = Pexp_sequence (a, e, b); _ } ->
       { e with pexp_desc = Pexp_sequence (a, map_tail e f, b) }
-  | { pexp_desc = Pexp_letmodule (a, b, c, e, g); _ } ->
-      { e with pexp_desc = Pexp_letmodule (a, b, c, map_tail e f, g) }
-  | { pexp_desc = Pexp_letexception (a, e, b); _ } ->
-      { e with pexp_desc = Pexp_letexception (a, map_tail e f, b) }
+  | { pexp_desc = Pexp_struct_item (a, b, c); _ } ->
+      { e with pexp_desc = Pexp_struct_item (a, map_tail b f, c) }
   | { pexp_desc = Pexp_open (a, e); _ } ->
       { e with pexp_desc = Pexp_open (a, map_tail e f) }
-  | { pexp_desc = Pexp_letopen (a, e, b); _ } ->
-      { e with pexp_desc = Pexp_letopen (a, map_tail e f, b) }
   | { pexp_desc = Pexp_beginend (e, a); _ } ->
       { e with pexp_desc = Pexp_beginend (map_tail e f, a) }
   | { pexp_desc = Pexp_parens e; _ } -> { e with pexp_desc = Pexp_parens (map_tail e f) }

@@ -530,7 +530,7 @@ let global_lib_term =
 
 let global_lib_term_eval =
   lazy
-    (let discard = Format.formatter_of_buffer (Buffer.create 0) in
+    (let discard = Format.make_formatter (fun _ _ _ -> ()) ignore in
      Cmd.eval_value ~err:discard ~help:discard (Cmd.v info global_lib_term)
     )
 

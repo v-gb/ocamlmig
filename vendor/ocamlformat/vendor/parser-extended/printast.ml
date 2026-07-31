@@ -251,6 +251,12 @@ let rec core_type i ppf x =
   | Ptyp_extension (s, arg) ->
       line i ppf "Ptyp_extension %a\n" fmt_string_loc s;
       payload i ppf arg
+  | Ptyp_functor (label, name, ptyp, ct2) ->
+      line i ppf "Ptyp_functor\n";
+      arg_label i ppf label;
+      line i ppf "\"%s\"\n" name.txt;
+      package_type i ppf ptyp;
+      core_type i ppf ct2
 
 and arrow_param i ppf {pap_label; pap_loc; pap_type} =
   line i ppf "arrow_param %a\n" fmt_location pap_loc;
@@ -272,8 +278,8 @@ and object_field i ppf x =
 and package_type i ppf ptyp =
   let i = i + 1 in
   line i ppf "package_type %a\n" fmt_longident_loc ptyp.ppt_path;
-  attributes i ppf ptyp.ppt_attrs;
-  list i package_with ppf ptyp.ppt_cstrs;
+  list i package_with ppf ptyp.ppt_constraints;
+  attributes i ppf ptyp.ppt_attrs
 
 and package_with i ppf (s, t) =
   line i ppf "with type %a\n" fmt_longident_loc s;
@@ -332,9 +338,9 @@ and pattern i ppf x =
   | Ppat_type (li) ->
       line i ppf "Ppat_type\n";
       longident_loc i ppf li
-  | Ppat_unpack (s, pt) ->
+  | Ppat_unpack (s, ptyp) ->
       line i ppf "Ppat_unpack %a\n" fmt_str_opt_loc s;
-      option i package_type ppf pt
+      option i package_type ppf ptyp;
   | Ppat_exception p ->
       line i ppf "Ppat_exception\n";
       pattern i ppf p
@@ -463,17 +469,6 @@ and expression i ppf x =
   | Pexp_override (l) ->
       line i ppf "Pexp_override\n";
       list i string_x_expression ppf l;
-  | Pexp_letmodule (s, args, me, e, iea) ->
-      line i ppf "Pexp_letmodule %a\n" fmt_str_opt_loc s;
-      infix_ext_attrs i ppf iea;
-      list i functor_parameter ppf args;
-      module_expr i ppf me;
-      expression i ppf e;
-  | Pexp_letexception (cd, e, iea) ->
-      line i ppf "Pexp_letexception\n";
-      infix_ext_attrs i ppf iea;
-      extension_constructor i ppf cd;
-      expression i ppf e;
   | Pexp_assert (e, iea) ->
       line i ppf "Pexp_assert\n";
       infix_ext_attrs i ppf iea;
@@ -495,11 +490,6 @@ and expression i ppf x =
       line i ppf "Pexp_open\n";
       longident_loc i ppf lid;
       expression i ppf e
-  | Pexp_letopen (o, e, iea) ->
-      line i ppf "Pexp_letopen\n";
-      infix_ext_attrs i ppf iea;
-      open_declaration i ppf o;
-      expression i ppf e
   | Pexp_letop {let_; ands; body} ->
       line i ppf "Pexp_letop\n";
       binding_op i ppf let_;
@@ -510,6 +500,11 @@ and expression i ppf x =
       payload i ppf arg
   | Pexp_unreachable ->
       line i ppf "Pexp_unreachable\n"
+  | Pexp_struct_item (si, e, iea) ->
+      line i ppf "Pexp_struct_item\n";
+      infix_ext_attrs i ppf iea;
+      structure_item i ppf si;
+      expression i ppf e
   | Pexp_hole ->
       line i ppf "Pexp_hole\n"
   | Pexp_beginend (e, iea) ->
@@ -607,8 +602,8 @@ and type_declaration i ppf x =
   let i = i+1 in
   line i ppf "ptype_params =\n";
   list (i+1) type_parameter ppf x.ptype_params;
-  line i ppf "ptype_cstrs =\n";
-  list (i+1) core_type_x_core_type_x_location ppf x.ptype_cstrs;
+  line i ppf "ptype_constraints =\n";
+  list (i+1) core_type_x_core_type_x_location ppf x.ptype_constraints;
   line i ppf "ptype_kind =\n";
   type_kind (i+1) ppf x.ptype_kind;
   line i ppf "ptype_private = %a\n" fmt_private_flag x.ptype_private;
@@ -665,6 +660,8 @@ and type_kind i ppf x =
       list (i+1) label_decl ppf l;
   | Ptype_open ->
       line i ppf "Ptype_open\n";
+  | Ptype_external name ->
+      line i ppf "Ptype_external %S\n" name;
 
 and type_extension i ppf x =
   line i ppf "type_extension %a\n" fmt_location x.ptyext_loc;
@@ -871,13 +868,28 @@ and class_declaration i = class_infos "class_declaration" class_expr i
 
 and functor_parameter i ppf x =
   line i ppf "functor_parameter %a\n" fmt_location x.loc;
-  let i = i+1 in
-  match x.txt with
+  functor_parameter' (i + 1) ppf x.txt
+
+and functor_parameter' i ppf = function
   | Unit ->
       line i ppf "Unit\n"
   | Named (s, mt) ->
       line i ppf "Named %a\n" fmt_str_opt_loc s;
       module_type i ppf mt
+
+and functor_parameter_type i ppf p =
+  let i = i + 1 in
+  match p with
+  | Pfunctorty_short args ->
+      line i ppf "Pfunctorty_short\n";
+      list i functor_parameter ppf args
+  | Pfunctorty_keyword (attrs, args) ->
+      line i ppf "Pfunctorty_keyword\n";
+      attributes i ppf attrs;
+      list i functor_parameter ppf args
+  | Pfunctorty_unnamed arg ->
+      line i ppf "Pfunctorty_unnamed\n";
+      module_type i ppf arg
 
 and module_type i ppf x =
   line i ppf "module_type %a\n" fmt_location x.pmty_loc;
@@ -889,9 +901,9 @@ and module_type i ppf x =
   | Pmty_signature (s) ->
       line i ppf "Pmty_signature\n";
       signature i ppf s;
-  | Pmty_functor (params, mt, short) ->
-      line i ppf "Pmty_functor short=%b\n" short;
-      list i functor_parameter ppf params;
+  | Pmty_functor (params, mt) ->
+      line i ppf "Pmty_functor\n";
+      functor_parameter_type i ppf params;
       module_type i ppf mt
   | Pmty_with (mt, l) ->
       line i ppf "Pmty_with\n";

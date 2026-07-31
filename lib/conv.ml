@@ -100,19 +100,10 @@ module Fmu = struct
     | Pexp_sequence (e1, e2) -> Pexp_sequence (expr e1, expr e2, None)
     | Pexp_let (rec_flag, vbs, e) ->
         Pexp_let (value_bindings ~rec_flag vbs, expr e, To.Location.none)
-    | Pexp_open (decl, e) ->
-        Pexp_letopen
-          ( open_infos ~f:module_expr decl
-          , expr e
-          , To.Ast_helper.Attr.empty_infix_ext_attrs )
+    | Pexp_struct_item (si, e) ->
+        Pexp_struct_item
+          (structure_item si, expr e, To.Ast_helper.Attr.empty_infix_ext_attrs)
     | Pexp_coerce (e, ty_opt, ty) -> Pexp_coerce (expr e, Option.map ty_opt ~f:typ, typ ty)
-    | Pexp_letmodule (name, me, e) ->
-        Pexp_letmodule
-          ( located Fn.id name
-          , []
-          , module_expr me
-          , expr e
-          , To.Ast_helper.Attr.empty_infix_ext_attrs )
     | Pexp_letop { let_; ands; body } ->
         let binding_op : From.P.binding_op -> To.P.binding_op =
          fun { pbop_op; pbop_pat; pbop_exp; pbop_loc } ->
@@ -158,8 +149,7 @@ module Fmu = struct
           , Option.map ty ~f:package_type
           , To.Ast_helper.Attr.empty_infix_ext_attrs )
     | Pexp_setfield _ | Pexp_for _ | Pexp_send _ | Pexp_new _ | Pexp_setinstvar _
-    | Pexp_override _ | Pexp_letexception _ | Pexp_assert _ | Pexp_poly _ | Pexp_object _
-    | Pexp_newtype _ ->
+    | Pexp_override _ | Pexp_assert _ | Pexp_poly _ | Pexp_object _ | Pexp_newtype _ ->
         raise Stdlib.Exit
 
   and cases : From.P.case list -> To.P.case list = fun l -> List.map l ~f:case
@@ -186,6 +176,8 @@ module Fmu = struct
     | Ptyp_constr (id, params) ->
         Ptyp_constr (located longident id, List.map params ~f:typ)
     | Ptyp_tuple l -> Ptyp_tuple (tuple l typ)
+    | Ptyp_functor (l, loc, ty, body) ->
+        Ptyp_functor (arg_label l, located Fn.id loc, package_type ty, typ body)
     | Ptyp_object _ | Ptyp_class _ | Ptyp_alias _ | Ptyp_variant _ | Ptyp_poly _
     | Ptyp_package _ | Ptyp_open _ | Ptyp_extension _ ->
         raise Stdlib.Exit
@@ -315,9 +307,18 @@ module Fmu = struct
     function
     | Pstr_eval (e, attrs) -> Pstr_eval (expr e, attributes attrs)
     | Pstr_value (rec_flag, vbs) -> Pstr_value (value_bindings ~rec_flag vbs)
-    | Pstr_primitive _ | Pstr_type _ | Pstr_typext _ | Pstr_exception _ | Pstr_module _
-    | Pstr_recmodule _ | Pstr_modtype _ | Pstr_open _ | Pstr_class _ | Pstr_class_type _
-    | Pstr_include _ | Pstr_attribute _ | Pstr_extension _ ->
+    | Pstr_open o -> Pstr_open (open_infos o ~f:module_expr)
+    | Pstr_module { pmb_name; pmb_expr; pmb_attributes; pmb_loc } ->
+        Pstr_module
+          { pmb_name = located Fn.id pmb_name
+          ; pmb_expr = module_expr pmb_expr
+          ; pmb_args = []
+          ; pmb_ext_attrs = ext_attributes pmb_attributes
+          ; pmb_loc = location pmb_loc
+          }
+    | Pstr_primitive _ | Pstr_type _ | Pstr_typext _ | Pstr_exception _ | Pstr_recmodule _
+    | Pstr_modtype _ | Pstr_class _ | Pstr_class_type _ | Pstr_include _
+    | Pstr_attribute _ | Pstr_extension _ ->
         raise Stdlib.Exit
 
   and package_type : From.P.package_type -> To.P.package_type = fun _ -> raise Stdlib.Exit
@@ -382,13 +383,12 @@ module Ufm = struct
     in
     match pexp_desc with
     | Pexp_function (_, _, _, ext_attrs)
-    | Pexp_letopen (_, _, ext_attrs)
-    | Pexp_letmodule (_, _, _, _, ext_attrs)
     | Pexp_while (_, _, ext_attrs)
     | Pexp_try (_, _, ext_attrs)
     | Pexp_match (_, _, ext_attrs)
     | Pexp_lazy (_, ext_attrs)
-    | Pexp_pack (_, _, ext_attrs) ->
+    | Pexp_pack (_, _, ext_attrs)
+    | Pexp_struct_item (_, _, ext_attrs) ->
         infix_ext_attrs ext_attrs e
     | Pexp_sequence (_, _, ext) -> infix_ext_attrs { infix_attrs = []; infix_ext = ext } e
     | _ -> e
@@ -449,13 +449,9 @@ module Ufm = struct
     | Pexp_let (vbs, e, _) ->
         let rec_flag, vbs = value_bindings vbs in
         Pexp_let (rec_flag, vbs, expr e)
-    | Pexp_letopen (decl, e, _handled_earlier) ->
-        Pexp_open (open_infos ~f:module_expr decl, expr e)
+    | Pexp_struct_item (si, e, _) -> Pexp_struct_item (structure_item si, expr e)
     | Pexp_open _ -> assert false
     | Pexp_coerce (e, ty_opt, ty) -> Pexp_coerce (expr e, Option.map ty_opt ~f:typ, typ ty)
-    | Pexp_letmodule (name, params, me, e, _handled_earlier) ->
-        assert (List.is_empty params);
-        Pexp_letmodule (located Fn.id name, module_expr me, expr e)
     | Pexp_letop { let_; ands; body; loc_in = _ } ->
         let binding_op : From.P.binding_op -> To.P.binding_op =
          fun { pbop_op
@@ -493,8 +489,7 @@ module Ufm = struct
         assert (Option.is_none ty);
         Pexp_pack (module_expr me, None)
     | Pexp_hole | Pexp_setfield _ | Pexp_for _ | Pexp_send _ | Pexp_new _
-    | Pexp_setinstvar _ | Pexp_override _ | Pexp_letexception _ | Pexp_assert _
-    | Pexp_object _ ->
+    | Pexp_setinstvar _ | Pexp_override _ | Pexp_assert _ | Pexp_object _ ->
         raise Stdlib.Exit
     | Pexp_list _ | Pexp_beginend _ | Pexp_parens _ | Pexp_cons _ | Pexp_indexop_access _
     | Pexp_prefix _ | Pexp_infix _ | Pexp_construct_unit_beginend _ ->
@@ -537,6 +532,8 @@ module Ufm = struct
     | Ptyp_constr (id, params) ->
         Ptyp_constr (located longident id, List.map params ~f:typ)
     | Ptyp_tuple l -> Ptyp_tuple (tuple l typ)
+    | Ptyp_functor (l, loc, ty, body) ->
+        Ptyp_functor (arg_label l, located Fn.id loc, package_type ty, typ body)
     | Ptyp_object _ | Ptyp_class _ | Ptyp_alias _ | Ptyp_variant _ | Ptyp_poly _
     | Ptyp_package _ | Ptyp_open _ | Ptyp_extension _ ->
         raise Stdlib.Exit
@@ -690,8 +687,19 @@ module Ufm = struct
     | Pstr_value vbs ->
         let rec_flag, vbs = value_bindings vbs in
         Pstr_value (rec_flag, vbs)
-    | Pstr_primitive _ | Pstr_type _ | Pstr_typext _ | Pstr_exception _ | Pstr_module _
-    | Pstr_recmodule _ | Pstr_modtype _ | Pstr_open _ | Pstr_class _ | Pstr_class_type _
-    | Pstr_include _ | Pstr_attribute _ | Pstr_extension _ ->
+    | Pstr_open o -> Pstr_open (open_infos o ~f:module_expr)
+    | Pstr_module { pmb_name; pmb_expr; pmb_args; pmb_ext_attrs; pmb_loc } ->
+        assert (List.is_empty pmb_args);
+        Pstr_module
+          { pmb_name = located Fn.id pmb_name
+          ; pmb_expr = module_expr pmb_expr
+          ; pmb_attributes = ext_attributes pmb_ext_attrs
+          ; pmb_loc = location pmb_loc
+          }
+    | Pstr_primitive _ | Pstr_type _ | Pstr_typext _ | Pstr_exception _ | Pstr_recmodule _
+    | Pstr_modtype _ | Pstr_class _ | Pstr_class_type _ | Pstr_include _
+    | Pstr_attribute _ | Pstr_extension _ ->
         raise Stdlib.Exit
+
+  and package_type : From.P.package_type -> To.P.package_type = fun _ -> raise Stdlib.Exit
 end

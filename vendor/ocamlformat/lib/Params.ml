@@ -354,6 +354,13 @@ module Exp = struct
         hvbox (2 - String.length "begin ")
     | _ -> Fn.id
 
+  let end_break_beginend ~ctx0 ~box =
+    if box then break 1000 0
+    else
+      match ctx0 with
+      | Exp {pexp_desc= Pexp_ifthenelse _; _} -> break 1000 0
+      | _ -> break 1000 (-2)
+
   let box_beginend c ~ctx0 ~ctx =
     let contains_fun =
       match ctx with
@@ -375,7 +382,9 @@ module Exp = struct
   let match_inner_pro ~ctx0 ~parens =
     if parens then false
     else
-      match ctx0 with Exp {pexp_desc= Pexp_infix _; _} -> false | _ -> true
+      match ctx0 with
+      | Exp {pexp_desc= Pexp_infix _ | Pexp_ifthenelse _; _} -> false
+      | _ -> true
 
   let function_inner_pro ~has_cmts_outer ~ctx0 =
     if has_cmts_outer then false
@@ -488,6 +497,30 @@ let get_or_pattern_sep ?(cmts_before = false) ?(space = false) (c : Conf.t)
             ~breaks:("", 0, if space then " | " else " |")
       | `Unsafe_no -> break nspaces 0 $ str "| " )
 
+(** [is_special_beginend exp] returns true if [begin `exp` end] can be formatted
+as
+{[begin abc
+  ...
+end]}
+instead of
+{[begin
+  abc
+    ...
+end]}*)
+let is_special_beginend exp =
+  match exp with
+  | Pexp_match _ | Pexp_try _ | Pexp_function _ | Pexp_ifthenelse _ -> true
+  | _ -> false
+
+let is_special_or_nested_special_beginend = function
+  | Pexp_beginend ({pexp_desc; _}, _) -> is_special_beginend pexp_desc
+  | exp -> is_special_beginend exp
+
+let raw_cmts_branch_pro (c : Conf.t) cmts =
+  match c.fmt_opts.if_then_else.v with
+  | `Compact -> break 1000 0 $ cmts $ break 1000 0
+  | _ -> break 1000 2 $ cmts $ break 1000 2
+
 type cases =
   { leading_space: Fmt.t
   ; bar: Fmt.t
@@ -512,7 +545,9 @@ let get_cases (c : Conf.t) ~fmt_infix_ext_attrs ~ctx ~first ~last
                   Pexp_function _ | Pexp_match _ | Pexp_try _ | Pexp_let _
               ; _ }
           | Lb {pvb_body= Pfunction_cases _; _} )
-        , (Pexp_match _ | Pexp_try _ | Pexp_beginend _) ) ) ->
+        , ( Pexp_match _ | Pexp_try _
+          | Pexp_beginend ({pexp_desc= Pexp_match _ | Pexp_try _; _}, _) ) )
+      ) ->
         2
     | _, _ -> c.fmt_opts.cases_exp_indent.v
   in
@@ -540,11 +575,10 @@ let get_cases (c : Conf.t) ~fmt_infix_ext_attrs ~ctx ~first ~last
     | { pexp_desc= Pexp_beginend (nested_exp, infix_ext_attrs)
       ; pexp_attributes= []
       ; _ }
-      when not cmts_before ->
+      when (not cmts_before)
+           && not (is_special_beginend nested_exp.pexp_desc) ->
         let close_paren =
-          let offset =
-            match c.fmt_opts.break_cases.v with `Nested -> 0 | _ -> -2
-          in
+          let offset = if indent >= 2 then 2 - indent else 0 in
           fits_breaks " end" ~level:1 ~hint:(1000, offset) "end"
         in
         ( break 1 0 $ fmt_infix_ext_attrs ~pro:(str "begin") infix_ext_attrs
@@ -816,6 +850,7 @@ type if_then_else =
   ; box_keyword_and_expr: Fmt.t -> Fmt.t
   ; branch_pro: Fmt.t
   ; wrap_parens: Fmt.t -> Fmt.t
+  ; beginend_loc: Location.t option
   ; box_expr: bool option
   ; expr_pro: Fmt.t option
   ; expr_eol: Fmt.t option
@@ -823,21 +858,47 @@ type if_then_else =
   ; break_end_branch: Fmt.t
   ; space_between_branches: Fmt.t }
 
-let get_if_then_else (c : Conf.t) ~pro ~first ~last ~parens_bch
-    ~parens_prev_bch ~xcond ~xbch ~expr_loc ~fmt_infix_ext_attrs
-    ~infix_ext_attrs ~fmt_cond ~cmts_before_kw ~cmts_after_kw =
+let get_if_then_else (c : Conf.t) ~cmts_before_opt ~has_cmts_before ~pro
+    ~first ~last ~parens_bch ~parens_prev_bch ~xcond ~xbch ~expr_loc
+    ~fmt_infix_ext_attrs ~infix_ext_attrs ~fmt_cond ~cmts_before_kw
+    ~cmts_after_kw =
   let imd = c.fmt_opts.indicate_multiline_delimiters.v in
-  let beginend, infix_ext_attrs_beginend, branch_expr =
+  let beginend_loc, infix_ext_attrs_beginend, branch_expr =
     let ast = xbch.Ast.ast in
     match ast with
+    | {pexp_desc= Pexp_beginend (nested_exp, _); _}
+      when is_special_beginend nested_exp.pexp_desc
+           && not (has_cmts_before nested_exp.pexp_loc) ->
+        (* [begin match/try/function/if … end] shortcut: keep [begin] glued
+           to the body keyword. A leading comment on the body breaks the
+           glue, so fall through to the plain [begin]/[end] machinery below,
+           which puts [begin] on its own line and the body (comment included)
+           one indent in. *)
+        (None, None, xbch)
     | { pexp_desc= Pexp_beginend (nested_exp, infix_ext_attrs)
       ; pexp_attributes= []
+      ; pexp_loc
       ; _ } ->
-        (true, Some infix_ext_attrs, sub_exp ~ctx:(Exp ast) nested_exp)
-    | _ -> (false, None, xbch)
+        ( Some pexp_loc
+        , Some infix_ext_attrs
+        , sub_exp ~ctx:(Exp ast) nested_exp )
+    | _ -> (None, None, xbch)
+  in
+  let has_beginend = Option.is_some beginend_loc in
+  (* A [begin]/[end] branch whose body is a [match]/[try]/[function]/[if]
+     (the [begin match … end] shortcut, or its plain form when a leading
+     comment de-glues [begin] from the body). Such a body has a header
+     ([match … with], [if … then]) that the branch [break_unless_newline
+     1000] would wrongly split, so it provides its own break after [begin]
+     instead. Simple-bodied [begin … end] keeps the regular branch break. *)
+  let is_special_beginend_branch =
+    match xbch.ast.pexp_desc with
+    | Pexp_beginend (nested_exp, _) ->
+        is_special_beginend nested_exp.pexp_desc
+    | _ -> false
   in
   let wrap_parens ~wrap_breaks k =
-    if beginend then
+    if has_beginend then
       let infix_ext_attrs_beginend =
         Option.value_exn infix_ext_attrs_beginend
       in
@@ -848,20 +909,20 @@ let get_if_then_else (c : Conf.t) ~pro ~first ~last ~parens_bch
   in
   let get_parens_breaks ~opn_hint_indent ~cls_hint:(ch_sp, ch_sl) =
     let brk hint = fits_breaks "" ~hint "" in
-    let oh_other = ((if beginend then 1 else 0), opn_hint_indent) in
-    if beginend then
+    if has_beginend then
       let _, offset = ch_sl in
-      wrap (brk oh_other) (break 1000 offset)
+      wrap (brk (1, opn_hint_indent)) (break 1000 offset)
     else
       match imd with
       | `Space -> wrap (brk (1, opn_hint_indent)) (brk ch_sp)
-      | `No -> wrap (brk oh_other) noop
-      | `Closing_on_separate_line -> wrap (brk oh_other) (brk ch_sl)
+      | `No -> wrap (brk (0, opn_hint_indent)) noop
+      | `Closing_on_separate_line ->
+          wrap (brk (0, opn_hint_indent)) (brk ch_sl)
   in
-  let cond () =
+  let cond ?(box = hvbox 2) () =
     match xcond with
     | Some xcnd ->
-        hvbox 2
+        box
           ( hvbox 0
               ( hvbox 2
                   ( pro
@@ -871,24 +932,66 @@ let get_if_then_else (c : Conf.t) ~pro ~first ~last ~parens_bch
               $ space_break $ cmts_before_kw $ str "then" )
           $ opt cmts_after_kw Fn.id )
     | None ->
-        cmts_before_kw $ hvbox 2 (pro $ str "else" $ opt cmts_after_kw Fn.id)
+        cmts_before_kw $ box (pro $ str "else" $ opt cmts_after_kw Fn.id)
   in
-  let branch_pro ?(indent = 2) () =
-    if Option.is_some cmts_after_kw then break 1000 indent
-    else if beginend || parens_bch then str " "
-    else break 1 indent
+  let has_cmts_after_kw = Option.is_some cmts_after_kw in
+  let branch_pro ?(begin_end_offset = 2) ?(indent = 2)
+      ?(break_before_cmts = break 1000 indent) () =
+    match beginend_loc with
+    | Some loc -> (
+      match cmts_before_opt loc with
+      | Some cmts -> break_before_cmts $ cmts $ break 1000 ~-begin_end_offset
+      | None ->
+          if has_cmts_after_kw then break 1000 ~-begin_end_offset
+          else str " " )
+    | None when has_cmts_after_kw -> break 1000 indent
+    | None when parens_bch -> str " "
+    | None -> break 1 indent
+  in
+  (* When a comment precedes a multi-line
+     [match]/[function]/[try]/[if-then-else] branch body (or a [begin]/[end]
+     wrapping one), emit it from [branch_pro] with forced breaks, so the
+     branch indentation stays stable regardless of where the comment was
+     initially attached. [default] is the comment-less [branch_pro] for the
+     current mode, [guard] an extra mode-specific applicability condition.
+     Returns [(branch_pro, has_cmts_before)] where [has_cmts_before] is true
+     when a comment was consumed into [branch_pro]. *)
+  let branch_pro_with_cmts ~default ~guard =
+    if
+      (not has_beginend)
+      && (not (Location.is_single_line expr_loc c.fmt_opts.margin.v))
+      && (not has_cmts_after_kw) && guard
+    then
+      match cmts_before_opt xbch.ast.pexp_loc with
+      | Some cmts -> (raw_cmts_branch_pro c cmts, true)
+      | None -> (
+        match xbch.ast.pexp_desc with
+        | Pexp_beginend ({pexp_loc; pexp_desc; _}, _)
+          when is_special_beginend pexp_desc -> (
+          match cmts_before_opt pexp_loc with
+          | Some cmts -> (raw_cmts_branch_pro c cmts, true)
+          | None -> (default, false) )
+        | _ -> (default, false) )
+    else (default, false)
   in
   match c.fmt_opts.if_then_else.v with
   | `Compact ->
+      let branch_pro, _has_cmts =
+        branch_pro_with_cmts ~default:(branch_pro ~indent:0 ())
+          ~guard:
+            ( (not parens_bch)
+            && is_special_or_nested_special_beginend xbch.ast.pexp_desc )
+      in
       { box_branch= hovbox ~name:"Params.get_if_then_else `Compact" 2
       ; cond= cond ()
       ; box_keyword_and_expr= Fn.id
-      ; branch_pro= branch_pro ~indent:0 ()
+      ; branch_pro
       ; wrap_parens=
           wrap_parens
             ~wrap_breaks:
               (get_parens_breaks ~opn_hint_indent:0
                  ~cls_hint:((1, 0), (1000, -2)) )
+      ; beginend_loc
       ; box_expr= Some false
       ; expr_pro= None
       ; expr_eol= None
@@ -899,16 +1002,42 @@ let get_if_then_else (c : Conf.t) ~pro ~first ~last ~parens_bch
       { box_branch= Fn.id
       ; cond= cond ()
       ; box_keyword_and_expr= Fn.id
-      ; branch_pro= branch_pro ()
+      ; branch_pro= branch_pro ~begin_end_offset:0 ()
       ; wrap_parens= wrap_parens ~wrap_breaks:(wrap (break 1000 2) noop)
-      ; box_expr= Some beginend
+      ; beginend_loc
+      ; box_expr= Some (has_beginend && not is_special_beginend_branch)
       ; expr_pro= None
       ; expr_eol= Some (break 1 2)
       ; branch_expr
       ; break_end_branch=
-          fmt_if (parens_bch || beginend || not last) (break 1000 0)
-      ; space_between_branches= fmt_if (beginend || parens_bch) (str " ") }
+          fmt_if (parens_bch || has_beginend || not last) (break 1000 0)
+      ; space_between_branches= fmt_if (has_beginend || parens_bch) (str " ")
+      }
   | `Fit_or_vertical ->
+      let branch_pro_default, has_cmts =
+        branch_pro_with_cmts
+          ~default:(branch_pro ~begin_end_offset:0 ())
+          ~guard:true
+      in
+      let paren_glue =
+        has_cmts && parens_bch
+        && is_special_or_nested_special_beginend xbch.ast.pexp_desc
+      in
+      let branch_pro, wrap_parens =
+        if paren_glue then
+          let cls =
+            match imd with
+            | `Closing_on_separate_line -> break 1000 0 $ str ")"
+            | _ -> str ")"
+          in
+          (branch_pro_default $ str "(", fun k -> k $ cls)
+        else
+          ( branch_pro_default
+          , wrap_parens
+              ~wrap_breaks:
+                (get_parens_breaks ~opn_hint_indent:2
+                   ~cls_hint:((1, 0), (1000, 0)) ) )
+      in
       { box_branch=
           hovbox
             ( match imd with
@@ -916,37 +1045,41 @@ let get_if_then_else (c : Conf.t) ~pro ~first ~last ~parens_bch
             | _ -> 0 )
       ; cond= cond ()
       ; box_keyword_and_expr= Fn.id
-      ; branch_pro= branch_pro ()
-      ; wrap_parens=
-          wrap_parens
-            ~wrap_breaks:
-              (get_parens_breaks ~opn_hint_indent:2
-                 ~cls_hint:((1, 0), (1000, 0)) )
+      ; branch_pro
+      ; wrap_parens
+      ; beginend_loc
       ; box_expr= Some false
       ; expr_pro=
-          Some
-            (fmt_if
-               (not (Location.is_single_line expr_loc c.fmt_opts.margin.v))
-               (break_unless_newline 1000 2) )
+          ( if is_special_beginend_branch || paren_glue then None
+            else
+              Some
+                (fmt_if
+                   (not
+                      (Location.is_single_line expr_loc c.fmt_opts.margin.v) )
+                   (break_unless_newline 1000 2) ) )
       ; expr_eol= Some (break 1 2)
       ; branch_expr
       ; break_end_branch= noop
       ; space_between_branches=
           ( match imd with
-          | `Closing_on_separate_line when beginend || parens_bch -> str " "
+          | `Closing_on_separate_line when has_beginend || parens_bch ->
+              str " "
           | _ -> space_break ) }
   | `Vertical ->
       { box_branch= Fn.id
       ; cond= cond ()
       ; box_keyword_and_expr= Fn.id
-      ; branch_pro= branch_pro ()
+      ; branch_pro= branch_pro ~begin_end_offset:0 ()
       ; wrap_parens=
           wrap_parens
             ~wrap_breaks:
               (get_parens_breaks ~opn_hint_indent:2
                  ~cls_hint:((1, 0), (1000, 0)) )
+      ; beginend_loc
       ; box_expr= None
-      ; expr_pro= Some (break_unless_newline 1000 2)
+      ; expr_pro=
+          ( if is_special_beginend_branch then None
+            else Some (break_unless_newline 1000 2) )
       ; expr_eol= None
       ; branch_expr
       ; break_end_branch= noop
@@ -973,12 +1106,13 @@ let get_if_then_else (c : Conf.t) ~pro ~first ~last ~parens_bch
       { box_branch= Fn.id
       ; cond
       ; box_keyword_and_expr= (fun k -> hovbox 2 (keyword $ k))
-      ; branch_pro= branch_pro ~indent:0 ()
+      ; branch_pro= branch_pro ~break_before_cmts:(str " ") ~indent:0 ()
       ; wrap_parens=
           wrap_parens
             ~wrap_breaks:
               (get_parens_breaks ~opn_hint_indent:0
                  ~cls_hint:((1, 0), (1000, -2)) )
+      ; beginend_loc
       ; box_expr= None
       ; expr_pro= None
       ; expr_eol= None
@@ -997,6 +1131,29 @@ let comma_sep (c : Conf.t) : Fmt.t =
   match c.fmt_opts.break_separators.v with
   | `Before -> cut_break $ str ", "
   | `After -> str "," $ break 1 2
+
+let get_pexp_struct_item_break_in (c : Conf.t) {ast; ctx= _} =
+  let is_compact_mod m =
+    match m.pmod_desc with
+    | Pmod_structure _ | Pmod_functor (_, {pmod_desc= Pmod_structure _; _})
+      ->
+        true
+    | Pmod_apply (lhs, {pmod_desc= Pmod_structure _; _}) ->
+        Ast.Mod.is_simple lhs
+    | _ -> false
+  in
+  let let_module m =
+    if Poly.equal c.fmt_opts.let_module.v `Compact && is_compact_mod m then
+      str " "
+    else space_break
+  in
+  match ast.pstr_desc with
+  | Pstr_open _ when c.fmt_opts.ocp_indent_compat.v -> str " "
+  | Pstr_module {pmb_expr= m; _}
+   |Pstr_include {pincl_mod= m; _}
+   |Pstr_open {popen_expr= m; _} ->
+      let_module m
+  | _ -> space_break
 
 module Align = struct
   let general (c : Conf.t) t =
