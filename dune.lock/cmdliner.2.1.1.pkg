@@ -1,4 +1,4 @@
-(version 2.0.0)
+(version 2.1.1)
 
 (install
  (all_platforms
@@ -27,6 +27,6 @@
 
 (source
  (fetch
-  (url https://erratique.ch/software/cmdliner/releases/cmdliner-2.0.0.tbz)
+  (url https://erratique.ch/software/cmdliner/releases/cmdliner-2.1.1.tbz)
   (checksum
-   sha512=a7bd4eeb0cef7c08bca73b0077a65f748c19a230544133b39fc3360feb2cf0af08416a8b84031c94a2f4a007d5920a4db1368d87b9eeca561671828e2dad2885)))
+   sha512=cdc338ae2e56a72b7c75dae9564c57cca4e1fbfac454aabbf8303fcb612346284aede5984dfde7e8a7a496cc870bbd57ddf28cab3a38667279b31657f85c15dd)))

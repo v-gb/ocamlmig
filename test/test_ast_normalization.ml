@@ -1,5 +1,5 @@
 let _ =
-  let open[@foo] String in
+  let open [@foo] String in
   compare
 
 (* so just replace actually does something on the file *)

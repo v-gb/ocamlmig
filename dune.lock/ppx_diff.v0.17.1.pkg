@@ -11,4 +11,5 @@
  (fetch
   (url
    https://github.com/janestreet/ppx_diff/archive/refs/tags/v0.17.1.tar.gz)
-  (checksum md5=cfec5d638a1bf1ea77707d10eed5d2d7)))
+  (checksum
+   sha512=5848274cb0c5acd1ee3f29318e6111c5fef4b357aeda78120e0370067b9b23f62bb57e1e0be948c3af385b5900a3e0fb657f26dd4fe7ee95cd7002b9d8b68547)))

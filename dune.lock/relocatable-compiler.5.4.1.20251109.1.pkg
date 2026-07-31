@@ -1,0 +1,86 @@
+(version 5.4.1.20251109.1)
+
+(install
+ (all_platforms
+  (withenv
+   ((= MSYS2_ARG_CONV_EXCL *)
+    (= LSAN_OPTIONS detect_leaks=0,exitcode=0)
+    (= ASAN_OPTIONS detect_leaks=0,exitcode=0))
+   (run
+    sh
+    process.sh
+    %{make}
+    install
+    %{pkg-self:build-id}
+    %{pkg-self:name}
+    %{prefix}))))
+
+(build
+ (choice
+  ((((arch x86_64)
+     (os linux))
+    ((arch arm64)
+     (os linux)))
+   ((action
+     (withenv
+      ((= MSYS2_ARG_CONV_EXCL *)
+       (= LSAN_OPTIONS detect_leaks=0,exitcode=0)
+       (= ASAN_OPTIONS detect_leaks=0,exitcode=0))
+      (run
+       sh
+       process.sh
+       %{make}
+       -j%{jobs}
+       %{pkg-self:build-id}
+       %{pkg-self:name}
+       %{pkg:compiler-cloning:version}
+       --prefix=%{prefix}
+       --docdir=%{doc}/ocaml
+       --with-relative-libdir=../lib/ocaml
+       --with-stublibs=../stublibs
+       --enable-runtime-search=always
+       --enable-runtime-search-target
+       --disable-warn-error)))))
+  ((((arch x86_64)
+     (os macos))
+    ((arch arm64)
+     (os macos)))
+   ((action
+     (withenv
+      ((= MSYS2_ARG_CONV_EXCL *)
+       (= LSAN_OPTIONS detect_leaks=0,exitcode=0)
+       (= ASAN_OPTIONS detect_leaks=0,exitcode=0))
+      (run
+       sh
+       process.sh
+       %{make}
+       -j%{jobs}
+       %{pkg-self:build-id}
+       %{pkg-self:name}
+       %{pkg:compiler-cloning:version}
+       --prefix=%{prefix}
+       --docdir=%{doc}/ocaml
+       --with-relative-libdir=../lib/ocaml
+       --with-stublibs=../stublibs
+       --enable-runtime-search=always
+       --enable-runtime-search-target
+       CC=cc
+       --disable-warn-error)))))))
+
+(depends
+ (all_platforms (compiler-cloning)))
+
+(source
+ (fetch
+  (url
+   https://github.com/dra27/ocaml/archive/b74c645ef30c6060dcc293a73811a9ae9ceefd57.tar.gz)
+  (checksum
+   sha256=b461d60f5b542bbd3315d3d984efaef9113d1672b5f6bfdd46efd5e96060d17a)))
+
+(extra_sources
+ (process.sh
+  (fetch
+   (url
+    https://raw.githubusercontent.com/dra27/ocaml/55ce12b0f197b9a7a0165310b131052951f98a02/tools/opam/process.sh)
+   (checksum
+    sha256=b2febe05d19e07db4881ef11cf8769c31226f32305ad10ea13b0a2262835d914))))

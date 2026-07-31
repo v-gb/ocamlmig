@@ -16,4 +16,4 @@
   (url
    https://github.com/v-gb/ppx_partial/releases/download/1.0/ppx_partial-1.0.tbz)
   (checksum
-   sha256=98f5540ea530fc4aebb555e2063848bd6aca84eb72f7fb8cd8bfdc45c4650416)))
+   sha512=f5fc43aed73a92da585548aca41c2207989e4d2515a74a0a12698ae0e6dbdfa8d3f832b3b9f2e747c90531bce8a34b5c68d994ed3bfd38827d67c0c890091093)))

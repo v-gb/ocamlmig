@@ -1,0 +1,39 @@
+(version 5.4.1)
+
+(build
+ (all_platforms
+  ((action
+    (withenv
+     ((= CAML_LD_LIBRARY_PATH "")
+      (= LSAN_OPTIONS detect_leaks=0,exitcode=0)
+      (= ASAN_OPTIONS detect_leaks=0,exitcode=0))
+     (run
+      ocaml
+      gen_ocaml_config.ml
+      %{pkg-self:version}
+      %{pkg-self:name}
+      "%{pkg:ocaml-base-compiler:version}"
+      false
+      ""
+      ""
+      ""
+      ""
+      ""
+      ""
+      ""
+      ""))))))
+
+(depends
+ (all_platforms (ocaml-base-compiler)))
+
+(exported_env
+ (+= OCAMLTOP_INCLUDE_PATH "\%{toplevel}%")
+ (= OCAML_TOPLEVEL_PATH "\%{toplevel}%"))
+
+(extra_sources
+ (gen_ocaml_config.ml
+  (fetch
+   (url
+    https://raw.githubusercontent.com/dra27/ocaml/977f2d05a98a5aeec260b5ba200f72c4e79e4fdc/tools/opam/gen_ocaml_config.ml)
+   (checksum
+    sha256=d8d5d7e354bca87df3e8aa9c3bf8544cfba7aa92f4dba72ec5fb51bf9b92cfa8))))
