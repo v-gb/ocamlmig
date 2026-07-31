@@ -296,28 +296,42 @@ module Listing = struct
             : string)
     | Error (_, sexp) -> raise_s sexp
     | Ok (_ : string) ->
-        let i = ref 0 in
-        while
-          i := !i + 1;
-          if !i > 50
-          then
-            failwith
-              "timed out waiting for dune to build rules created by ocamlmig. Please \
-               ensure you're building one of @default, @check or @ocamlmig from the root \
-               of the repository (for that last one, you'll want a root dune file \
-               containing (alias (name ocamlmig)) to stop an error saying the ocamlmig \
-               alias is empty)";
-          if
-            Sys.file_exists
-              (Abspath.to_string
-                 (Abspath.concat (Abspath.concat dune_root "_build/default") target))
-          then false
-          else (
-            Unix.sleepf 0.1;
-            true)
-        do
-          ()
-        done
+        if true
+        then
+          match
+            run_process Detailed ~cwd:(Abspath.to_string dune_root)
+              (dune_exe ~dune_root @ [ "rpc"; "build"; "--"; target ])
+          with
+          | Ok (_ : string) -> ()
+          | Error (_, sexp) ->
+              raise_s
+                [%sexp
+                  "request to existing dune"
+                , (sexp : Sexp.t)
+                , "try seeing if the running dune displays any error"]
+        else
+          let i = ref 0 in
+          while
+            i := !i + 1;
+            if !i > 50
+            then
+              failwith
+                "timed out waiting for dune to build rules created by ocamlmig. Please \
+                 ensure you're building one of @default, @check or @ocamlmig from the \
+                 root of the repository (for that last one, you'll want a root dune file \
+                 containing (alias (name ocamlmig)) to stop an error saying the ocamlmig \
+                 alias is empty)";
+            if
+              Sys.file_exists
+                (Abspath.to_string
+                   (Abspath.concat (Abspath.concat dune_root "_build/default") target))
+            then false
+            else (
+              Unix.sleepf 0.1;
+              true)
+          do
+            ()
+          done
 end
 
 module Artifacts = struct

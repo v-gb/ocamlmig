@@ -548,7 +548,6 @@ let add_to_load_path ctx libs =
               (Core.Sys.concat_quoted [ "rm"; "-rf"; "--"; Abspath.to_string dir ]))
         ~f:(fun () ->
           let ocamlmig_tmp_ml = Abspath.concat dir "ocamlmig_tmp.ml" in
-          Out_channel.write_all (Abspath.to_string ocamlmig_tmp_ml) ~data:"";
           Out_channel.write_all
             (Abspath.to_string (Abspath.concat dir "dune"))
             ~data:
@@ -558,6 +557,7 @@ let add_to_load_path ctx libs =
                         `library
                         :: [ `name "ocamlmig_tmp"
                            ; `libraries :: (libs : Set.M(String).t)
+                           ; `modules []
                            ]]
                       (* Plug the computation we want into @default @check, which are
                        probably already being built by the user. Or provide @ocamlmig
@@ -566,11 +566,11 @@ let add_to_load_path ctx libs =
                     ; [%sexp `alias :: [ `name "default"; `deps "ocamlmig_tmp.cmxa" ]]
                     ; [%sexp `alias :: [ `name "check"; `deps "ocamlmig_tmp.cmxa" ]]
                     ]));
-          Fn.id
-            ((* dune is racy in some way, as it usually says "no such file
-                ocamlmig_tmp.ml" without this hackery. *)
-             Unix.sleepf 0.05;
-             Out_channel.write_all (Abspath.to_string ocamlmig_tmp_ml) ~data:"");
+          (* dune's inotify handling is completely unreliable, it gets systematically
+          stuck with "no such file ocamlmig_tmp.ml", and you need to touch the file
+          to get dune unstuck. And that's despite write the .ml files before the dune
+          file. So we use `modules [] to remove the need for .ml entirely. It seems
+          fine to ask for the merlin config for the nonexistent .ml file. *)
           Build.Listing.build_or_wait_for ~dune_root
             ~target_rel_to_dune_root:"ocamlmig/ocamlmig_tmp.cmxa";
           Build.Listing.create ~dune_root
