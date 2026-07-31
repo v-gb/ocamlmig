@@ -27,7 +27,7 @@
  (description "Ocamlmig is a command line tool to rewrite ocaml source code, especially to make updating to newer interfaces easier.")
  (depends
   (ocaml (and (>= 5.4) (< 5.5)))
-   dune
+   (dune (>= 3.22))
    ;;
    base
    core
