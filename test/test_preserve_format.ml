@@ -18,6 +18,10 @@ let () =
   (fun _ _ _ _ _ -> ()) 1.(Fun.id e)1(Fun.id None)(Fun.id e);
   ignore (match 1 with 1 -> 1 + Fun.id (match () with () -> 2) | _ -> 3);
   ignore (1 + Fun.id (match () with () -> 2));
+  let module type S = sig type t val x : t end in
+  let module M = struct let () = Fun.id () module type S = S end in
+  let f (module X : M.S) : X.t = Fun.id X.x in
+  let () = f (module struct type t = unit let x = () end) in
   ()
 
 (* Result:
@@ -42,6 +46,10 @@ let () =
   (fun _ _ _ _ _ -> ()) 1. e 1 None e;
   ignore (match 1 with 1 -> 1 + (match () with () -> 2) | _ -> 3);
   ignore (1 + match () with () -> 2);
+  let module type S = sig type t val x : t end in
+  let module M = struct let () = () module type S = S end in
+  let f (module X : M.S) : X.t = X.x in
+  let () = f (module struct type t = unit let x = () end) in
   ()
 
 *)

@@ -114,7 +114,12 @@ let children (ctx : Ocamlformat_lib.Ast.t) meth v =
     | Mod _ -> `Child
     | Sig _ -> `Child
     | Str _ -> `Child
-    | Str_exp _ -> `Uncertain_whether_this_matters (* XXX *)
+    | Str_exp _ -> `Dont_care_I_think
+    (* I can't find a way to cause an assertion failure despite the non-handling of
+    Str_exp. I think it's because either we print the surrounding Pexp_struct_item, in
+    which case ocamlformat will create the Str_exp itself, or we rewrite inside the
+    structure item, in which case the context doesn't matter. Even if we remove an open,
+    we'll just remove the structure item entirely. *)
     | Clf _ -> `Child
     | Ctf _ -> `Ref
     | Tli _ -> `Dont_care_I_think
