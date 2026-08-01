@@ -62,9 +62,11 @@ let update_text text changes =
   if List.is_empty changes
   then None
   else
+    let changes = List.stable_sort changes ~compare:[%compare: int * _] in
     let buf = Buffer.create (String.length text) in
     let pos = ref 0 in
     let flush_to pos' =
+      assert (pos' >= !pos);
       Buffer.add_substring buf text ~pos:!pos ~len:(pos' - !pos);
       pos := pos'
     in
