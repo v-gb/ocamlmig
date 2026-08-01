@@ -1110,6 +1110,41 @@ let rec match_pat_and_expr (pat : P.pattern) (expr : P.expression) bindings =
         | Some (_, arg), Some arg2 -> match_pat_and_expr arg arg2 bindings
         | _ -> Some (Error ())
       else None
+  | { ppat_desc = Ppat_tuple (l1, Closed); _ }, { pexp_desc = Pexp_tuple l2; _ }
+    when List.length l1 = List.length l2 ->
+      let label_string : _ Fmast.Parsetree.labeled_tuple_element_with_pun -> _ = function
+        | Lte_simple { lte_label; _ } -> (
+            match lte_label with None -> "" | Some s -> s.txt)
+        | _ -> assert false
+      in
+      let label_payload : _ Fmast.Parsetree.labeled_tuple_element_with_pun -> _ = function
+        | Lte_simple { lte_elt; _ } -> Ok lte_elt
+        | _ -> assert false
+      in
+      let l1 =
+        List.stable_sort
+          ~compare:(fun e1 e2 -> String.compare (label_string e1) (label_string e2))
+          l1
+      in
+      let l2 =
+        List.stable_sort
+          ~compare:(fun e1 e2 -> String.compare (label_string e1) (label_string e2))
+          l2
+      in
+      List.fold_left (List.zip_exn l1 l2) ~init:(Some (Ok bindings))
+        ~f:(fun acc (p_elt, e_elt) ->
+          match acc with
+          | None | Some (Error _) -> acc
+          | Some (Ok bindings) -> (
+              if label_string p_elt <>: label_string e_elt
+              then Some (Error ())
+              else
+                match label_payload p_elt with
+                | Error _ as e -> Some e
+                | Ok p -> (
+                    match label_payload e_elt with
+                    | Error _ as e -> Some e
+                    | Ok e -> match_pat_and_expr p e bindings)))
   | { ppat_desc = Ppat_variant (c, arg); _ }, { pexp_desc = Pexp_variant (c2, arg2); _ }
     ->
       if c.txt.txt =: c2.txt.txt
@@ -1205,7 +1240,7 @@ let execute_if ~can_simplify ~loc (branches : P.if_branch list) else_ =
   | Some (Ok e) -> Some (e, e, !last_i)
 
 let execute_let ~ctx ~type_index ~can_simplify ~value_constraint
-    (value_bindings : P.value_bindings) =
+    (value_bindings : P.value_bindings) let_body =
   match value_bindings.pvbs_bindings with
   | [ ({ pvb_body = Pfunction_body expr; _ } as vb) ]
     when Option.is_none vb.pvb_constraint
@@ -1214,7 +1249,13 @@ let execute_let ~ctx ~type_index ~can_simplify ~value_constraint
       match match_pat_and_expr vb.pvb_pat expr (Map.empty (module String)) with
       | Some (Ok bindings') when Map.is_empty bindings' ->
           (* optimize let () = () away. We could probably do more. *)
-          Some { value_bindings with pvbs_bindings = [] }
+          Some ({ value_bindings with pvbs_bindings = [] }, let_body)
+      | Some (Ok bindings')
+        when (* would need to prevent captures *)
+             false && Map.for_all bindings' ~f:(fun (_, expr) -> duplicatable expr) ->
+          Some
+            ( { value_bindings with pvbs_bindings = [] }
+            , substitute (Map.map ~f:snd bindings') let_body )
       | _ -> None)
   | [ ({ pvb_body =
            Pfunction_body ({ pexp_desc = Pexp_construct (_, Some expr); _ } as body)
@@ -1224,14 +1265,15 @@ let execute_let ~ctx ~type_index ~can_simplify ~value_constraint
     ]
     when Option.is_none vb.pvb_constraint && can_simplify body.pexp_loc expr.pexp_loc ->
       Some
-        { value_bindings with
-          pvbs_bindings =
-            [ { vb with
-                pvb_body = Pfunction_body expr
-              ; pvb_constraint = value_constraint ~ctx:!ctx ~type_index body
-              }
-            ]
-        }
+        ( { value_bindings with
+            pvbs_bindings =
+              [ { vb with
+                  pvb_body = Pfunction_body expr
+                ; pvb_constraint = value_constraint ~ctx:!ctx ~type_index body
+                }
+              ]
+          }
+        , let_body )
   | _ -> None
 
 let rec map_tails (e : P.expression) f =
@@ -1419,10 +1461,10 @@ let simplify ~type_index ~ctx process_call =
               | { pexp_desc = Pexp_let (value_bindings, body, loc); _ } -> (
                   match
                     execute_let ~ctx ~type_index value_bindings ~can_simplify
-                      ~value_constraint
+                      ~value_constraint body
                   with
                   | None -> super.expr self expr
-                  | Some value_bindings -> (
+                  | Some (value_bindings, body) -> (
                       match value_bindings.pvbs_bindings with
                       | [] -> self.expr self body
                       | _ :: _ ->

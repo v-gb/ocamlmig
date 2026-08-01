@@ -371,6 +371,35 @@ let drop_concrete_syntax_constructs =
              if !changed_something
              then { expr with pexp_desc = Pexp_record (fields, orig) }
              else expr
+         | Pexp_tuple l ->
+             let changed_something = ref false in
+             let l =
+               List.map l ~f:(function
+                 | Lte_simple _ as field -> field
+                 | Lte_constrained_pun { loc; label; type_constraint } ->
+                     Lte_simple
+                       { lte_label = Some label
+                       ; lte_elt =
+                           (let ident =
+                              Ast_helper.Exp.ident ~loc
+                                { label with txt = Lident label.txt }
+                            in
+                            let attrs =
+                              [ Sattr.pun.build ~loc:!Ast_helper.default_loc () ]
+                            in
+                            match type_constraint with
+                            | Pconstraint c -> Ast_helper.Exp.constraint_ ident c ~attrs
+                            | Pcoerce (c1, c2) -> Ast_helper.Exp.coerce ident c1 c2 ~attrs)
+                       }
+                 | Lte_pun ({ txt; loc } as label) ->
+                     Lte_simple
+                       { lte_label = Some label
+                       ; lte_elt =
+                           Ast_helper.Exp.ident ~loc { txt = Lident txt; loc }
+                             ~attrs:[ Sattr.pun.build ~loc:!Ast_helper.default_loc () ]
+                       })
+             in
+             if !changed_something then { expr with pexp_desc = Pexp_tuple l } else expr
          | Pexp_prefix (op, e1) ->
              let fun_ =
                let loc = op.loc in
@@ -478,6 +507,44 @@ let undrop_concrete_syntax_constructs =
             if !changed_something
             then { expr with pexp_desc = Pexp_record (fields, orig) }
             else expr
+        | Pexp_tuple l ->
+            let changed_something = ref false in
+            let resugar ~f :
+                expression -> _ Fmast.Parsetree.labeled_tuple_element_with_pun option =
+              function
+              | { pexp_desc = Pexp_ident { txt = Lident var; loc }; pexp_attributes; _ }
+                when f var pexp_attributes ->
+                  Some (Lte_pun { loc; txt = var })
+              | { pexp_desc =
+                    Pexp_constraint
+                      ({ pexp_desc = Pexp_ident { txt = Lident var; loc }; _ }, c)
+                ; pexp_attributes
+                ; _
+                }
+                when f var pexp_attributes ->
+                  Some
+                    (Lte_constrained_pun
+                       { loc
+                       ; label = { loc; txt = var }
+                       ; type_constraint = Fmast.Parsetree.Pconstraint c
+                       })
+              | _ -> None
+            in
+
+            let l =
+              List.map l ~f:(function
+                | Lte_simple { lte_label = Some label; lte_elt } as elt -> (
+                    match
+                      resugar lte_elt ~f:(fun var pexp_attributes ->
+                          var =: label.txt
+                          && (Sattr.exists Sattr.pun pexp_attributes
+                             || Sattr.exists Sattr.touched pexp_attributes))
+                    with
+                    | None -> elt
+                    | Some elt -> elt)
+                | elt -> elt)
+            in
+            if !changed_something then { expr with pexp_desc = Pexp_tuple l } else expr
         | Pexp_apply
             ( ({ pexp_desc = Pexp_ident { txt = Lident op; loc }; _ } as fun_)
             , [ (Nolabel, e1); (Nolabel, e2) ] )
