@@ -205,6 +205,21 @@ module Abspath = struct
   let to_cwdpath { p } = Cwdpath.create p
 end
 
+module Add_deps = struct
+  type t =
+    { libraries : string list
+    ; pps : string list
+    }
+  [@@deriving sexp_of]
+
+  let empty = { libraries = []; pps = [] }
+
+  let flatten l =
+    { libraries = List.concat_map l ~f:(fun t -> t.libraries)
+    ; pps = List.concat_map l ~f:(fun t -> t.pps)
+    }
+end
+
 let with_str_in_file str f =
   with_tmpfile (fun tmp_oc tmp_fname ->
       Exn.protect

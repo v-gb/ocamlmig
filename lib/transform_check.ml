@@ -80,15 +80,15 @@ let run_structure (type a) changed_something (file_type : a File_type.t) (struct
               (fun self v ->
                 (match Transform_migration.find_extra_migration_fmast v with
                 | None -> ()
-                | Some (_, _, _, { libraries; _ }) ->
+                | Some (_, _, _, { deps; _ }) ->
                     ignore (force type_index);
-                    List.iter libraries ~f:yield);
+                    List.iter deps.libraries ~f:yield);
                 super.expr self v)
           ; signature_item =
               (fun self v ->
                 (match find_migration_sigi_fmast ~type_index v with
                 | None -> ()
-                | Some ({ libraries; _ }, _) -> List.iter libraries ~f:yield);
+                | Some ({ deps; _ }, _) -> List.iter deps.libraries ~f:yield);
                 super.signature_item self v)
           }
         in
@@ -122,7 +122,7 @@ let run_structure (type a) changed_something (file_type : a File_type.t) (struct
       let next () =
         (match find_migration_sigi_fmast ~type_index v with
         | None -> ()
-        | Some ({ repl = { loc_preserved = repl; _ }; libraries = _; pps = _ }, ttyp) -> (
+        | Some ({ repl = { loc_preserved = repl; _ }; deps = _ }, ttyp) -> (
             let env = force env in
             let env =
               match force mty_type with
@@ -157,11 +157,7 @@ let run_structure (type a) changed_something (file_type : a File_type.t) (struct
           with_log (fun self expr ->
               (match Transform_migration.find_extra_migration_fmast expr with
               | None -> ()
-              | Some
-                  ( id_expr
-                  , _
-                  , _
-                  , { repl = { loc_preserved = repl; _ }; libraries = _; pps = _ } ) ->
+              | Some (id_expr, _, _, { repl = { loc_preserved = repl; _ }; deps = _ }) ->
                   exprs_and_repls
                     { id_expr with
                       pexp_attributes =

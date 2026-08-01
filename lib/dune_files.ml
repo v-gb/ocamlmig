@@ -223,10 +223,11 @@ let dune_path path =
   in
   loop (Cwdpath.dirname path) 0
 
-let add_dependencies ~dune_root path_and_deps =
+let add_dependencies ~dune_root path_and_additions =
   let dune_paths_and_deps =
-    List.concat_map path_and_deps ~f:(fun (`Path path, deps, pps) ->
-        List.map deps ~f:(fun dep -> (dune_path path, `Lib dep))
+    List.concat_map path_and_additions
+      ~f:(fun (path, ({ libraries; pps } : Add_deps.t)) ->
+        List.map libraries ~f:(fun dep -> (dune_path path, `Lib dep))
         @ List.map pps ~f:(fun pp -> (dune_path path, `Pp pp)))
     |> Map.of_alist_multi (module Cwdpath)
     |> Map.map
@@ -239,7 +240,7 @@ let add_dependencies ~dune_root path_and_deps =
         Option.map (add_dependencies_to_dune_file dune_path deps)
           ~f:(fun (public_name, before, after) ->
             Queue.enqueue deps_by_public_names (public_name, deps);
-            (`Path dune_path, before, after)))
+            (~path:dune_path, ~before, ~after)))
   in
   let new_dune_project =
     let dune_project_path =
@@ -250,7 +251,7 @@ let add_dependencies ~dune_root path_and_deps =
         (Queue.to_list deps_by_public_names)
     in
     Option.map new_dune_project ~f:(fun (before, after) ->
-        (`Path dune_project_path, before, after))
+        (~path:dune_project_path, ~before, ~after))
   in
   new_dunes @ Option.to_list new_dune_project
 

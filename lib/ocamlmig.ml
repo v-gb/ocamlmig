@@ -398,7 +398,7 @@ let migrate =
               let dune_root = find_dune_root () |> Result.ok_or_failwith in
               transient_line "preparing artifacts";
               let listing = Build.Listing.create ~dune_root ~source_paths in
-              let deps = Queue.create () in
+              let deps : (_ * Add_deps.t) Queue.t = Queue.create () in
               let artifacts_cache = Build.Artifacts.create_cache () in
               List.iter source_paths ~f:(fun source_path ->
                   transient_line
@@ -442,14 +442,14 @@ let migrate =
                                     ~input_name_matching_compilation_command:
                                       (Build.input_name_matching_compilation_command
                                          cmt_infos))
-                              |> Option.iter ~f:(fun (contents, { libraries; pps }) ->
-                                  Queue.enqueue deps (`Path source_path, libraries, pps);
+                              |> Option.iter ~f:(fun (contents, add_deps) ->
+                                  Queue.enqueue deps (source_path, add_deps);
                                   diff_or_write ~format
                                     ~original_formatting:(Some fm_orig) source_path ~write
                                     contents)));
                   List.iter
                     (Dune_files.add_dependencies ~dune_root (Queue.to_list deps))
-                    ~f:(fun (`Path file_path, before, after) ->
+                    ~f:(fun (~path:file_path, ~before, ~after) ->
                       diff_or_write ~format ~original_formatting:None file_path ~write
                         (before, Lazy.from_val after, None))))] )
 
@@ -986,14 +986,14 @@ let internal_dune_files =
         in
         fun () ->
           let dune_root = find_dune_root () |> Result.ok_or_failwith in
-          let libs, pps =
+          let libraries, pps =
             match String.chop_prefix lib_or_ppx ~prefix:"pp:" with
             | None -> ([ lib_or_ppx ], [])
             | Some pp -> ([], [ pp ])
           in
           List.iter
-            (Dune_files.add_dependencies ~dune_root [ (`Path src, libs, pps) ])
-            ~f:(fun (`Path path, before, after) ->
+            (Dune_files.add_dependencies ~dune_root [ (src, { libraries; pps }) ])
+            ~f:(fun (~path, ~before, ~after) ->
               diff ~label1:(Cwdpath.to_string path) ~label2:(Cwdpath.to_string path)
                 (`Str before) (`Str after))] )
 
