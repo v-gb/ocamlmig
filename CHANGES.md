@@ -1,3 +1,7 @@
+# Next version
+
+- Switch to ocaml 5.5
+
 # 5.4.20260731
 
 - fix issue where the format-preserving ocaml printer could raise
