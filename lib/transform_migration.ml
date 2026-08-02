@@ -706,12 +706,7 @@ let substitute subst e =
   if Map.is_empty subst
   then e
   else
-    let fvs =
-      free_vars
-        (Ast_helper.Exp.tuple
-           (List.map (Map.data subst) ~f:(fun e ->
-                P.Lte_simple { lte_label = None; lte_elt = e })))
-    in
+    let fvs = free_vars (Ast_helper.Exp.unlabelled_tuple (Map.data subst)) in
     (* The caller should ensure this isn't called in ambiguous cases (caused by open),
          we should avoid captures (both by taking scopes into account here, and by
          ensuring that [e] has no free vars that are bound anywhere in [by]).
