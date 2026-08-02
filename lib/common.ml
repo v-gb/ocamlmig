@@ -206,9 +206,15 @@ module Abspath = struct
 end
 
 module Add_deps = struct
+  type dep =
+    { name : string
+    ; min_version : string option
+    }
+  [@@deriving sexp_of]
+
   type t =
-    { libraries : string list
-    ; pps : string list
+    { libraries : dep list
+    ; pps : dep list
     }
   [@@deriving sexp_of]
 

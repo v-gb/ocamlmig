@@ -261,7 +261,14 @@ The general form of the `migrate` attribute is:
 ```ocaml
 [@@migrate
   { repl (* a required expression, e.g. *) = (fun f l -> ListLabels.map l ~f)
-  ; libraries (* an optional list of libraries names, e.g. *) = [ "core.unix" ]
+  ; libraries (* an optional list of libraries names, e.g. *) =
+      [ "core.unix"
+      ; (* alternatively, one could also specifiy a minimum version of the
+           dependency, which will cause the version constraints in dune-project
+           files to be updated *)
+        ("core.unix", ~min_version:"1.14")
+      ]
+
   }]
 ```
 

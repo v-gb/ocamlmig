@@ -294,6 +294,14 @@ module Ast_helper = struct
       | [ Parsetree.Lte_simple { lte_label = None; lte_elt = e } ] -> e
       | _ -> tuple ?loc ?attrs l
 
+    let tuple' ?(loc = !default_loc) ?attrs l =
+      tuple ~loc ?attrs
+        (List.map l ~f:(fun (lte_label, lte_elt) ->
+             Parsetree.Lte_simple
+               { lte_label = Option.map lte_label ~f:(fun txt -> { Location.loc; txt })
+               ; lte_elt
+               }))
+
     let ext_exp ?(loc = !default_loc) ?attrs name e =
       Ast_helper.Exp.extension ?attrs ({ txt = name; loc }, PStr [ Ast_helper.Str.eval e ])
   end

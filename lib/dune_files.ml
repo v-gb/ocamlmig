@@ -49,6 +49,19 @@ module Cst_comb = struct
         | None -> None
         | Some ((_, atom, _), _) -> Some (atom, list.loc, rest))
 
+  let rec is_atom_or_leading_atom (csts : C.t_or_comment list) name =
+    match csts with
+    | [] -> None
+    | Comment _ :: rest -> is_atom_or_leading_atom rest name
+    | Sexp (Atom atom) :: rest ->
+        if atom.atom =: name
+        then Some (`Atom atom.loc)
+        else is_atom_or_leading_atom rest name
+    | Sexp (List list) :: rest -> (
+        match is_leading_atom list.elements name with
+        | None -> is_atom_or_leading_atom rest name
+        | Some (atom_loc, atom_tail) -> Some (`List (atom_loc, list.loc, atom_tail)))
+
   let all_atoms_or_leading_atoms (csts : C.t_or_comment list) =
     let rec loop acc rest =
       match atom_or_leading_atom rest with
@@ -70,16 +83,20 @@ let update_text text changes =
       Buffer.add_substring buf text ~pos:!pos ~len:(pos' - !pos);
       pos := pos'
     in
-    List.iter changes ~f:(fun (pos, str) ->
-        flush_to pos;
-        Buffer.add_string buf str);
+    List.iter changes ~f:(fun (pos1, delta) ->
+        flush_to pos1;
+        match delta with
+        | `Add str -> Buffer.add_string buf str
+        | `Remove pos2 ->
+            assert (pos2 >= !pos);
+            pos := pos2);
     flush_to (String.length text);
     Some (text, Buffer.contents buf)
 
 type range = Parsexp.Positions.range
 
 let add_to_list q ((field_loc : range), (_list_loc : range), fields) atoms_to_add =
-  List.iter atoms_to_add ~f:(fun atom_to_add ->
+  List.iter atoms_to_add ~f:(fun (atom_to_add, ~sexp:sexp_to_add) ->
       let atoms = Cst_comb.all_atoms_or_leading_atoms fields in
       if List.exists atoms ~f:(fun (atom, _) -> atom =: atom_to_add)
       then ()
@@ -92,20 +109,21 @@ let add_to_list q ((field_loc : range), (_list_loc : range), fields) atoms_to_ad
                   next := Some loc);
               (None, !next))
         in
-        let sexp_to_add = Sexp.to_string_mach (sexp_of_string atom_to_add) in
         let insert_after (loc : range) ~same_line =
           Queue.enqueue q
             ( loc.end_pos.offset
-            , if same_line
-              then " " ^ sexp_to_add
-              else "\n" ^ String.make loc.start_pos.col ' ' ^ sexp_to_add )
+            , `Add
+                (if same_line
+                 then " " ^ sexp_to_add
+                 else "\n" ^ String.make loc.start_pos.col ' ' ^ sexp_to_add) )
         in
         let insert_before (loc : range) ~same_line =
           Queue.enqueue q
             ( loc.start_pos.offset
-            , if same_line
-              then sexp_to_add ^ " "
-              else sexp_to_add ^ "\n" ^ String.make loc.start_pos.col ' ' )
+            , `Add
+                (if same_line
+                 then sexp_to_add ^ " "
+                 else sexp_to_add ^ "\n" ^ String.make loc.start_pos.col ' ') )
         in
         match surrounding with
         | None, None -> insert_after field_loc ~same_line:true
@@ -130,6 +148,25 @@ let add_to_list q ((field_loc : range), (_list_loc : range), fields) atoms_to_ad
 let package_of_public_name dep =
   match String.lsplit2 dep ~on:'.' with Some (package, _) -> package | None -> dep
 
+let compare_version v1 v2 =
+  (* Unclear how to get the opam compare version function. We expect regular release
+     versions to show up in migrations rather than dev releases or whatever, so I think
+     just a natural sort is going to be fine likely forever. *)
+  let to_compare_key v =
+    String.to_list v
+    |> List.group ~break:(fun c1 c2 -> Bool.( <> ) (Char.is_digit c1) (Char.is_digit c2))
+    |> List.map ~f:(fun s ->
+        let s = String.of_list s in
+        if Char.is_digit s.[0] then `Int (Int.of_string s) else `Str s)
+  in
+  [%compare: [ `Int of int | `Str of string ] list] (to_compare_key v1)
+    (to_compare_key v2)
+
+let max_version v1 v2 =
+  match (v1, v2) with
+  | None, v | v, None -> v
+  | Some v1, Some v2 -> Some (if compare_version v1 v2 > 0 then v1 else v2)
+
 let dune_file_public_name dune_cst =
   With_return.with_return_option (fun r ->
       List.iter dune_cst ~f:(fun elt ->
@@ -140,11 +177,24 @@ let dune_file_public_name dune_cst =
                     ~f:(fun ((_, atom, _), _) -> r.return atom)))))
 
 let add_dependencies_to_dune_file dune_path deps =
-  if List.is_empty deps
-  then None
+  if Map.is_empty deps
+  then (None, None)
   else
+    let libs =
+      Map.keys deps
+      |> List.filter_map ~f:(function
+        | `Lib v -> Some (v, ~sexp:(Sexp.to_string_mach (sexp_of_string v)))
+        | `Pp _ -> None)
+    in
+    let pps =
+      Map.keys deps
+      |> List.filter_map ~f:(function
+        | `Pp v -> Some (v, ~sexp:(Sexp.to_string_mach (sexp_of_string v)))
+        | `Lib _ -> None)
+    in
     let dune_contents = In_channel.read_all (Cwdpath.to_string dune_path) in
     let dune_cst = Parsexp.Many_cst.parse_string_exn dune_contents in
+    let public_name = dune_file_public_name dune_cst in
     let changes =
       let q = Queue.create () in
       List.iter dune_cst ~f:(fun elt ->
@@ -156,12 +206,6 @@ let add_dependencies_to_dune_file dune_path deps =
               ]
           in
           Option.iter library_or_executable_stanza ~f:(fun (_, library_cst) ->
-              let libs =
-                List.filter_map deps ~f:(function `Lib v -> Some v | `Pp _ -> None)
-              in
-              let pps =
-                List.filter_map deps ~f:(function `Pp v -> Some v | `Lib _ -> None)
-              in
               Option.iter (Cst_comb.is_field library_cst "libraries") ~f:(fun field ->
                   add_to_list q field libs);
               (* We'd need to do something else in the None case, so we add the preprocess
@@ -172,8 +216,72 @@ let add_dependencies_to_dune_file dune_path deps =
                       add_to_list q field pps))));
       Queue.to_list q
     in
-    Option.map (update_text dune_contents changes) ~f:(fun (old, new_) ->
-        (dune_file_public_name dune_cst, old, new_))
+    (update_text dune_contents changes, Some public_name)
+
+let add_package_deps_bumping_versions q ((_, _, fields) as field) deps =
+  let remaining_atoms =
+    List.filter_map deps ~f:(fun (atom_to_add, min_version) ->
+        match Cst_comb.is_atom_or_leading_atom fields atom_to_add with
+        | None ->
+            (* If the package is missing, we let add_to_list figure out the placement *)
+            Some
+              ( atom_to_add
+              , ~sexp:(Sexp.to_string_hum
+                         (match min_version with
+                         | None -> [%sexp (atom_to_add : string)]
+                         | Some min_version ->
+                             [%sexp
+                               (atom_to_add : string), (">=", (min_version : string))]))
+              )
+        | Some atom_or_leading_atom ->
+            (* But if the package is already present, then we need to figure out how to
+               merge what we want with what exists. *)
+            (match min_version with
+            | None -> ()
+            | Some min_version -> (
+                match
+                  match atom_or_leading_atom with
+                  | `Atom _ -> None
+                  | `List (_, _, tail) -> Cst_comb.is_field tail ">="
+                with
+                | None ->
+                    let lparen, rparen, atom_loc =
+                      match atom_or_leading_atom with
+                      | `Atom loc -> ("(", ")", loc)
+                      | `List (atom_loc, _, _) -> ("", "", atom_loc)
+                    in
+                    Queue.enqueue q (atom_loc.start_pos.offset, `Add lparen);
+                    Queue.enqueue q
+                      ( atom_loc.end_pos.offset
+                      , `Add
+                          (Printf.sprintf " (>= %s)%s"
+                             (Sexp.to_string_mach (sexp_of_string min_version))
+                             rparen) )
+                | Some (_, _, gt_tail) -> (
+                    match Cst_comb.leading_atom gt_tail with
+                    | None -> () (* syntax error it seems *)
+                    | Some ((current_version_loc, current_version, _), _) ->
+                        if compare_version min_version current_version > 0
+                        then (
+                          Queue.enqueue q
+                            ( current_version_loc.start_pos.offset
+                            , `Add (Sexp.to_string_mach (sexp_of_string min_version)) );
+                          Queue.enqueue q
+                            ( current_version_loc.start_pos.offset
+                            , `Remove current_version_loc.end_pos.offset )))));
+            None)
+  in
+  add_to_list q field remaining_atoms
+
+module Lib_or_pp = struct
+  type t =
+    [ `Lib of string
+    | `Pp of string
+    ]
+  [@@deriving compare, sexp_of]
+
+  include (val Comparator.make ~compare ~sexp_of_t)
+end
 
 let add_dependencies_to_dune_project dune_project_path deps =
   if List.is_empty deps
@@ -187,8 +295,11 @@ let add_dependencies_to_dune_project dune_project_path deps =
        dune is doing, and at least this works for dune-project with a single package. *)
     let deps =
       List.concat_map deps ~f:(fun (_public_name, deps) ->
-          List.map deps ~f:(fun (`Lib name | `Pp name) -> package_of_public_name name))
-      |> List.dedup_and_sort ~compare:String.compare
+          Map.to_alist deps
+          |> List.map ~f:(fun ((`Lib name | `Pp name), min_v) ->
+              (package_of_public_name name, min_v)))
+      |> Map.of_alist_reduce (module String) ~f:max_version
+      |> Map.to_alist
     in
     let dune_project_contents =
       In_channel.read_all (Cwdpath.to_string dune_project_path)
@@ -200,7 +311,7 @@ let add_dependencies_to_dune_project dune_project_path deps =
           (* what if we need to add the field entirely?? *)
           Option.iter (Cst_comb.is_constructor elt "package") ~f:(fun (_, package_cst) ->
               Option.iter (Cst_comb.is_field package_cst "depends") ~f:(fun field ->
-                  add_to_list q field deps)));
+                  add_package_deps_bumping_versions q field deps)));
       Queue.to_list q
     in
     update_text dune_project_contents changes
@@ -229,20 +340,21 @@ let add_dependencies ~dune_root path_and_additions =
   let dune_paths_and_deps =
     List.concat_map path_and_additions
       ~f:(fun (path, ({ libraries; pps } : Add_deps.t)) ->
-        List.map libraries ~f:(fun dep -> (dune_path path, `Lib dep))
-        @ List.map pps ~f:(fun pp -> (dune_path path, `Pp pp)))
+        List.map libraries ~f:(fun { name; min_version } ->
+            (dune_path path, (`Lib name, min_version)))
+        @ List.map pps ~f:(fun { name; min_version } ->
+            (dune_path path, (`Pp name, min_version))))
     |> Map.of_alist_multi (module Cwdpath)
-    |> Map.map
-         ~f:(List.dedup_and_sort ~compare:[%compare: [ `Lib of string | `Pp of string ]])
+    |> Map.map ~f:(Map.of_alist_reduce (module Lib_or_pp) ~f:max_version)
     |> Map.to_alist
   in
   let deps_by_public_names = Queue.create () in
   let new_dunes =
     List.filter_map dune_paths_and_deps ~f:(fun (dune_path, deps) ->
-        Option.map (add_dependencies_to_dune_file dune_path deps)
-          ~f:(fun (public_name, before, after) ->
-            Queue.enqueue deps_by_public_names (public_name, deps);
-            (~path:dune_path, ~before, ~after)))
+        let change, public_name = add_dependencies_to_dune_file dune_path deps in
+        Option.iter public_name ~f:(fun public_name ->
+            Queue.enqueue deps_by_public_names (public_name, deps));
+        Option.map change ~f:(fun (before, after) -> (~path:dune_path, ~before, ~after)))
   in
   let new_dune_project =
     let dune_project_path =

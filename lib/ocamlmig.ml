@@ -982,17 +982,26 @@ let internal_dune_files =
   , Command.basic ~summary:""
       [%map_open.Command
         let src, lib_or_ppx =
-          anon (t2 ("SRC" %: cwdpath_param) ("LIB|pp:PP" %: string))
+          anon (t2 ("SRC" %: cwdpath_param) ("(LIB|pp:PP)@version" %: string))
         in
         fun () ->
           let dune_root = find_dune_root () |> Result.ok_or_failwith in
-          let libraries, pps =
+          let lib_or_ppx, min_version =
+            match String.lsplit2 lib_or_ppx ~on:'@' with
+            | None -> (lib_or_ppx, None)
+            | Some (prefix, suffix) -> (prefix, Some suffix)
+          in
+          let deps : Add_deps.t =
             match String.chop_prefix lib_or_ppx ~prefix:"pp:" with
-            | None -> ([ lib_or_ppx ], [])
-            | Some pp -> ([], [ pp ])
+            | None ->
+                { Add_deps.empty with
+                  libraries = [ { Add_deps.name = lib_or_ppx; min_version } ]
+                }
+            | Some pp ->
+                { Add_deps.empty with pps = [ { Add_deps.name = pp; min_version } ] }
           in
           List.iter
-            (Dune_files.add_dependencies ~dune_root [ (src, { libraries; pps }) ])
+            (Dune_files.add_dependencies ~dune_root [ (src, deps) ])
             ~f:(fun (~path, ~before, ~after) ->
               diff ~label1:(Cwdpath.to_string path) ~label2:(Cwdpath.to_string path)
                 (`Str before) (`Str after))] )

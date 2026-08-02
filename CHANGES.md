@@ -1,6 +1,9 @@
 # Next version
 
 - Switch to ocaml 5.5
+- `[@@migrate]` can now include a minimum version for dependencies:
+  `[@@migrate { libraries = [ ("re", ~min_version:"1.14") ] } ]`
+  which enable `ocamlmig mig` to add/update version constraints in dune-project
 
 # 5.4.20260731
 

@@ -55,7 +55,15 @@ let payload_attribute ~attrs { repl; deps = { libraries; pps } } =
                             , None
                             , Some
                                 (Ast_helper.Exp.list
-                                   (List.map l ~f:Ast_helper.Exp.string)) ))
+                                   (List.map l ~f:(function
+                                     | { name; min_version = None } ->
+                                         Ast_helper.Exp.string name
+                                     | { name; min_version = Some min_version } ->
+                                         Ast_helper.Exp.tuple'
+                                           [ (None, Ast_helper.Exp.string name)
+                                           ; ( Some "min_version"
+                                             , Ast_helper.Exp.string min_version )
+                                           ]))) ))
                     ])
                  None)
           ])
@@ -71,6 +79,67 @@ let create_repl source repl =
   { loc_preserved = repl
   ; loc_updated = Ocamlformat_lib.Extended_ast.map Expression self repl
   }
+
+module Matcher = struct
+  let exp_string : Fmast.expression -> _ = function
+    | { pexp_desc = Pexp_constant { pconst_desc = Pconst_string (s, _, _); _ }; _ } ->
+        Some s
+    | _ -> None
+
+  let exp_tuple (t : Fmast.expression) :
+      (expression, P.type_constraint) P.labeled_tuple_element_with_pun list option =
+    match t with { pexp_desc = Pexp_tuple l; _ } -> Some l | _ -> None
+
+  let exp_list : Fmast.expression -> _ = function
+    | { pexp_desc = Pexp_list l; _ } -> Some l
+    | e ->
+        let rec loop acc (e : Fmast.expression) =
+          match e with
+          | { pexp_desc =
+                Pexp_construct
+                  ( { txt = Lident "::"; _ }
+                  , Some
+                      { pexp_desc =
+                          Pexp_tuple
+                            [ Lte_simple { lte_label = None; lte_elt = e1 }
+                            ; Lte_simple { lte_label = None; lte_elt = e2 }
+                            ]
+                      ; _
+                      } )
+            ; _
+            } ->
+              loop (e1 :: acc) e2
+          | { pexp_desc = Pexp_construct ({ txt = Lident "[]"; _ }, None); _ } ->
+              Some (List.rev acc)
+          | _ -> None
+        in
+        loop [] e
+
+  let unlabelled_tuple_field
+      (l : (expression, P.type_constraint) P.labeled_tuple_element_with_pun list) match_a
+      =
+    let unlabelled, labelled =
+      List.partition_map l ~f:(function
+        | Lte_simple { lte_label = None; lte_elt } -> First lte_elt
+        | Lte_simple _ as elt -> Second elt
+        | _ -> assert false)
+    in
+    match unlabelled with
+    | [] | _ :: _ :: _ -> (None, l)
+    | [ elt ] -> (Some (match_a elt), labelled)
+
+  let labelled_tuple_field
+      (l : (expression, P.type_constraint) P.labeled_tuple_element_with_pun list) field
+      match_a =
+    let elts, others =
+      List.partition_map l ~f:(function
+        | Lte_simple { lte_label = Some { txt; _ }; lte_elt } when field =: txt ->
+            First lte_elt
+        | Lte_simple _ as elt -> Second elt
+        | _ -> assert false)
+    in
+    match elts with [] -> (None, l) | elt :: _ -> (Some (match_a elt), others)
+end
 
 let attribute_payload ?repl ~(loc : Location.t) expr_opt =
   let report subloc fmt =
@@ -97,7 +166,7 @@ let attribute_payload ?repl ~(loc : Location.t) expr_opt =
         | Some s, None | None, Some s -> s
         | Some _, Some _ -> report expr.pexp_loc "two repl expressions specified"
       in
-      let libraries_or_pps field =
+      let libraries_or_pps example1 example2 field =
         match
           List.find_map l ~f:(function
             | { txt = Lident field'; _ }, None, Some expr when field =: field' ->
@@ -106,24 +175,41 @@ let attribute_payload ?repl ~(loc : Location.t) expr_opt =
         with
         | None -> []
         | Some expr -> (
-            match expr.pexp_desc with
-            | Pexp_list l ->
-                List.map l ~f:(function
-                  | { pexp_desc =
-                        Pexp_constant { pconst_desc = Pconst_string (s, _, _); _ }
-                    ; _
-                    } ->
-                      s
-                  | _ ->
-                      report expr.pexp_loc
-                        "the %s field should consist of string literals" field)
-            | _ ->
-                report expr.pexp_loc
-                  "the %s field should consist of a list literal of string literals" field
-            )
+            match Matcher.exp_list expr with
+            | Some l ->
+                List.map l ~f:(fun e ->
+                    match Matcher.exp_string e with
+                    | Some s -> { Add_deps.name = s; min_version = None }
+                    | None -> (
+                        match Matcher.exp_tuple e with
+                        | None ->
+                            report e.pexp_loc
+                              "the %s field should have shape %S or (%S, \
+                               ~min_version:\"1.2\")"
+                              field example1 example1
+                        | Some l -> (
+                            let exp_string_exn e =
+                              match Matcher.exp_string e with
+                              | Some v -> v
+                              | None ->
+                                  report e.pexp_loc "%s name should be a string" field
+                            in
+                            match Matcher.unlabelled_tuple_field l exp_string_exn with
+                            | None, _ -> report e.pexp_loc "cannot find %s name" field
+                            | Some name, l ->
+                                let min_version, l =
+                                  Matcher.labelled_tuple_field l "min_version"
+                                    exp_string_exn
+                                in
+                                if not (List.is_empty l)
+                                then report e.pexp_loc "unrecognized fields";
+                                { Add_deps.name; min_version })))
+            | None ->
+                report expr.pexp_loc "the %s field should have  shape [ %S; %S ]" field
+                  example1 example2)
       in
-      let libraries = libraries_or_pps "libraries" in
-      let pps = libraries_or_pps "pps" in
+      let libraries = libraries_or_pps "fmt" "uucp" "libraries" in
+      let pps = libraries_or_pps "ppx_sexp_conv" "ppx_expect" "pps" in
       { repl = create_repl `Import repl; deps = { libraries; pps } }
   | Some expr -> report expr.pexp_loc "attribute payload not in expected format"
 

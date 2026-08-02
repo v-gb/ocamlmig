@@ -82,13 +82,14 @@ let run_structure (type a) changed_something (file_type : a File_type.t) (struct
                 | None -> ()
                 | Some (_, _, _, { deps; _ }) ->
                     ignore (force type_index);
-                    List.iter deps.libraries ~f:yield);
+                    List.iter deps.libraries ~f:(fun dep -> yield dep.name));
                 super.expr self v)
           ; signature_item =
               (fun self v ->
                 (match find_migration_sigi_fmast ~type_index v with
                 | None -> ()
-                | Some ({ deps; _ }, _) -> List.iter deps.libraries ~f:yield);
+                | Some ({ deps; _ }, _) ->
+                    List.iter deps.libraries ~f:(fun dep -> yield dep.name));
                 super.signature_item self v)
           }
         in

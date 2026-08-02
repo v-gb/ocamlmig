@@ -151,6 +151,12 @@ module Ast_helper : sig
 
     val unlabelled_tuple :
       ?loc:loc -> ?attrs:P.attributes -> P.expression list -> P.expression
+
+    val tuple' :
+         ?loc:loc
+      -> ?attrs:P.attributes
+      -> (string option * P.expression) list
+      -> P.expression
   end
 
   module Attr : sig
