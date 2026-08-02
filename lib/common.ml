@@ -75,8 +75,8 @@ module Process_res = struct
     | Detailed : ('a, ('a, Unix.process_status * Sexp.t) Result.t) t
 end
 
-let with_process_full ?cwd (type a res) (process_res : (a, res) Process_res.t) argv f :
-    res =
+let with_process_full ?cwd ?(env = []) (type a res) (process_res : (a, res) Process_res.t)
+    argv f : res =
   let argv =
     match cwd with
     | None -> argv
@@ -89,10 +89,26 @@ let with_process_full ?cwd (type a res) (process_res : (a, res) Process_res.t) a
   in
   let prog = Option.value (List.hd argv) ~default:"" in
   let res = ref (Unix.WEXITED 0) in
+  let env =
+    match env with
+    | [] -> Unix.environment ()
+    | _ :: _ ->
+        let m =
+          Unix.environment ()
+          |> Array.filter_map ~f:(String.lsplit2 ~on:'=')
+          |> Array.to_list
+          |> Map.of_alist_reduce (module String) ~f:(fun _ right -> right)
+        in
+        List.fold_left ~init:m env ~f:(fun m (k, v_opt) ->
+            match v_opt with None -> Map.remove m k | Some v -> Map.set m ~key:k ~data:v)
+        |> Map.to_alist
+        |> List.map ~f:(fun (k, v) -> k ^ "=" ^ v)
+        |> Array.of_list
+  in
   let (fres : a), stderr =
     Exn.protectx
       ~finally:(fun channels -> res := Unix.close_process_full channels)
-      (Unix.open_process_args_full prog (Array.of_list argv) (Unix.environment ()))
+      (Unix.open_process_args_full prog (Array.of_list argv) env)
       ~f:(fun (stdout, stdin, stderr) ->
         let res = f (stdout, stdin) in
         Out_channel.close stdin;
@@ -116,8 +132,8 @@ let with_process_full ?cwd (type a res) (process_res : (a, res) Process_res.t) a
       in
       match process_res with Raise -> raise_s sexp | Detailed -> Error (!res, sexp))
 
-let run_process ?cwd process_res argv =
-  with_process_full ?cwd process_res argv (fun (stdout, stdin) ->
+let run_process ?cwd ?env process_res argv =
+  with_process_full ?cwd ?env process_res argv (fun (stdout, stdin) ->
       Out_channel.close stdin;
       (* we should use eio or async, as this can deadlock if stderr is big enough *)
       In_channel.input_all stdout)

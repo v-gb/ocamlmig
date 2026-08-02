@@ -91,6 +91,8 @@ let diff ?label1 ?label2 src1 src2 =
               in
               if code <> 0 && code <> 1 then failwith "diffing failed")))
 
+let ocamlmig_output_var = "OCAMLMIG_OUTPUT"
+
 let diff_or_write ~format ~original_formatting file_path ~write
     ((file_contents, file_contents', asts) : Transform_common.result) =
   let format =
@@ -114,7 +116,13 @@ let diff_or_write ~format ~original_formatting file_path ~write
         | Some (`Not_configured _) | None -> force file_contents')
   in
   if write
-  then Out_channel.write_all (Cwdpath.to_string file_path) ~data:file_contents'
+  then
+    let write_path =
+      match Sys.getenv_opt ocamlmig_output_var with
+      | None -> Cwdpath.to_string file_path
+      | Some s -> s
+    in
+    Out_channel.write_all write_path ~data:file_contents'
   else (
     ();
     if debug_diff
@@ -138,8 +146,11 @@ let diff_or_write ~format ~original_formatting file_path ~write
               if Build.is_mli file_path then roundtrip Signature else roundtrip Structure
           | None | Some `Enabled -> file_contents
       in
-      diff ~label1:(Cwdpath.to_string file_path) ~label2:(Cwdpath.to_string file_path)
-        (`Str file_contents) (`Str file_contents'))
+      let label =
+        let s = Cwdpath.to_string file_path in
+        if in_test && not (Filename.is_relative s) then Filename.basename s else s
+      in
+      diff ~label1:label ~label2:label (`Str file_contents) (`Str file_contents'))
 
 let cwdpath_param = Command.Arg_type.map Filename_unix.arg_type ~f:Cwdpath.create
 
@@ -1139,6 +1150,66 @@ let internal_untype =
               Format.printf "%a@." Pprintast.structure
                 (Untypeast.untype_structure structure))] )
 
+let internal_record_result =
+  ( "record-result"
+  , Command.basic ~summary:""
+      [%map_open.Command
+        let input = anon ("PATH" %: cwdpath_param)
+        and write = write_param
+        and record_snapshot = flag "-record-snapshot" no_arg ~doc:""
+        and command = flag "--" escape ~doc:"" in
+        fun () ->
+          let chop_result s =
+            String.split_lines s
+            |> List.take_while ~f:(fun line ->
+                not (String.is_substring line ~substring:"Result:"))
+            |> String.concat_lines
+          in
+          let old_contents = In_channel.read_all (Cwdpath.to_string input) in
+          let chopped_old_contents = chop_result old_contents in
+          let tmp = lazy (Filename.temp_file "ocamlmig-tests" "") in
+          Exn.protect
+            ~finally:(fun () ->
+              match Lazy.peek tmp with None -> () | Some tmp -> Sys.remove tmp)
+            ~f:(fun () ->
+              let env, output =
+                if record_snapshot
+                then (
+                  Out_channel.write_all (force tmp) ~data:old_contents;
+                  ([ (ocamlmig_output_var, Some (force tmp)) ], Some (force tmp)))
+                else
+                  ( [ ( "OCAMLMIG_DIFF"
+                      , Some {|LANG=C diff --label "$LABEL1" --label "$LABEL2" -u|} )
+                    ]
+                  , None )
+              in
+              let argv =
+                (Sys.executable_name :: Option.value command ~default:[])
+                @ [ Cwdpath.to_string input ]
+                @ if Option.is_some output then [ "-w" ] else []
+              in
+              let diff = run_process Raise ~env argv in
+              let new_contents =
+                let diff =
+                  match output with
+                  | Some path ->
+                      assert (String.is_empty diff);
+                      chop_result (In_channel.read_all path)
+                  | None ->
+                      String.split_lines diff
+                      |> List.map ~f:(fun line ->
+                          if String.is_prefix ~prefix:"@@" line
+                          then "@@ -X,X +X,X @@"
+                          else line)
+                      |> String.concat_lines
+                in
+                chopped_old_contents ^ "(* Result:\n\n" ^ diff ^ "*)\n"
+              in
+              if old_contents <>: new_contents
+              then
+                diff_or_write ~format:None ~original_formatting:None input ~write
+                  (old_contents, lazy new_contents, None))] )
+
 let main () =
   let hidden ((name, _) as cmd) =
     if Array.length Sys.argv >= 2 && Sys.argv.(1) =: name then Some cmd else None
@@ -1159,6 +1230,7 @@ let main () =
                      ; internal_dune_files
                      ; internal_ocamlformat
                      ; internal_parsetree
+                     ; internal_record_result
                      ; internal_untype
                      ] ))
           ]))
