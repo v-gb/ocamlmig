@@ -1,4 +1,4 @@
-# Next version
+# 5.5.20260803
 
 - Switch to ocaml 5.5
 - `[@@migrate]` can now include a minimum version for dependencies:
