@@ -1,4 +1,4 @@
-(lang dune 3.18)
+(lang dune 3.22)
 
 (formatting
  (enabled_for ocaml))
@@ -27,7 +27,7 @@
  (description "Ocamlmig is a command line tool to rewrite ocaml source code, especially to make updating to newer interfaces easier.")
  (depends
   (ocaml (and (>= 5.5) (< 5.6)))
-   (dune (>= 3.22))
+   dune
    ;;
    base
    core
