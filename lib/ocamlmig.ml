@@ -833,6 +833,12 @@ Syntax of the motifs:
       syntactically, and their payload recursively. Constructors whose
       name start/end in __ match any name, similarly to variables.
 
+  MOTIF.label
+  MOTIF#label
+      matches field accesses or method calls, where labels starting with
+      __ are treated as variables. Such variables can occur more than once,
+      in which case all occurrences must be equal.
+
   MOTIF or MOTIF, MOTIF & MOTIF
       disjunction and conjunction of motifs
 
