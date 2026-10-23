@@ -182,7 +182,9 @@ let etc_arg : function_arg -> _ = function
       if String.is_prefix v ~prefix:"__etc" then Some v else None
   | _ -> None
 
-let unsupported_motif loc = Location.raise_errorf ~loc "unsupported motif syntax"
+let unsupported_motif loc syntax =
+  Location.raise_errorf ~loc "unsupported motif syntax: %s" syntax
+
 let match_count ~env n = match_var_snd_stage ~env "__count" (Expr (Ast_helper.Exp.int n))
 
 let rec match_ ~ctx1 (motif : expression) : stage2 =
@@ -270,7 +272,8 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
       let motifs =
         List.map motifs ~f:(function
           | Lte_simple { lte_label; lte_elt } ->
-              if Option.is_some lte_label then unsupported_motif motif.pexp_loc;
+              if Option.is_some lte_label
+              then unsupported_motif motif.pexp_loc "labeled tuple";
               lte_elt
           | _ -> assert false)
       in
@@ -431,7 +434,9 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
             | Pexp_function (params, None, Pfunction_body body, _) ->
                 match_params params ~env ~ctx && match_body body ~env ~ctx
             | _ -> false)
-      | _ -> unsupported_motif motif.pexp_loc)
+      | Pexp_function _ ->
+          unsupported_motif motif.pexp_loc "repeat2 with unsupported function"
+      | _ -> unsupported_motif motif.pexp_loc "repeat2 with non-function")
   | Pexp_extension (motif_name, motif_payload) -> (
       let s_payload = match_payload ~loc:motif.pexp_loc ~ctx1 motif_payload in
       match motif_name.txt with
@@ -515,7 +520,41 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
             | Pexp_extension (name, payload) ->
                 name.txt =: motif_name.txt && s_payload payload ~env ~ctx
             | _ -> false))
-  | _ -> unsupported_motif motif.pexp_loc
+  | Pexp_function (_, _, Pfunction_cases _, _) ->
+      unsupported_motif motif.pexp_loc "function cases"
+  | Pexp_function (_, Some _, Pfunction_body _, _) ->
+      unsupported_motif motif.pexp_loc "function with type constraint"
+  | Pexp_unreachable -> unsupported_motif motif.pexp_loc "unreachable expression"
+  | Pexp_hole -> unsupported_motif motif.pexp_loc "hole expression"
+  | Pexp_let (_, _, _) -> unsupported_motif motif.pexp_loc "let expression"
+  | Pexp_match (_, _, _) -> unsupported_motif motif.pexp_loc "match expression"
+  | Pexp_try (_, _, _) -> unsupported_motif motif.pexp_loc "try expression"
+  | Pexp_construct_unit_beginend _ ->
+      unsupported_motif motif.pexp_loc "construct_unit_beginend expression"
+  | Pexp_field (_, _) -> unsupported_motif motif.pexp_loc "field expression"
+  | Pexp_setfield (_, _, _) -> unsupported_motif motif.pexp_loc "setfield expression"
+  | Pexp_array _ -> unsupported_motif motif.pexp_loc "array expression"
+  | Pexp_list _ -> unsupported_motif motif.pexp_loc "list expression"
+  | Pexp_ifthenelse (_, _) -> unsupported_motif motif.pexp_loc "ifthenelse expression"
+  | Pexp_while (_, _, _) -> unsupported_motif motif.pexp_loc "while expression"
+  | Pexp_for (_, _, _, _, _, _) -> unsupported_motif motif.pexp_loc "for expression"
+  | Pexp_coerce (_, _, _) -> unsupported_motif motif.pexp_loc "coerce expression"
+  | Pexp_send (_, _) -> unsupported_motif motif.pexp_loc "send expression"
+  | Pexp_new (_, _) -> unsupported_motif motif.pexp_loc "new expression"
+  | Pexp_setinstvar (_, _) -> unsupported_motif motif.pexp_loc "setinstvar expression"
+  | Pexp_override _ -> unsupported_motif motif.pexp_loc "override expression"
+  | Pexp_struct_item (_, _, _) ->
+      unsupported_motif motif.pexp_loc "struct_item expression"
+  | Pexp_assert (_, _) -> unsupported_motif motif.pexp_loc "assert expression"
+  | Pexp_object (_, _) -> unsupported_motif motif.pexp_loc "object expression"
+  | Pexp_pack (_, _, _) -> unsupported_motif motif.pexp_loc "pack expression"
+  | Pexp_letop _ -> unsupported_motif motif.pexp_loc "letop expression"
+  | Pexp_beginend (_, _) -> unsupported_motif motif.pexp_loc "beginend expression"
+  | Pexp_parens _ -> unsupported_motif motif.pexp_loc "parens expression"
+  | Pexp_cons _ -> unsupported_motif motif.pexp_loc "cons expression"
+  | Pexp_indexop_access _ -> unsupported_motif motif.pexp_loc "indexop_access expression"
+  | Pexp_infix (_, _, _) | Pexp_open (_, _) | Pexp_prefix (_, _) ->
+      Location.raise_errorf ~loc:motif.pexp_loc "unexpected expression"
 
 and match_fields ~ctx1 (mfields : (Longident.t Location.loc * _ * expression option) list)
     =
@@ -565,8 +604,10 @@ and match_fields ~ctx1 (mfields : (Longident.t Location.loc * _ * expression opt
 
 and match_param ~ctx1 (p : P.expr_function_param) =
   match p.pparam_desc with
-  | Pparam_newtype names -> unsupported_motif (List.hd_exn names).loc
-  | Pparam_val (_, Some e, _) -> unsupported_motif e.pexp_loc
+  | Pparam_newtype names ->
+      unsupported_motif (List.hd_exn names).loc "locally abstract type"
+  | Pparam_val (_, Some e, _) ->
+      unsupported_motif e.pexp_loc "optional parameter with default"
   | Pparam_val (arg_label_m, None, pat_m) -> (
       let match_p = match_pat ~ctx1 pat_m in
       fun (p : P.expr_function_param) ~env ~ctx ->
@@ -599,7 +640,27 @@ and match_pat ~ctx1 (p : pattern) =
         match p.ppat_desc with
         | Ppat_variant (v, p2) -> s_label v.txt.txt ~env ~ctx && s_payload p2 ~env ~ctx
         | _ -> false)
-  | _ -> unsupported_motif p.ppat_loc
+  | Ppat_construct (_, Some (_ :: _, _)) ->
+      unsupported_motif p.ppat_loc "constructor pattern with types"
+  | Ppat_any -> unsupported_motif p.ppat_loc "any pattern"
+  | Ppat_var _ -> unsupported_motif p.ppat_loc "non-'__' var"
+  | Ppat_alias (_, _) -> unsupported_motif p.ppat_loc "alias pattern"
+  | Ppat_constant _ -> unsupported_motif p.ppat_loc "constant pattern"
+  | Ppat_interval (_, _) -> unsupported_motif p.ppat_loc "interval pattern"
+  | Ppat_tuple (_, _) -> unsupported_motif p.ppat_loc "tuple pattern"
+  | Ppat_record (_, _) -> unsupported_motif p.ppat_loc "record pattern"
+  | Ppat_array _ -> unsupported_motif p.ppat_loc "array pattern"
+  | Ppat_list _ -> unsupported_motif p.ppat_loc "list pattern"
+  | Ppat_or _ -> unsupported_motif p.ppat_loc "or pattern"
+  | Ppat_constraint (_, _) -> unsupported_motif p.ppat_loc "constraint pattern"
+  | Ppat_type _ -> unsupported_motif p.ppat_loc "type pattern"
+  | Ppat_lazy _ -> unsupported_motif p.ppat_loc "lazy pattern"
+  | Ppat_unpack (_, _) -> unsupported_motif p.ppat_loc "unpack pattern"
+  | Ppat_exception _ -> unsupported_motif p.ppat_loc "exception pattern"
+  | Ppat_effect (_, _) -> unsupported_motif p.ppat_loc "effect pattern"
+  | Ppat_extension _ -> unsupported_motif p.ppat_loc "extension pattern"
+  | Ppat_open (_, _) -> unsupported_motif p.ppat_loc "open pattern"
+  | Ppat_cons _ -> unsupported_motif p.ppat_loc "cons pattern"
 
 and match_args ~ctx1 (margs : (arg_label * expression) list) =
   let var_other = ref None in
@@ -663,7 +724,7 @@ and match_payload ~ctx1 ~loc (motif : P.payload) =
   | PStr m -> (
       let sm = match_structure ~ctx1 ~loc m in
       fun s ~env ~ctx -> match s with PStr si -> sm si ~env ~ctx | _ -> false)
-  | _ -> unsupported_motif loc
+  | _ -> unsupported_motif loc "non-structure payload"
 
 and match_structure ~loc ~ctx1 (stritems : structure_item list) =
   match_list (match_structure_item ~loc ~ctx1) stritems Option.some
@@ -674,7 +735,7 @@ and match_structure_item ~loc ~ctx1 (motif : structure_item) =
       let s1 = match_ ~ctx1 motif1 in
       fun (s : P.structure_item) ~env ~ctx ->
         match s.pstr_desc with Pstr_eval (e, _) -> s1 e ~env ~ctx | _ -> false)
-  | _ -> unsupported_motif loc
+  | _ -> unsupported_motif loc "non-eval structure item"
 
 let get_count bindings =
   match Map.find bindings "__count" with
@@ -859,7 +920,20 @@ let rec match_type ~ctx1 (t : core_type) =
               | _ -> false)
             && s_typ (has_no_payload, types) ~env ~ctx
         | _ -> false)
-  | _ -> unsupported_motif t.ptyp_loc
+  | Ptyp_constr _ -> unsupported_motif t.ptyp_loc "non-variable type constructor"
+  | Ptyp_variant _ -> unsupported_motif t.ptyp_loc "unsupported variant type"
+  | Ptyp_any -> unsupported_motif t.ptyp_loc "any type"
+  | Ptyp_var _ -> unsupported_motif t.ptyp_loc "var type"
+  | Ptyp_arrow (_, _) -> unsupported_motif t.ptyp_loc "arrow type"
+  | Ptyp_tuple _ -> unsupported_motif t.ptyp_loc "tuple type"
+  | Ptyp_object (_, _) -> unsupported_motif t.ptyp_loc "object type"
+  | Ptyp_class (_, _) -> unsupported_motif t.ptyp_loc "class type"
+  | Ptyp_alias (_, _) -> unsupported_motif t.ptyp_loc "alias type"
+  | Ptyp_poly (_, _) -> unsupported_motif t.ptyp_loc "poly type"
+  | Ptyp_package _ -> unsupported_motif t.ptyp_loc "package type"
+  | Ptyp_open (_, _) -> unsupported_motif t.ptyp_loc "open type"
+  | Ptyp_extension _ -> unsupported_motif t.ptyp_loc "extension type"
+  | Ptyp_functor (_, _, _, _) -> unsupported_motif t.ptyp_loc "functor type"
 
 let match_value_binding ~ctx1
     ({ pvb_pat
@@ -872,7 +946,7 @@ let match_value_binding ~ctx1
      } :
       P.value_binding) =
   match pvb_constraint with
-  | Some _ -> unsupported_motif pvb_loc
+  | Some _ -> unsupported_motif pvb_loc "constraint"
   | None -> (
       let s_pat = match_pat ~ctx1 pvb_pat in
       let s_expr =
@@ -943,8 +1017,8 @@ let compile_motif ~ctx1 motif =
           }
         ] ->
           `Binding_op (match_binding_op ~ctx1 binding_op)
-      | stri :: _ -> unsupported_motif stri.pstr_loc
-      | [] -> unsupported_motif Location.none)
+      | stri :: _ -> unsupported_motif stri.pstr_loc "unsupported structure item"
+      | [] -> unsupported_motif Location.none "empty structure")
   | Some ("type", motif) ->
       let typ = parse Core_type motif in
       `Type (match_type ~ctx1 typ)
@@ -1006,8 +1080,8 @@ let parse_template ~fmconf stage2 repl =
               }
             ] ->
               `Binding (stage2, vb)
-          | stri :: _ -> unsupported_motif stri.pstr_loc
-          | [] -> unsupported_motif Location.none)
+          | stri :: _ -> unsupported_motif stri.pstr_loc "unsupported structure item"
+          | [] -> unsupported_motif Location.none "empty structure")
       | `Binding_op stage2, stri -> (
           match stri with
           | [ { pstr_desc =
@@ -1017,8 +1091,8 @@ let parse_template ~fmconf stage2 repl =
               }
             ] ->
               `Binding_op (stage2, binding_op)
-          | stri :: _ -> unsupported_motif stri.pstr_loc
-          | _ -> unsupported_motif Location.none))
+          | stri :: _ -> unsupported_motif stri.pstr_loc "unsupported structure item"
+          | _ -> unsupported_motif Location.none "empty structure"))
 
 let substr_split t ~on:substr =
   let substr = String.Search_pattern.create substr in
