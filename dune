@@ -1,0 +1,1 @@
+(env (dev (flags :standard %{dune-warnings})))
