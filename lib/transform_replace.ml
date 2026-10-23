@@ -90,7 +90,7 @@ let drop_defs ~type_index file_type structure uids =
 type value =
   | Expr of expression
   | Variant of string
-  | Method of string
+  | Name of Longident.t
   | Typ of core_type
   | Pat of pattern
   | Args of (function_arg list[@sexp.opaque])
@@ -119,13 +119,13 @@ type env =
 let env_pat ~loc env var =
   match Map.find_exn env var with
   | Pat v -> v
-  | Expr _ | Fields _ | Typ _ | Args _ | Variant _ | Method _ ->
+  | Expr _ | Fields _ | Typ _ | Args _ | Variant _ | Name _ ->
       Location.raise_errorf ~loc "motif %s cannot be inserted into a pattern" var
 
 let env_exp ~loc env var =
   match Map.find_exn env var with
   | Expr v -> v
-  | Pat _ | Fields _ | Typ _ | Args _ | Variant _ | Method _ ->
+  | Pat _ | Fields _ | Typ _ | Args _ | Variant _ | Name _ ->
       Location.raise_errorf ~loc "motif %s cannot be inserted into an expression" var
 
 type stage2 = Parsetree.expression -> env:env ref -> ctx:ctx -> bool
@@ -154,6 +154,7 @@ let same_value (v1 : value) (v2 : value) =
     ) ->
       (* for __count *)
       n =: n'
+  | Name v, Name v' -> Longident.compare v v' = 0
   | _ -> false
 
 let match_var_snd_stage ?(x = false) ~env v_motif data =
@@ -352,7 +353,7 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
       let s = match_ ~ctx1 expr_motif in
       let s_name =
         if String.is_prefix id_motif.txt ~prefix:"__"
-        then match_var id_motif.txt (fun t -> Method t)
+        then match_var id_motif.txt (fun t -> Name (Lident t))
         else fun id' ~env:_ ~ctx:_ -> id_motif.txt =: id'
       in
       fun expr ~env ~ctx ->
@@ -527,6 +528,17 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
             | Pexp_extension (name, payload) ->
                 name.txt =: motif_name.txt && s_payload payload ~env ~ctx
             | _ -> false))
+  | Pexp_field (expr_motif, id_motif) -> (
+      let s = match_ ~ctx1 expr_motif in
+      let s_name =
+        match id_motif.txt with
+        | Lident v when String.is_prefix v ~prefix:"__" -> match_var v (fun v -> Name v)
+        | _ -> fun id ~env:_ ~ctx:_ -> Fmast.Longident.compare id id_motif.txt = 0
+      in
+      fun expr ~env ~ctx ->
+        match expr.pexp_desc with
+        | Pexp_field (expr, id) -> s expr ~env ~ctx && s_name id.txt ~env ~ctx
+        | _ -> false)
   | _ -> unsupported_motif motif.pexp_loc
 
 and match_fields ~ctx1 (mfields : (Longident.t Location.loc * _ * expression option) list)
@@ -706,7 +718,7 @@ let subst ~env =
         | Ptyp_constr ({ txt = Lident v; _ }, []) when Map.mem env v -> (
             match Map.find_exn env v with
             | Typ ty -> ty
-            | Fields _ | Expr _ | Variant _ | Args _ | Pat _ | Method _ ->
+            | Fields _ | Expr _ | Variant _ | Args _ | Pat _ | Name _ ->
                 Location.raise_errorf ~loc:ty.ptyp_loc
                   "motif %s can't be inserted in a type" v)
         | _ -> ty)
@@ -723,7 +735,7 @@ let subst ~env =
                   ppat_desc =
                     Ppat_variant ({ var with txt = { var.txt with txt = var' } }, p2)
                 }
-            | Fields _ | Expr _ | Pat _ | Args _ | Typ _ | Method _ ->
+            | Fields _ | Expr _ | Pat _ | Args _ | Typ _ | Name _ ->
                 Location.raise_errorf ~loc:pat.ppat_loc
                   "motif %s can't be inserted in a pattern" var.txt.txt)
         | _ -> pat)
@@ -742,7 +754,7 @@ let subst ~env =
                       match etc_field field with
                       | Some v -> (
                           match Map.find_exn env v with
-                          | Expr _ | Args _ | Pat _ | Typ _ | Variant _ | Method _ ->
+                          | Expr _ | Args _ | Pat _ | Typ _ | Variant _ | Name _ ->
                               Location.raise_errorf ~loc:id.loc "hm, what"
                           | Fields fs -> fs)
                       | None ->
@@ -762,7 +774,7 @@ let subst ~env =
                       match etc_arg (arg_label, arg) with
                       | Some v -> (
                           match Map.find_exn env v with
-                          | Expr _ | Fields _ | Pat _ | Typ _ | Variant _ | Method _ ->
+                          | Expr _ | Fields _ | Pat _ | Typ _ | Variant _ | Name _ ->
                               Location.raise_errorf ~loc:arg.pexp_loc "hm, what"
                           | Args args -> args)
                       | None -> [ (arg_label, self.expr self arg) ])
@@ -770,13 +782,20 @@ let subst ~env =
                 { expr with pexp_desc = Pexp_apply (f', args') }
             | Pexp_send (e, id) when Map.mem env id.txt -> (
                 match Map.find_exn env id.txt with
-                | Method txt ->
+                | Name (Lident txt) ->
                     { expr with
                       pexp_desc = Pexp_send (self.expr self e, { id with txt })
                     }
-                | Expr _ | Fields _ | Pat _ | Typ _ | Variant _ | Args _ ->
+                | Expr _ | Fields _ | Pat _ | Typ _ | Variant _ | Args _ | Name _ ->
                     Location.raise_errorf ~loc:expr.pexp_loc
                       "motif %s can't be inserted as a method name" id.txt)
+            | Pexp_field (e, { txt = Lident id; loc }) when Map.mem env id -> (
+                match Map.find_exn env id with
+                | Name txt ->
+                    { expr with pexp_desc = Pexp_field (self.expr self e, { txt; loc }) }
+                | Args _ | Expr _ | Fields _ | Pat _ | Typ _ | Variant _ ->
+                    Location.raise_errorf ~loc
+                      "motif %s can't be inserted as a field accessor" id)
             | _ -> super.expr self expr
           in
           match expr.pexp_desc with
