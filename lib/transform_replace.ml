@@ -185,6 +185,28 @@ let etc_arg : function_arg -> _ = function
 let unsupported_motif loc syntax =
   Location.raise_errorf ~loc "unsupported motif syntax: %s" syntax
 
+let unsupported_motif' loc printer m =
+  Ocamlformat_parser_shims.Clflags.locations := false;
+  let buffer = Buffer.create 128 in
+  let max_length = 100 in
+  let fmt =
+    Format.make_formatter
+      (fun s pos len ->
+         Buffer.add_substring buffer s ~pos ~len;
+         if Buffer.length buffer > max_length
+         then Stdlib.raise_notrace Stdlib.Exit)
+      ignore
+  in
+  try
+    printer fmt m;
+    Format.pp_print_flush fmt ();
+    let s = Buffer.contents buffer in
+    Location.raise_errorf ~loc "unsupported motif syntax: %s" s
+  with
+  | Stdlib.Exit ->
+    let s = Buffer.contents buffer in
+    Location.raise_errorf ~loc "unsupported motif syntax: %s..." s
+
 let match_count ~env n = match_var_snd_stage ~env "__count" (Expr (Ast_helper.Exp.int n))
 
 let rec match_ ~ctx1 (motif : expression) : stage2 =
@@ -520,41 +542,8 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
             | Pexp_extension (name, payload) ->
                 name.txt =: motif_name.txt && s_payload payload ~env ~ctx
             | _ -> false))
-  | Pexp_function (_, _, Pfunction_cases _, _) ->
-      unsupported_motif motif.pexp_loc "function cases"
-  | Pexp_function (_, Some _, Pfunction_body _, _) ->
-      unsupported_motif motif.pexp_loc "function with type constraint"
-  | Pexp_unreachable -> unsupported_motif motif.pexp_loc "unreachable expression"
-  | Pexp_hole -> unsupported_motif motif.pexp_loc "hole expression"
-  | Pexp_let (_, _, _) -> unsupported_motif motif.pexp_loc "let expression"
-  | Pexp_match (_, _, _) -> unsupported_motif motif.pexp_loc "match expression"
-  | Pexp_try (_, _, _) -> unsupported_motif motif.pexp_loc "try expression"
-  | Pexp_construct_unit_beginend _ ->
-      unsupported_motif motif.pexp_loc "construct_unit_beginend expression"
-  | Pexp_field (_, _) -> unsupported_motif motif.pexp_loc "field expression"
-  | Pexp_setfield (_, _, _) -> unsupported_motif motif.pexp_loc "setfield expression"
-  | Pexp_array _ -> unsupported_motif motif.pexp_loc "array expression"
-  | Pexp_list _ -> unsupported_motif motif.pexp_loc "list expression"
-  | Pexp_ifthenelse (_, _) -> unsupported_motif motif.pexp_loc "ifthenelse expression"
-  | Pexp_while (_, _, _) -> unsupported_motif motif.pexp_loc "while expression"
-  | Pexp_for (_, _, _, _, _, _) -> unsupported_motif motif.pexp_loc "for expression"
-  | Pexp_coerce (_, _, _) -> unsupported_motif motif.pexp_loc "coerce expression"
-  | Pexp_send (_, _) -> unsupported_motif motif.pexp_loc "send expression"
-  | Pexp_new (_, _) -> unsupported_motif motif.pexp_loc "new expression"
-  | Pexp_setinstvar (_, _) -> unsupported_motif motif.pexp_loc "setinstvar expression"
-  | Pexp_override _ -> unsupported_motif motif.pexp_loc "override expression"
-  | Pexp_struct_item (_, _, _) ->
-      unsupported_motif motif.pexp_loc "struct_item expression"
-  | Pexp_assert (_, _) -> unsupported_motif motif.pexp_loc "assert expression"
-  | Pexp_object (_, _) -> unsupported_motif motif.pexp_loc "object expression"
-  | Pexp_pack (_, _, _) -> unsupported_motif motif.pexp_loc "pack expression"
-  | Pexp_letop _ -> unsupported_motif motif.pexp_loc "letop expression"
-  | Pexp_beginend (_, _) -> unsupported_motif motif.pexp_loc "beginend expression"
-  | Pexp_parens _ -> unsupported_motif motif.pexp_loc "parens expression"
-  | Pexp_cons _ -> unsupported_motif motif.pexp_loc "cons expression"
-  | Pexp_indexop_access _ -> unsupported_motif motif.pexp_loc "indexop_access expression"
-  | Pexp_infix (_, _, _) | Pexp_open (_, _) | Pexp_prefix (_, _) ->
-      Location.raise_errorf ~loc:motif.pexp_loc "unexpected expression"
+  | _ ->
+      unsupported_motif' motif.pexp_loc Ocamlformat_parser_extended.Printast.expression motif
 
 and match_fields ~ctx1 (mfields : (Longident.t Location.loc * _ * expression option) list)
     =
@@ -640,27 +629,7 @@ and match_pat ~ctx1 (p : pattern) =
         match p.ppat_desc with
         | Ppat_variant (v, p2) -> s_label v.txt.txt ~env ~ctx && s_payload p2 ~env ~ctx
         | _ -> false)
-  | Ppat_construct (_, Some (_ :: _, _)) ->
-      unsupported_motif p.ppat_loc "constructor pattern with types"
-  | Ppat_any -> unsupported_motif p.ppat_loc "any pattern"
-  | Ppat_var _ -> unsupported_motif p.ppat_loc "non-'__' var"
-  | Ppat_alias (_, _) -> unsupported_motif p.ppat_loc "alias pattern"
-  | Ppat_constant _ -> unsupported_motif p.ppat_loc "constant pattern"
-  | Ppat_interval (_, _) -> unsupported_motif p.ppat_loc "interval pattern"
-  | Ppat_tuple (_, _) -> unsupported_motif p.ppat_loc "tuple pattern"
-  | Ppat_record (_, _) -> unsupported_motif p.ppat_loc "record pattern"
-  | Ppat_array _ -> unsupported_motif p.ppat_loc "array pattern"
-  | Ppat_list _ -> unsupported_motif p.ppat_loc "list pattern"
-  | Ppat_or _ -> unsupported_motif p.ppat_loc "or pattern"
-  | Ppat_constraint (_, _) -> unsupported_motif p.ppat_loc "constraint pattern"
-  | Ppat_type _ -> unsupported_motif p.ppat_loc "type pattern"
-  | Ppat_lazy _ -> unsupported_motif p.ppat_loc "lazy pattern"
-  | Ppat_unpack (_, _) -> unsupported_motif p.ppat_loc "unpack pattern"
-  | Ppat_exception _ -> unsupported_motif p.ppat_loc "exception pattern"
-  | Ppat_effect (_, _) -> unsupported_motif p.ppat_loc "effect pattern"
-  | Ppat_extension _ -> unsupported_motif p.ppat_loc "extension pattern"
-  | Ppat_open (_, _) -> unsupported_motif p.ppat_loc "open pattern"
-  | Ppat_cons _ -> unsupported_motif p.ppat_loc "cons pattern"
+  | _ -> unsupported_motif' p.ppat_loc Ocamlformat_parser_extended.Printast.pattern p
 
 and match_args ~ctx1 (margs : (arg_label * expression) list) =
   let var_other = ref None in
@@ -920,20 +889,7 @@ let rec match_type ~ctx1 (t : core_type) =
               | _ -> false)
             && s_typ (has_no_payload, types) ~env ~ctx
         | _ -> false)
-  | Ptyp_constr _ -> unsupported_motif t.ptyp_loc "non-variable type constructor"
-  | Ptyp_variant _ -> unsupported_motif t.ptyp_loc "unsupported variant type"
-  | Ptyp_any -> unsupported_motif t.ptyp_loc "any type"
-  | Ptyp_var _ -> unsupported_motif t.ptyp_loc "var type"
-  | Ptyp_arrow (_, _) -> unsupported_motif t.ptyp_loc "arrow type"
-  | Ptyp_tuple _ -> unsupported_motif t.ptyp_loc "tuple type"
-  | Ptyp_object (_, _) -> unsupported_motif t.ptyp_loc "object type"
-  | Ptyp_class (_, _) -> unsupported_motif t.ptyp_loc "class type"
-  | Ptyp_alias (_, _) -> unsupported_motif t.ptyp_loc "alias type"
-  | Ptyp_poly (_, _) -> unsupported_motif t.ptyp_loc "poly type"
-  | Ptyp_package _ -> unsupported_motif t.ptyp_loc "package type"
-  | Ptyp_open (_, _) -> unsupported_motif t.ptyp_loc "open type"
-  | Ptyp_extension _ -> unsupported_motif t.ptyp_loc "extension type"
-  | Ptyp_functor (_, _, _, _) -> unsupported_motif t.ptyp_loc "functor type"
+  | _ -> unsupported_motif' t.ptyp_loc Ocamlformat_parser_extended.Printast.core_type t
 
 let match_value_binding ~ctx1
     ({ pvb_pat
