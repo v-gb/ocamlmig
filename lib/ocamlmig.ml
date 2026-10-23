@@ -812,7 +812,7 @@ Syntax of the motifs:
   __a
       matches any expression/pattern in the source code,
       and names it (except for the __ motif). Currently a
-      given such pattern can only occur once.
+      given such motif can only occur once.
       ex: __a matches *1 + 1*
       nonex: none!
 
@@ -862,8 +862,8 @@ Syntax of the motifs:
 
    implicit syntax for repetitions
        If a MOTIF contains references to 3 numbered variables like foo1, foo2
-       and foo3, ocamlmig will infer a generalized version of the patterns that
-       recognizes a pattern with any number of variables.
+       and foo3, ocamlmig will infer a generalized version of the motifs that
+       recognizes a motif with any number of variables.
        ex: (__e1, __e2, __e3) /// [| __e1; __e2; __e3 |]
        would turn (1, 2) into [|1; 2|], (1, 2, 3, 4) into [|1; 2; 3; 4|], and so
        on with tuples/arrays of any length
