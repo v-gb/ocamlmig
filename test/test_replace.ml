@@ -40,6 +40,10 @@ let _ =
     let field1 = 1 in
     ignore { field3 = field1; field2 = "a" }]
 
+let _ = fun x -> x#meth1#meth2#meth3
+[@@migrate_test.replace_expr {| __x#meth1#__m1#__m2 /// (f __x)#__m2#__m1 |}]
+[@@migrate_test.replace let _ = fun x -> (f x)#meth3#meth2]
+
 module _ = struct
   (* type coercions *)
   let coercion = None
