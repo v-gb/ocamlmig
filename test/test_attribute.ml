@@ -7,7 +7,7 @@ let f () = ()
       [ "new-no-version"
       ; ("new-with-version", ~min_version:"1.1")
       ; "astring" (* existing no version *)
-      ; ("dune", ~min_version:"3.5" (* existing with newer version *))
+      ; ("cmdliner", ~min_version:"0.1" (* existing with newer version *))
       ; ("re", ~min_version:"1.12" (* existing with older version *))
       ]
   }]
@@ -23,7 +23,7 @@ let _ = f
 - (libraries base)
 + (libraries astring
 +            base
-+            dune
++            cmdliner
 +            new-no-version
 +            new-with-version
 +            re)
