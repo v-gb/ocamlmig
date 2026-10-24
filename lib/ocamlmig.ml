@@ -816,6 +816,12 @@ Syntax of the motifs:
       ex: __a matches *1 + 1*
       nonex: none!
 
+  MOTIF.__a
+  MOTIF#__a
+      matches any field or method label in the source code,
+      and names it (except for the __ motif). If this pattern
+      occurs more than once, all instances must be equal.
+
   [%id Float.sqrt]
       matches any identifier that points to the same definition
       as the given identifier.
