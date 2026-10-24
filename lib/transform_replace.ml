@@ -185,27 +185,21 @@ let etc_arg : function_arg -> _ = function
 let unsupported_motif loc syntax =
   Location.raise_errorf ~loc "unsupported motif syntax: %s" syntax
 
-let unsupported_motif' loc printer m =
-  Ocamlformat_parser_shims.Clflags.locations := false;
-  let buffer = Buffer.create 128 in
-  let max_length = 100 in
-  let fmt =
-    Format.make_formatter
-      (fun s pos len ->
-         Buffer.add_substring buffer s ~pos ~len;
-         if Buffer.length buffer > max_length
-         then Stdlib.raise_notrace Stdlib.Exit)
-      ignore
+let unsupported_motif_pp loc printer m =
+  let max_length = 256 in
+  let m =
+    let locations_old = !Ocamlformat_parser_shims.Clflags.locations in
+    Ocamlformat_parser_shims.Clflags.locations := false;
+    let m = Format.asprintf "%a" printer m in
+    Ocamlformat_parser_shims.Clflags.locations := locations_old;
+    m
   in
-  try
-    printer fmt m;
-    Format.pp_print_flush fmt ();
-    let s = Buffer.contents buffer in
-    Location.raise_errorf ~loc "unsupported motif syntax: %s" s
-  with
-  | Stdlib.Exit ->
-    let s = Buffer.contents buffer in
-    Location.raise_errorf ~loc "unsupported motif syntax: %s..." s
+  let m_compact =
+    if String.length m > max_length + 3
+    then String.sub m ~pos:0 ~len:max_length ^ "..."
+    else m
+  in
+  unsupported_motif loc m_compact
 
 let match_count ~env n = match_var_snd_stage ~env "__count" (Expr (Ast_helper.Exp.int n))
 
@@ -543,7 +537,8 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
                 name.txt =: motif_name.txt && s_payload payload ~env ~ctx
             | _ -> false))
   | _ ->
-      unsupported_motif' motif.pexp_loc Ocamlformat_parser_extended.Printast.expression motif
+      unsupported_motif_pp motif.pexp_loc Ocamlformat_parser_extended.Printast.expression
+        motif
 
 and match_fields ~ctx1 (mfields : (Longident.t Location.loc * _ * expression option) list)
     =
@@ -629,7 +624,7 @@ and match_pat ~ctx1 (p : pattern) =
         match p.ppat_desc with
         | Ppat_variant (v, p2) -> s_label v.txt.txt ~env ~ctx && s_payload p2 ~env ~ctx
         | _ -> false)
-  | _ -> unsupported_motif' p.ppat_loc Ocamlformat_parser_extended.Printast.pattern p
+  | _ -> unsupported_motif_pp p.ppat_loc Ocamlformat_parser_extended.Printast.pattern p
 
 and match_args ~ctx1 (margs : (arg_label * expression) list) =
   let var_other = ref None in
@@ -889,7 +884,7 @@ let rec match_type ~ctx1 (t : core_type) =
               | _ -> false)
             && s_typ (has_no_payload, types) ~env ~ctx
         | _ -> false)
-  | _ -> unsupported_motif' t.ptyp_loc Ocamlformat_parser_extended.Printast.core_type t
+  | _ -> unsupported_motif_pp t.ptyp_loc Ocamlformat_parser_extended.Printast.core_type t
 
 let match_value_binding ~ctx1
     ({ pvb_pat
