@@ -384,23 +384,29 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
         match expr.pexp_desc with
         | Pexp_send (e, id) -> s_name id.txt ~env ~ctx && s e ~env ~ctx
         | _ -> false)
-  | Pexp_extension ({ txt = "acc"; _ }, _) ->
+  | Pexp_extension (label, payload) ->
+      match_exp_ext ~ctx1 ~loc:motif.pexp_loc label payload
+  | _ ->
+      unsupported_motif_pp motif.pexp_loc Ocamlformat_parser_extended.Printast.expression
+        motif
+
+and match_exp_ext ~ctx1 ~loc motif_name motif_payload : stage2 =
+  match (motif_name, motif_payload) with
+  | { txt = "acc"; _ }, _ ->
       fun expr ~env ~ctx:_ ->
         Option.is_none !env.xrest
         &&
         (env := { !env with xrest = Some (Expr expr) };
          true)
-  | Pexp_extension
-      ( { txt = "X"; _ }
-      , PStr
-          [ { pstr_desc =
-                Pstr_eval ({ pexp_desc = Pexp_ident { txt = Lident motif; _ }; _ }, _)
-            ; _
-            }
-          ] ) ->
+  | ( { txt = "X"; _ }
+    , PStr
+        [ { pstr_desc =
+              Pstr_eval ({ pexp_desc = Pexp_ident { txt = Lident motif; _ }; _ }, _)
+          ; _
+          }
+        ] ) ->
       match_var ~x:true motif (fun v -> Expr v)
-  | Pexp_extension
-      ({ txt = "repeat"; _ }, PStr [ { pstr_desc = Pstr_eval (motif, _); _ } ]) ->
+  | { txt = "repeat"; _ }, PStr [ { pstr_desc = Pstr_eval (motif, _); _ } ] ->
       let base, repeated =
         let base_motif = ref None in
         let super = Ast_mapper.default_mapper in
@@ -441,8 +447,7 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
                  match_var_snd_stage ~env (key ^ Int.to_string i) data)))
       in
       loop []
-  | Pexp_extension ({ txt = "repeat2"; _ }, PStr [ { pstr_desc = Pstr_eval (e, _); _ } ])
-    -> (
+  | { txt = "repeat2"; _ }, PStr [ { pstr_desc = Pstr_eval (e, _); _ } ] -> (
       match e.pexp_desc with
       | Pexp_function
           ( [ { pparam_desc =
@@ -468,11 +473,10 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
             | Pexp_function (params, None, Pfunction_body body, _) ->
                 match_params params ~env ~ctx && match_body body ~env ~ctx
             | _ -> false)
-      | Pexp_function _ ->
-          unsupported_motif motif.pexp_loc "repeat2 with unsupported function"
-      | _ -> unsupported_motif motif.pexp_loc "repeat2 with non-function")
-  | Pexp_extension (motif_name, motif_payload) -> (
-      let s_payload = match_payload ~loc:motif.pexp_loc ~ctx1 motif_payload in
+      | Pexp_function _ -> unsupported_motif loc "repeat2 with unsupported function"
+      | _ -> unsupported_motif loc "repeat2 with non-function")
+  | _ -> (
+      let s_payload = match_payload ~loc ~ctx1 motif_payload in
       match motif_name.txt with
       | "move_def" -> (
           ctx1.need_type_index := true;
@@ -554,9 +558,6 @@ let rec match_ ~ctx1 (motif : expression) : stage2 =
             | Pexp_extension (name, payload) ->
                 name.txt =: motif_name.txt && s_payload payload ~env ~ctx
             | _ -> false))
-  | _ ->
-      unsupported_motif_pp motif.pexp_loc Ocamlformat_parser_extended.Printast.expression
-        motif
 
 and match_fields ~ctx1 (mfields : (Longident.t Location.loc * _ * expression option) list)
     =
