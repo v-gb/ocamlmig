@@ -193,7 +193,18 @@ let unsupported_motif_pp loc printer m =
         Format.asprintf "%a" printer m)
   in
   let m_compact =
-    if String.length m > max_length + 3 then String.prefix m max_length ^ "..." else m
+    if debug.all
+    then
+      if String.length m > max_length + 3 then String.prefix m max_length ^ "..." else m
+    else
+      (* [m] has the form "pattern\n   Ppat_lazy\n   etc", we select Ppat_lazy *)
+      m
+      |> String.tr ~target:'\n' ~replacement:' '
+      |> String.split ~on:' '
+      |> List.filter ~f:(Fn.non String.is_empty)
+      |> List.take __ 2
+      |> List.last
+      |> Option.value ~default:""
   in
   unsupported_motif loc m_compact
 
